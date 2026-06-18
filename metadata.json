@@ -1,0 +1,8 @@
+{
+  "name": "四色牌傳統桌遊",
+  "description": "專為長輩設計的四色牌傳統桌遊，支援「抓對對子簡單玩法」與「傳統吃碰標準玩法」，具備大字體高對比介面、透視模式與智慧電腦AI對決。",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
