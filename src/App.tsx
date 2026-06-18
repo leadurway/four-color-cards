@@ -242,7 +242,7 @@ export default function App() {
           hoo: isGeneral(q[0]) ? 8 : 4,
           name: `自帶暗開車 [${q[0].name}*4]`
         });
-        addLog(`[開局判定] 電腦 AI 自動鎖定【暗開車 ${q[0].name}*5】。`);
+        addLog(`[開局判定] 電腦 AI 自動鎖定【暗開車 ${q[0].name}*4】。`);
       });
       cGroup.triples.forEach(t => {
         computerRevealed.push({
@@ -252,7 +252,7 @@ export default function App() {
           hoo: isGeneral(t[0]) ? 3 : 1,
           name: `自帶暗坎 [${t[0].name}*3]`
         });
-        addLog(`[開局判定] 電腦 AI 自動鎖定【暗坎 ${t[0].name}*4】。`);
+        addLog(`[開局判定] 電腦 AI 自動鎖定【暗坎 ${t[0].name}*3】。`);
       });
 
       const filteredCHand: Card[] = [];
@@ -452,9 +452,7 @@ export default function App() {
       } else {
         // Standard Mode AI evaluations on opponent discard
         if (moves.canHu) {
-          const expandedHand = [...computer.hand, playerDiscard];
-          const huResult = solveHu(expandedHand, computer.revealed);
-          handleWin('computer', 'hu', `電腦阻擊胡牌！在您拋出 [${playerDiscard.name}] 時完美鳴牌自胡！ ${huResult.explanation}`);
+          handleWin('computer', 'hu', `電腦阻擊胡牌！在您拋出 [${playerDiscard.name}] 時完美鳴牌自胡！ ${moves.huResult!.explanation}`);
           setIsComputerThinking(false);
           return;
         }
@@ -462,7 +460,8 @@ export default function App() {
         if (moves.canQuad) {
           const pKey = `${playerDiscard.color}-${playerDiscard.character}`;
           const inHand = computer.hand.filter(c => `${c.color}-${c.character}` === pKey);
-          
+          let effectiveHand = computer.hand;
+
           if (inHand.length === 3) {
             const newHand = computer.hand.filter(c => !inHand.map(r => r.id).includes(c.id));
             const newMeld: RevealedMeld = {
@@ -473,10 +472,11 @@ export default function App() {
               name: `明開車 [${playerDiscard.name}*4]`
             };
             setComputer(prev => ({ ...prev, hand: newHand, revealed: [...prev.revealed, newMeld] }));
+            effectiveHand = newHand;
           }
           addLog(`🤖 電腦 AI 吃牌宣告【明開車/槓】，霸氣槓出您的 [${playerDiscard.name}]！`);
           setLastDiscardedCard(null);
-          setTimeout(() => { executeComputerDiscard(computer.hand); }, 900);
+          setTimeout(() => { executeComputerDiscard(effectiveHand); }, 900);
           return;
         }
 
@@ -566,9 +566,7 @@ export default function App() {
       const cMoves = checkAvailableMoves(computer.hand, computer.revealed, drawn, true);
       
       if (cMoves.canHu) {
-        const expandedHand = [...computer.hand, drawn];
-        const huResult = solveHu(expandedHand, computer.revealed);
-        handleWin('computer', 'hu', `電腦 AI 自摸宣告胡牌！胡牌牌型：${huResult.explanation}`);
+        handleWin('computer', 'hu', `電腦 AI 自摸宣告胡牌！胡牌牌型：${cMoves.huResult!.explanation}`);
         setIsComputerThinking(false);
         return;
       }
@@ -864,14 +862,7 @@ export default function App() {
       setHasDrawn(true);
       setGuideMessage(`吃牌成功！組成同色序列 [${eatOption.meldName}]。請選牌打出。`);
     } else if (actionType === 'hu') {
-      const expandedHand = [...player.hand];
-      if (lastDrawnCard && drawnFromDeck) {
-        expandedHand.push(lastDrawnCard);
-      } else if (lastDiscardedCard) {
-        expandedHand.push(lastDiscardedCard);
-      }
-      const huResult = solveHu(expandedHand, player.revealed);
-      handleWin('player', 'hu', huResult.explanation);
+      handleWin('player', 'hu', pendingMoves!.huResult!.explanation);
     }
   };
 
@@ -978,10 +969,10 @@ export default function App() {
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_#044e39_0%,_#021d14_100%)] opacity-80 z-0 pointer-events-none" />
 
       {/* FULLSCREEN GAME BOARD CONSOLE */}
-      <div className="w-full h-full max-w-5xl bg-[#064e3b]/95 shadow-2xl flex flex-col overflow-hidden relative border-x border-emerald-950/40 z-20 animate-fade-in">
+      <div className="w-full h-full max-w-7xl bg-[#064e3b]/95 shadow-2xl flex flex-col overflow-hidden relative border-x border-emerald-950/40 z-20 animate-fade-in">
         
         {/* iPhone Top Status Bar/Notch Area Information Indicator */}
-        <div className="w-full bg-[#032e22]/90 text-slate-300 flex items-center justify-between px-6 font-mono text-[10px] sm:text-xs tracking-wide shrink-0 relative border-b border-white/5 pt-[env(safe-area-inset-top,12px)] pb-2.5 z-40 select-none">
+        <div className="md:hidden w-full bg-[#032e22]/90 text-slate-300 flex items-center justify-between px-6 font-mono text-[10px] sm:text-xs tracking-wide shrink-0 relative border-b border-white/5 pt-[env(safe-area-inset-top,12px)] pb-2.5 z-40 select-none">
           <div className="flex items-center gap-1.5">
             <span className="font-extrabold text-yellow-500 font-sans">09:41 🀄</span>
             <span className="text-[10px] hidden sm:inline text-slate-400">| 四色牌智慧護腦</span>
@@ -1001,13 +992,13 @@ export default function App() {
           
           {/* 1. Lobby/Setup Page (遊戲開始設定頁面) */}
           {activePage === 'lobby' && (
-            <div className="flex-1 px-5 py-4 flex flex-col justify-between h-full select-none text-white overflow-hidden min-h-0">
+            <div className="flex-1 px-5 py-4 lg:px-16 xl:px-32 flex flex-col justify-between h-full select-none text-white overflow-hidden min-h-0">
               
               {/* Grand compact title */}
               <div className="text-center space-y-1 py-1 shrink-0">
                 <div className="flex items-center justify-center gap-2">
                   <Sparkles className="w-5 h-5 text-yellow-500 animate-pulse shrink-0" />
-                  <h1 className="text-xl md:text-2xl font-serif font-black tracking-widest text-yellow-500 italic select-none">
+                  <h1 className="text-xl md:text-2xl lg:text-3xl font-serif font-black tracking-widest text-yellow-500 italic select-none">
                     四色牌傳統遊藝廳
                   </h1>
                   <Sparkles className="w-5 h-5 text-yellow-500 animate-pulse shrink-0" />
@@ -1168,7 +1159,7 @@ export default function App() {
 
           {/* 2. Game Play Page (遊戲頁面) */}
           {activePage === 'game' && (
-            <div className="flex-1 flex flex-col justify-between h-full w-full select-none text-white overflow-hidden relative">
+            <div className="flex-1 flex flex-col h-full w-full select-none text-white overflow-hidden relative">
               
               {/* Compact header */}
               <header className="h-[52px] bg-black/40 border-b border-white/10 px-3 flex items-center justify-between shrink-0 select-none z-10">
@@ -1197,6 +1188,7 @@ export default function App() {
               </header>
 
               {/* GAME SPACE FLOW */}
+              <div className="flex-1 min-h-0 flex overflow-hidden">
               <div className="flex-1 flex flex-col justify-between overflow-y-auto min-h-0 py-2 px-3 space-y-1.5">
                 
                 {/* AI / OPPONENT STATUS (Top) */}
@@ -1229,7 +1221,7 @@ export default function App() {
                   )}
 
                   {/* Fan of AI cards */}
-                  <div className="flex flex-wrap justify-center items-center gap-0.5 pt-1.5 border-t border-white/5 max-h-[66px] overflow-hidden">
+                  <div className="flex flex-wrap justify-center items-center gap-0.5 pt-1.5 border-t border-white/5 max-h-[66px] md:max-h-[110px] lg:max-h-none overflow-hidden">
                     {showComputerHand ? (
                       computer.hand.map((card) => (
                         <div key={card.id} className="opacity-75 filter scale-75">
@@ -1509,7 +1501,7 @@ export default function App() {
                 </div>
 
                 {/* HELPER BOX */}
-                <div className="bg-yellow-500/10 border-l-2 border-yellow-500 p-2.5 rounded-r-xl flex items-start gap-1.5 mt-1 shrink-0 select-none">
+                <div className="lg:hidden bg-yellow-500/10 border-l-2 border-yellow-500 p-2.5 rounded-r-xl flex items-start gap-1.5 mt-1 shrink-0 select-none">
                   <Info className="w-3.5 h-3.5 text-yellow-400 shrink-0 mt-0.5" />
                   <p className="text-slate-100 text-[10px] text-left leading-tight font-bold select-none">
                     {guideMessage}
@@ -1517,9 +1509,9 @@ export default function App() {
                 </div>
 
                 {/* LOGS MARQUEE TICKER (2 line ticker) */}
-                <div 
+                <div
                   onClick={() => setShowLogDrawer(!showLogDrawer)}
-                  className="bg-[#05291d] border border-emerald-800/30 rounded-xl p-2.5 flex items-center justify-between cursor-pointer text-[11px] font-mono text-yellow-101/90 hover:bg-[#073325] transition-all select-none pr-3 mt-1.5 shrink-0"
+                  className="lg:hidden bg-[#05291d] border border-emerald-800/30 rounded-xl p-2.5 flex items-center justify-between cursor-pointer text-[11px] font-mono text-yellow-101/90 hover:bg-[#073325] transition-all select-none pr-3 mt-1.5 shrink-0"
                 >
                   <div className="flex-1 space-y-0.5 max-h-[30px] overflow-hidden text-left pr-2">
                     {logs.length > 0 ? (
@@ -1540,9 +1532,39 @@ export default function App() {
 
               </div>
 
+              {/* SIDEBAR — Desktop lg+ only */}
+              <aside className="hidden lg:flex flex-col w-72 xl:w-80 border-l border-white/10 bg-black/20 p-4 gap-3 overflow-hidden shrink-0">
+                {/* Guide */}
+                <div className="bg-yellow-500/10 border-l-2 border-yellow-500 p-3 rounded-r-xl flex items-start gap-2 shrink-0">
+                  <Info className="w-4 h-4 text-yellow-400 shrink-0 mt-0.5" />
+                  <p className="text-slate-100 text-xs leading-relaxed font-bold">{guideMessage}</p>
+                </div>
+                {/* Logs */}
+                <div className="flex-1 flex flex-col min-h-0 bg-[#05291d] border border-emerald-800/30 rounded-xl overflow-hidden">
+                  <div className="px-3 py-2 border-b border-white/10 text-[11px] font-extrabold text-yellow-500 flex items-center gap-1.5 shrink-0">
+                    <History className="w-3.5 h-3.5" />
+                    牌局記錄
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-2 space-y-0.5 text-[10px] font-mono">
+                    {logs.length === 0 ? (
+                      <p className="text-slate-500 text-center mt-4">尚無記錄</p>
+                    ) : (
+                      [...logs].reverse().map((log, idx) => (
+                        <div key={idx} className="py-0.5 border-b border-white/5 last:border-0 flex items-start gap-1 leading-snug text-slate-300">
+                          <span className="text-yellow-500 shrink-0">▸</span>
+                          <span>{log}</span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </aside>
+
+              </div>{/* closes flex-1 min-h-0 flex overflow-hidden */}
+
               {/* RETRO DIALOG HISTORY ON DEMAND OVERLAY */}
               {showLogDrawer && (
-                <div className="absolute inset-x-0 bottom-0 top-[52px] bg-[#022c1e]/98 border-t border-emerald-500/30 z-30 p-4 flex flex-col justify-between select-none">
+                <div className="lg:hidden absolute inset-x-0 bottom-0 top-[52px] bg-[#022c1e]/98 border-t border-emerald-500/30 z-30 p-4 flex flex-col justify-between select-none">
                   <div className="text-sm font-extrabold text-yellow-500 border-b border-white/10 pb-2 mb-3 flex items-center justify-between">
                     <span>📋 牌局歷程回顧：</span>
                     <button 
@@ -1749,7 +1771,7 @@ export default function App() {
         </div>
 
         {/* iPhone Bottom Home Indicator Safe Zone Area (上滑回主頁保護區) */}
-        <div className="w-full bg-[#032e22]/95 py-2.5 flex flex-col items-center justify-center shrink-0 border-t border-white/5 z-40 select-none pb-[env(safe-area-inset-bottom,12px)]">
+        <div className="md:hidden w-full bg-[#032e22]/95 py-2.5 flex flex-col items-center justify-center shrink-0 border-t border-white/5 z-40 select-none pb-[env(safe-area-inset-bottom,12px)]">
           <div className="w-[124px] h-[5px] bg-slate-400/70 rounded-full mb-1" />
           <span className="text-[9px] font-bold tracking-widest text-[#5ba283] opacity-80 select-none uppercase">上滑返回主畫面</span>
         </div>
