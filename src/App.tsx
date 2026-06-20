@@ -1189,8 +1189,11 @@ export default function App() {
 
               {/* GAME SPACE FLOW */}
               <div className="flex-1 min-h-0 flex overflow-hidden">
-              <div className="flex-1 flex flex-col justify-between overflow-y-auto min-h-0 py-2 px-3 space-y-1.5">
-                
+              <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+
+                {/* ① 遊戲頁面 — Game Display Panel */}
+                <div className="shrink-0 flex flex-col px-3 pt-2 pb-1.5 space-y-1.5 border-b-2 border-white/10">
+
                 {/* AI / OPPONENT STATUS (Top) */}
                 <div className="bg-black/35 p-2 rounded-2xl border border-white/5 space-y-1 text-xs relative select-none">
                   <div className="flex items-center justify-between">
@@ -1239,7 +1242,7 @@ export default function App() {
                 </div>
 
                 {/* THE PORTRAIT RIVER / TABLE (Middle) */}
-                <div className="my-1.5 p-2 bg-black/20 rounded-2xl border border-white/5 grid grid-cols-12 gap-1.5 items-center select-none">
+                <div className="p-2 bg-black/20 rounded-2xl border border-white/5 grid grid-cols-12 gap-1.5 items-center select-none">
                   
                   {/* Left: Deck stack (摸牌) */}
                   <div className="col-span-4 flex flex-col items-center justify-center border-r border-white/10 py-1 pr-1">
@@ -1322,11 +1325,14 @@ export default function App() {
                   </div>
                 </div>
 
+                </div>{/* end 遊戲頁面 */}
 
+                {/* ② 控制頁面 — Control Panel */}
+                <div className="flex-1 flex flex-col overflow-y-auto min-h-0 px-3 pt-1.5 pb-2 space-y-1.5">
 
                 {/* GAME ACTIVE DECISIONS */}
                 {pendingMoves && gamePhase === 'waiting_player_action' && (
-                  <div className="bg-black/95 border-2 border-yellow-500 p-2.5 rounded-2xl flex flex-col items-center gap-2 animate-pulse shadow-2xl shrink-0 my-1 z-40">
+                  <div className="bg-black/95 border-2 border-yellow-500 p-2.5 rounded-2xl flex flex-col items-center gap-2 animate-pulse shadow-2xl shrink-0 z-40">
                     <div className="text-[11px] font-black text-yellow-400 border-b border-white/10 w-full text-center pb-1">
                       🚨 雷達鎖定配對信號！請選擇：
                     </div>
@@ -1385,7 +1391,7 @@ export default function App() {
                 )}
 
                 {/* ELDER ACTION CONTROLLER AID (Bottom) */}
-                <div className="bg-black/35 p-3 rounded-2xl border border-white/10 space-y-2 select-none relative my-1 shrink-0">
+                <div className="bg-black/35 p-3 rounded-2xl border border-white/10 space-y-2 select-none relative shrink-0">
                   <div className="flex flex-col gap-1.5">
                     
                     {/* User profile banner */}
@@ -1436,20 +1442,19 @@ export default function App() {
                       👇 您的手牌區 (輕敲卡牌可選定，再點擊右下角黃色【打牌】)：
                     </span>
 
-                    <div className="flex flex-wrap justify-center items-center gap-x-1.5 gap-y-4 p-3.5 bg-black/45 rounded-xl border border-white/10 min-h-[160px] h-auto">
+                    <div className="flex flex-wrap justify-center items-center gap-x-1 gap-y-3 p-3.5 bg-black/45 rounded-xl border border-white/10 min-h-[110px] h-auto">
                       {player.hand.map((card) => {
                         const isSelected = card.id === selectedCardId;
                         const isStray = mode === 'pairs' && playerGrouping.strays.some(s => s.id === card.id);
                         return (
                           <div key={card.id} className="relative flex flex-col items-center">
-                            <div className="scale-95 origin-center transition-transform">
-                              <FourColorCard
-                                card={card}
-                                isRevealed={true}
-                                isSelected={isSelected}
-                                onClick={() => { playSound('click'); setSelectedCardId(isSelected ? null : card.id); }}
-                              />
-                            </div>
+                            <FourColorCard
+                              card={card}
+                              size="sm"
+                              isRevealed={true}
+                              isSelected={isSelected}
+                              onClick={() => { playSound('click'); setSelectedCardId(isSelected ? null : card.id); }}
+                            />
                             {mode === 'pairs' && isStray && (
                               <span className="absolute bottom-[-9px] text-[8px] scale-90 bg-red-950 text-red-500 font-extrabold border border-red-900/60 px-1 rounded leading-none pointer-events-none">
                                 散牌
@@ -1530,7 +1535,9 @@ export default function App() {
                   </div>
                 </div>
 
-              </div>
+                </div>{/* end 控制頁面 */}
+
+              </div>{/* end main column */}
 
               {/* SIDEBAR — Desktop lg+ only */}
               <aside className="hidden lg:flex flex-col w-72 xl:w-80 border-l border-white/10 bg-black/20 p-4 gap-3 overflow-hidden shrink-0">
