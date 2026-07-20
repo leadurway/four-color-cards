@@ -217,10 +217,12 @@ export default function App() {
     addLog(`歡迎 ${playerAvatar} ${playerName} 進入牌局！`);
     
     if (mode === 'pairs') {
-      addLog(`啟動【對對子簡單玩法】—— 起手每人分發 ${pairsHandSize} 張牌。`);
-      playerHand = shuffled.slice(0, pairsHandSize);
-      computerHand = shuffled.slice(pairsHandSize, pairsHandSize * 2);
-      remainingDeck = shuffled.slice(pairsHandSize * 2);
+      // Per rules: start with pairsHandSize-1 cards; the winning card is the Nth drawn/received
+      const startSize = pairsHandSize - 1;
+      addLog(`啟動【抓對子玩法】—— 起手每人分發 ${startSize} 張牌，湊成 ${pairsHandSize === 10 ? '五對（10張）' : '五組三張（15張）'} 勝出。`);
+      playerHand = shuffled.slice(0, startSize);
+      computerHand = shuffled.slice(startSize, startSize * 2);
+      remainingDeck = shuffled.slice(startSize * 2);
     } else {
       addLog(`啟動【傳統吃碰標準玩法】—— 起手發 20 張牌進行博弈。`);
       playerHand = shuffled.slice(0, 20);
@@ -319,7 +321,8 @@ export default function App() {
     setDrawnFromDeck(false);
     setSelectedCardId(null);
     setPendingMoves(null);
-    setCanDiscard(true); // Player starts first with draw privilege
+    // In pairs mode player must draw first; in standard mode initial discard is allowed
+    setCanDiscard(mode !== 'pairs');
     setHasDrawn(false);
     
     setGuideMessage('發牌與洗牌完成！輪到您的回合。點選左方「紅疊牌庫」抽取一張牌。');
@@ -422,11 +425,20 @@ export default function App() {
 
     addLog(`【您打牌】打出了一張棄牌：[${cardToDiscard.name}]`);
 
+    // Pairs mode: check if discarding this card leaves hand with no strays → win
+    if (mode === 'pairs') {
+      const afterGroup = groupPairsMode(updatedHand);
+      if (afterGroup.strays.length === 0 && updatedHand.length > 0) {
+        handleWin('player', 'pairs', '恭喜！您打出多餘單張後，手中所有散牌均已配對完畢，宣告勝出！');
+        return;
+      }
+    }
+
     // Hand turn over to computer. Computer checks if it wants to react to player's discard
     setCurPlayerId('computer');
     setIsComputerThinking(true);
     setGuideMessage('您已成功出手！電腦正在絞盡大腦思索對抗策略...');
-    
+
     setTimeout(() => {
       runComputerTurn(cardToDiscard);
     }, 1200);
@@ -722,6 +734,16 @@ export default function App() {
     setDiscardPile(prev => [discarded, ...prev]);
     setLastDiscardedCard(discarded);
     addLog(`🤖 電腦 AI 思考後打出了拋牌：[${discarded.name}]`);
+
+    // Pairs mode: check if computer's hand is now all-paired after discarding
+    if (mode === 'pairs') {
+      const compAfterGroup = groupPairsMode(finalHand);
+      if (compAfterGroup.strays.length === 0 && finalHand.length > 0) {
+        handleWin('computer', 'pairs', '電腦打出多餘單張後，手中散牌全部配對完畢，電腦勝出！');
+        setIsComputerThinking(false);
+        return;
+      }
+    }
 
     // Let the player react to computer's discard!
     const playerMoves = checkAvailableMoves(player.hand, player.revealed, discarded, false);
@@ -1143,7 +1165,7 @@ export default function App() {
                               pairsHandSize === 10 ? 'bg-yellow-500 text-black' : 'bg-white/10 text-slate-200'
                             }`}
                           >
-                            10張牌極速
+                            10張五對胡（發9張）
                           </button>
                           <button
                             onClick={() => { playSound('click'); setPairsHandSize(15); }}
@@ -1151,7 +1173,7 @@ export default function App() {
                               pairsHandSize === 15 ? 'bg-yellow-500 text-black' : 'bg-white/10 text-slate-200'
                             }`}
                           >
-                            15張牌經典
+                            15張五組胡（發14張）
                           </button>
                         </div>
                       )}
@@ -1757,16 +1779,46 @@ export default function App() {
 
                 {activeTutorialTab === 'pairs' && (
                   <div className="space-y-4 select-none">
-                    <h3 className="text-lg font-black text-yellow-500 border-b border-white/10 pb-2">👦 玩法一：抓對對子簡單玩法</h3>
-                    <p className="text-slate-300 font-semibold leading-relaxed text-base">
-                      專門為了長輩日常益智、防走失設計的單純玩法，省卻了複雜牌組計算：
+                    <h3 className="text-lg font-black text-yellow-500 border-b border-white/10 pb-2">👦 玩法一：抓對子（湊對子）</h3>
+                    <p className="text-slate-300 font-semibold leading-relaxed text-sm">
+                      比傳統十胡更簡單、快速的入門玩法，核心在於湊出相同的牌（同色同字）。
                     </p>
-                    <ul className="list-decimal pl-5 space-y-3 text-slate-300 font-bold leading-relaxed text-sm">
-                      <li><strong>分發起手牌：</strong> 開局每人分配 10 張或 15 張骨牌。</li>
-                      <li><strong>自動防呆判定：</strong> 系統會偵測手牌中的「暗坎（同色同字三張）」與「暗開車（四張）」並直接放在桌上。</li>
-                      <li><strong>配對消消樂：</strong> 當電腦打牌或自己摸到跟手上單張完全相同的牌時，點擊【吃對】，即可將牌配對推置桌前。</li>
-                      <li><strong>完賽宣告：</strong> 誰最先將手上的單卡「全部配對攤乾淨」，誰便拔得頭籌，宣告大勝！</li>
-                    </ul>
+
+                    {/* 10-card rules */}
+                    <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-3 space-y-2">
+                      <p className="font-extrabold text-yellow-400 text-sm">🃏 10張玩法「五對胡」</p>
+                      <ul className="list-disc pl-4 space-y-1.5 text-slate-300 text-xs font-medium leading-snug">
+                        <li><strong className="text-white">起手牌數：</strong>每人發 <strong className="text-yellow-300">9 張</strong>牌，其餘放在中央為牌疊。</li>
+                        <li><strong className="text-white">摸牌：</strong>輪到自己時從牌疊摸一張。若與手中某張單牌湊成對子，點【吃對】配對並打出一張不要的牌；若無法配對，可打出剛摸到的牌，或換入手中打出另一張。</li>
+                        <li><strong className="text-white">碰牌：</strong>他人打出與你手中單牌完全相同的牌時，可喊「碰」湊成對子，再打出一張手牌。</li>
+                        <li><strong className="text-white">聽牌：</strong>手中已有 4 個對子＋1 張單牌時，為「聽牌」狀態。</li>
+                        <li><strong className="text-yellow-300">胡牌：</strong>自摸或他人打出與那張單牌配對的牌，完成 <strong>5 個對子（共 10 張）</strong>，喊「胡」勝出！</li>
+                      </ul>
+                    </div>
+
+                    {/* 15-card rules */}
+                    <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-3 space-y-2">
+                      <p className="font-extrabold text-blue-300 text-sm">🀄 15張玩法「五組三張」</p>
+                      <ul className="list-disc pl-4 space-y-1.5 text-slate-300 text-xs font-medium leading-snug">
+                        <li><strong className="text-white">起手牌數：</strong>每人發 <strong className="text-blue-200">14 張</strong>牌。</li>
+                        <li><strong className="text-white">容許組合（每組 3 張）：</strong>
+                          <ul className="list-none pl-2 mt-1 space-y-1">
+                            <li>① 同色同字三張（例：3張綠包）</li>
+                            <li>② 常規散牌組（同色：將士象 或 車馬包）</li>
+                            <li>③ 同字異色三張（例：紅兵＋綠兵＋黃兵）</li>
+                          </ul>
+                        </li>
+                        <li><strong className="text-white">摸牌與碰吃：</strong>輪流摸牌；摸到可湊組的牌可保留並打出一張；他人打出的牌若能湊組可喊「碰」或「吃」。</li>
+                        <li><strong className="text-blue-200">胡牌：</strong>手牌加上最後贏的那張牌，剛好湊滿 <strong>5 組（共 15 張）</strong>即為胡牌！</li>
+                      </ul>
+                    </div>
+
+                    {/* General rule */}
+                    <div className="bg-black/30 border border-white/10 rounded-xl p-3">
+                      <p className="text-slate-400 text-xs font-semibold leading-snug">
+                        💡 <strong className="text-slate-200">系統自動處理：</strong>開局時系統會自動偵測手牌中的「暗坎（三張）」與「暗開車（四張）」並直接放桌上。牌疊摸完無人胡牌則判定為<strong className="text-orange-300">流局（平手）</strong>。
+                      </p>
+                    </div>
                   </div>
                 )}
 
