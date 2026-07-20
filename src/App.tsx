@@ -1646,7 +1646,6 @@ export default function App() {
                               size="xs"
                               isRevealed={true}
                               isSelected={isSelected}
-                              disabled={isPaired}
                               onClick={() => {
                                 if (isPaired) return;
                                 playSound('click');
@@ -1655,19 +1654,19 @@ export default function App() {
                               cardStyle={{
                                 width: handCardDims.w,
                                 height: handCardDims.h,
+                                cursor: isPaired ? 'default' : undefined,
                               }}
                               charFontSize={handCardDims.fs}
                             />
                             {mode === 'pairs' && (
                               <span
-                                className="absolute top-0 left-0 z-10 flex items-center justify-center pointer-events-none text-[9px] font-extrabold leading-none border-b"
+                                className="absolute top-0 inset-x-0 z-10 flex items-center justify-center pointer-events-none text-[9px] font-extrabold leading-none border-b"
                                 style={{
-                                  width: handCardDims.w,
                                   height: 13,
-                                  background: isPaired ? 'rgba(30,58,138,0.55)' : 'rgba(127,29,29,0.55)',
-                                  borderColor: isPaired ? 'rgba(96,165,250,0.9)' : 'rgba(248,113,113,0.9)',
-                                  color: isPaired ? '#93c5fd' : '#fca5a5',
-                                  textShadow: isPaired ? '0 0 6px rgba(96,165,250,0.9)' : '0 0 6px rgba(248,113,113,0.9)',
+                                  background: isPaired ? 'rgba(30,58,138,0.52)' : 'rgba(127,29,29,0.52)',
+                                  borderColor: isPaired ? 'rgba(96,165,250,0.95)' : 'rgba(248,113,113,0.95)',
+                                  color: isPaired ? '#bfdbfe' : '#fecaca',
+                                  textShadow: isPaired ? '0 0 5px #93c5fd' : '0 0 5px #fca5a5',
                                 }}
                               >
                                 {isPaired ? '對' : '散'}
