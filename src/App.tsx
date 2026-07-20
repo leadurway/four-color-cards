@@ -1641,6 +1641,15 @@ export default function App() {
                         const isSelected = card.id === selectedCardId && isStray;
                         return (
                           <div key={card.id} className="relative flex flex-col items-center">
+                            {mode === 'pairs' && (
+                              <span className={`absolute top-[-11px] left-1/2 -translate-x-1/2 z-10 text-[9px] font-extrabold px-1 py-px rounded leading-none pointer-events-none border ${
+                                isPaired
+                                  ? 'bg-blue-900 text-blue-300 border-blue-500 shadow-[0_0_6px_rgba(96,165,250,0.7)]'
+                                  : 'bg-red-900 text-red-300 border-red-500 shadow-[0_0_6px_rgba(248,113,113,0.7)]'
+                              }`}>
+                                {isPaired ? '對' : '散'}
+                              </span>
+                            )}
                             <FourColorCard
                               card={card}
                               size="xs"
@@ -1661,16 +1670,6 @@ export default function App() {
                               }}
                               charFontSize={handCardDims.fs}
                             />
-                            {mode === 'pairs' && isPaired && (
-                              <span className="absolute bottom-[-8px] text-[7px] bg-purple-950 text-purple-400 font-extrabold border border-purple-900/60 px-0.5 rounded leading-none pointer-events-none">
-                                對
-                              </span>
-                            )}
-                            {mode === 'pairs' && isStray && (
-                              <span className="absolute bottom-[-8px] text-[7px] bg-red-950 text-red-500 font-extrabold border border-red-900/60 px-0.5 rounded leading-none pointer-events-none">
-                                散
-                              </span>
-                            )}
                           </div>
                         );
                       })}
