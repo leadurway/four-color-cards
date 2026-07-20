@@ -1635,83 +1635,83 @@ export default function App() {
             <div className="flex-1 flex flex-col justify-between h-full w-full select-none text-white overflow-hidden">
               
               {/* Header */}
-              <header className="h-[60px] bg-black/40 border-b border-white/10 px-3 flex items-center justify-between shrink-0 select-none z-10">
+              <header className="h-[72px] bg-black/40 border-b border-white/10 px-3 flex items-center justify-between shrink-0 select-none z-10">
                 <button
                   onClick={handleBackFromRules}
-                  className="py-2 px-4 bg-white/10 hover:bg-white/15 border border-white/10 text-sm font-extrabold text-slate-200 rounded-xl transition-all flex items-center gap-1"
+                  className="py-2.5 px-5 bg-white/10 hover:bg-white/15 border border-white/10 text-base font-extrabold text-slate-200 rounded-xl transition-all flex items-center gap-2"
                 >
-                  <ArrowLeft className="w-4 h-4" />
+                  <ArrowLeft className="w-5 h-5" />
                   返回
                 </button>
-                <span className="text-base font-black text-yellow-500 tracking-wider">🀄 傳統四色牌指引</span>
-                <div className="w-16 h-3" />
+                <span className="text-lg font-black text-yellow-500 tracking-wider">🀄 傳統四色牌指引</span>
+                <div className="w-20 h-3" />
               </header>
 
               {/* Sub tabs */}
-              <div className="bg-black/20 p-2 flex border-b border-white/5 justify-between gap-1 shrink-0 text-xs font-semibold select-none">
+              <div className="bg-black/20 p-2 flex border-b border-white/5 justify-between gap-1.5 shrink-0 text-sm font-semibold select-none">
                 <button
                   onClick={() => handleSwitchTab('ranks')}
-                  className={`flex-1 py-2 px-0.5 rounded text-center transition-colors ${activeTutorialTab === 'ranks' ? 'bg-yellow-500 text-black font-extrabold' : 'hover:bg-white/5 text-slate-300 font-medium'}`}
+                  className={`flex-1 py-3 px-0.5 rounded-lg text-center transition-colors ${activeTutorialTab === 'ranks' ? 'bg-yellow-500 text-black font-extrabold' : 'hover:bg-white/5 text-slate-300 font-medium'}`}
                 >
                   🎨 牌色圖鑑
                 </button>
                 <button
                   onClick={() => handleSwitchTab('pairs')}
-                  className={`flex-1 py-2 px-0.5 rounded text-center transition-colors ${activeTutorialTab === 'pairs' ? 'bg-yellow-500 text-black font-extrabold' : 'hover:bg-white/5 text-slate-300 font-medium'}`}
+                  className={`flex-1 py-3 px-0.5 rounded-lg text-center transition-colors ${activeTutorialTab === 'pairs' ? 'bg-yellow-500 text-black font-extrabold' : 'hover:bg-white/5 text-slate-300 font-medium'}`}
                 >
                   👦 簡單對子
                 </button>
                 <button
                   onClick={() => handleSwitchTab('standard')}
-                  className={`flex-1 py-2 px-0.5 rounded text-center transition-colors ${activeTutorialTab === 'standard' ? 'bg-yellow-500 text-black font-extrabold' : 'hover:bg-white/5 text-slate-300 font-medium'}`}
+                  className={`flex-1 py-3 px-0.5 rounded-lg text-center transition-colors ${activeTutorialTab === 'standard' ? 'bg-yellow-500 text-black font-extrabold' : 'hover:bg-white/5 text-slate-300 font-medium'}`}
                 >
                   🀄 傳統吃碰
                 </button>
                 <button
                   onClick={() => handleSwitchTab('point')}
-                  className={`flex-1 py-2 px-0.5 rounded text-center transition-colors ${activeTutorialTab === 'point' ? 'bg-yellow-500 text-black font-extrabold' : 'hover:bg-white/5 text-slate-300 font-medium'}`}
+                  className={`flex-1 py-3 px-0.5 rounded-lg text-center transition-colors ${activeTutorialTab === 'point' ? 'bg-yellow-500 text-black font-extrabold' : 'hover:bg-white/5 text-slate-300 font-medium'}`}
                 >
                   📊 胡數計分
                 </button>
               </div>
 
               {/* Tab contents */}
-              <div className="flex-1 p-4 overflow-y-auto min-h-0 text-slate-200 text-left text-sm space-y-4 font-sans leading-relaxed scrollbar-thin">
+              <div className="flex-1 p-4 overflow-y-auto min-h-0 text-slate-200 text-left text-base space-y-4 font-sans leading-relaxed scrollbar-thin">
 
                 {activeTutorialTab === 'ranks' && (
                   <div className="space-y-4">
-                    <div className="bg-white/5 p-3 rounded-2xl border border-white/10 text-center select-none">
-                      <p className="font-extrabold text-yellow-500 text-base mb-1">整套四色牌共有 112 張</p>
-                      <p className="text-xs text-slate-400 font-semibold">區分為：紅、黃、綠、白 等四種色系：</p>
+                    <div className="bg-white/5 p-4 rounded-2xl border border-white/10 text-center select-none">
+                      <p className="font-extrabold text-yellow-500 text-xl mb-1">整套四色牌共有 112 張</p>
+                      <p className="text-sm text-slate-400 font-semibold">區分為：紅、黃、綠、白 等四種色系：</p>
                     </div>
 
                     <div className="space-y-3 select-none">
-                      <div className="p-3 bg-red-950/20 border border-red-900/40 rounded-xl">
-                        <p className="font-extrabold text-orange-400 text-sm mb-1">🔴 紅色 與 🟡 黃色 (高階牌面)</p>
-                        <p className="text-xs text-slate-300 font-medium">
+                      <div className="p-4 bg-red-950/20 border border-red-900/40 rounded-xl">
+                        <p className="font-extrabold text-orange-400 text-base mb-2">🔴 紅色 與 🟡 黃色 (高階牌面)</p>
+                        <p className="text-sm text-slate-300 font-medium">
                           文字代表角色依次序為：<strong>帥、仕、相、俥、傌、炮、兵</strong>。
                         </p>
-                        <div className="flex gap-1.5 mt-2">
-                          <span className="bg-amber-100/10 border border-amber-500 px-1.5 py-0.5 rounded text-[10px] text-yellow-400 font-black">黃帥</span>
-                          <span className="bg-red-800/15 border border-red-650 px-1.5 py-0.5 rounded text-[10px] text-orange-400 font-black">紅帥</span>
+                        <div className="flex gap-2 mt-3">
+                          <span className="bg-amber-100/10 border border-amber-500 px-2.5 py-1 rounded text-sm text-yellow-400 font-black">黃帥</span>
+                          <span className="bg-red-800/15 border border-red-650 px-2.5 py-1 rounded text-sm text-orange-400 font-black">紅帥</span>
                         </div>
                       </div>
 
-                      <div className="p-3 bg-emerald-950/20 border border-emerald-900/40 rounded-xl">
-                        <p className="font-extrabold text-emerald-400 text-sm mb-1">🟢 綠色 與 ⚪ 白色 (基層角色)</p>
-                        <p className="text-xs text-slate-300 font-medium">
+                      <div className="p-4 bg-emerald-950/20 border border-emerald-900/40 rounded-xl">
+                        <p className="font-extrabold text-emerald-400 text-base mb-2">🟢 綠色 與 ⚪ 白色 (基層角色)</p>
+                        <p className="text-sm text-slate-300 font-medium">
                           文字代表角色依次序為：<strong>將、士、象、車、馬、包、卒</strong>。
                         </p>
-                        <div className="flex gap-1.5 mt-2">
-                          <span className="bg-emerald-900/20 border border-emerald-500 px-1.5 py-0.5 rounded text-[10px] text-emerald-400 font-black">綠將</span>
-                          <span className="bg-slate-800/20 border border-slate-500 px-1.5 py-0.5 rounded text-[10px] text-slate-200 font-black font-serif">白將</span>
+                        <div className="flex gap-2 mt-3">
+                          <span className="bg-emerald-900/20 border border-emerald-500 px-2.5 py-1 rounded text-sm text-emerald-400 font-black">綠將</span>
+                          <span className="bg-slate-800/20 border border-slate-500 px-2.5 py-1 rounded text-sm text-slate-200 font-black font-serif">白將</span>
                         </div>
                       </div>
                     </div>
 
-                    <div className="bg-yellow-500/5 p-3 rounded-xl border border-yellow-500/20 text-xs select-none">
-                      <h4 className="font-extrabold text-yellow-500 mb-1">💡 傳統常識貼心提醒：</h4>
-                      <p className="text-slate-300 leading-relaxed font-semibold">
+                    <div className="bg-yellow-500/5 p-4 rounded-xl border border-yellow-500/20 select-none">
+                      <h4 className="font-extrabold text-yellow-500 text-base mb-2">💡 傳統常識貼心提醒：</h4>
+                      <p className="text-slate-300 leading-relaxed font-semibold text-sm">
                         兩類字體雖有些微繁簡異體區分，但在配牌成組時，邏輯字體是一一對應、完全同等作用的（如紅帥與綠將在組同牌組時皆代表頂級將軍）。
                       </p>
                     </div>
@@ -1719,12 +1719,12 @@ export default function App() {
                 )}
 
                 {activeTutorialTab === 'pairs' && (
-                  <div className="space-y-3 text-xs select-none">
-                    <h3 className="text-sm font-black text-yellow-500 border-b border-white/10 pb-1">👦 玩法一：抓對對子簡單玩法</h3>
-                    <p className="text-slate-350 font-semibold leading-relaxed">
+                  <div className="space-y-4 select-none">
+                    <h3 className="text-lg font-black text-yellow-500 border-b border-white/10 pb-2">👦 玩法一：抓對對子簡單玩法</h3>
+                    <p className="text-slate-300 font-semibold leading-relaxed text-base">
                       專門為了長輩日常益智、防走失設計的單純玩法，省卻了複雜牌組計算：
                     </p>
-                    <ul className="list-decimal pl-5 space-y-2 text-slate-300 font-bold leading-normal">
+                    <ul className="list-decimal pl-5 space-y-3 text-slate-300 font-bold leading-relaxed text-sm">
                       <li><strong>分發起手牌：</strong> 開局每人分配 10 張或 15 張骨牌。</li>
                       <li><strong>自動防呆判定：</strong> 系統會偵測手牌中的「暗坎（同色同字三張）」與「暗開車（四張）」並直接放在桌上。</li>
                       <li><strong>配對消消樂：</strong> 當電腦打牌或自己摸到跟手上單張完全相同的牌時，點擊【吃對】，即可將牌配對推置桌前。</li>
@@ -1734,15 +1734,15 @@ export default function App() {
                 )}
 
                 {activeTutorialTab === 'standard' && (
-                  <div className="space-y-3 text-xs select-none">
-                    <h3 className="text-sm font-black text-yellow-500 border-b border-white/10 pb-1">🀄 玩法二：傳統吃碰標準玩法</h3>
-                    <p className="text-slate-350 font-semibold leading-relaxed">
+                  <div className="space-y-4 select-none">
+                    <h3 className="text-lg font-black text-yellow-500 border-b border-white/10 pb-2">🀄 玩法二：傳統吃碰標準玩法</h3>
+                    <p className="text-slate-300 font-semibold leading-relaxed text-base">
                       老祖宗正宗四色牌！重在組牌戰術、思索吃碰抉擇：
                     </p>
-                    <ul className="list-decimal pl-5 space-y-2 text-slate-300 font-bold leading-normal">
+                    <ul className="list-decimal pl-5 space-y-3 text-slate-300 font-bold leading-relaxed text-sm">
                       <li><strong>發牌張數：</strong> 每人分配 20 張手牌起點。</li>
                       <li><strong>合法牌組組合 (Meld)：</strong>
-                        <ul className="list-disc pl-4 mt-1 space-y-1 text-slate-300 font-medium">
+                        <ul className="list-disc pl-4 mt-2 space-y-1.5 text-slate-300 font-medium">
                           <li><span className="text-yellow-400">同色帥仕相 / 將士象</span>（3張各1）</li>
                           <li><span className="text-yellow-400">同色俥傌炮 / 車馬包</span>（3張各1）</li>
                           <li><span className="text-yellow-400">同色同字三張（明碰 / 暗坎）</span></li>
@@ -1760,29 +1760,29 @@ export default function App() {
                 )}
 
                 {activeTutorialTab === 'point' && (
-                  <div className="space-y-3.5 text-xs select-none">
-                    <h3 className="text-sm font-black text-yellow-500 border-b border-white/10 pb-1">📊 牌組胡數對抗速查：</h3>
-                    
-                    <div className="bg-black/35 p-2.5 rounded-xl border border-white/10 space-y-2">
-                      <p className="font-extrabold text-emerald-400 leading-none">🎖️ 帥／將 單獨算分：</p>
-                      <ul className="list-disc pl-4 space-y-1 text-slate-300 font-medium">
-                        <li>單張在手或亮相：1 胡</li>
-                        <li>對子（將眼）：2 胡</li>
-                        <li>暗坎 (三張相同在手)：3 胡</li>
-                        <li>四張全集（開車）：8 胡</li>
+                  <div className="space-y-4 select-none">
+                    <h3 className="text-lg font-black text-yellow-500 border-b border-white/10 pb-2">📊 牌組胡數對抗速查：</h3>
+
+                    <div className="bg-black/35 p-4 rounded-xl border border-white/10 space-y-3">
+                      <p className="font-extrabold text-emerald-400 text-base">🎖️ 帥／將 單獨算分：</p>
+                      <ul className="list-disc pl-5 space-y-2 text-slate-300 font-medium text-sm">
+                        <li>單張在手或亮相：<strong className="text-yellow-400">1 胡</strong></li>
+                        <li>對子（將眼）：<strong className="text-yellow-400">2 胡</strong></li>
+                        <li>暗坎 (三張相同在手)：<strong className="text-yellow-400">3 胡</strong></li>
+                        <li>四張全集（開車）：<strong className="text-yellow-400">8 胡</strong></li>
                       </ul>
                     </div>
 
-                    <div className="bg-black/35 p-2.5 rounded-xl border border-white/10 space-y-2">
-                      <p className="font-extrabold text-emerald-400 leading-none">🎎 一般同色牌組算分：</p>
-                      <ul className="list-disc pl-4 space-y-1 text-slate-300 font-medium">
-                        <li>同色帥仕相 (將士象)：2 胡</li>
-                        <li>同色俥傌炮 (車馬包)：2 胡</li>
-                        <li>明碰 (碰出去的三張)：1 胡</li>
-                        <li>暗坎 (手牌三張)：3 胡</li>
-                        <li>明開車/明槓：6 胡</li>
-                        <li>暗開車/暗槓：8 胡</li>
-                        <li>三異色 / 四異色組：1 胡 / 4 胡</li>
+                    <div className="bg-black/35 p-4 rounded-xl border border-white/10 space-y-3">
+                      <p className="font-extrabold text-emerald-400 text-base">🎎 一般同色牌組算分：</p>
+                      <ul className="list-disc pl-5 space-y-2 text-slate-300 font-medium text-sm">
+                        <li>同色帥仕相 (將士象)：<strong className="text-yellow-400">2 胡</strong></li>
+                        <li>同色俥傌炮 (車馬包)：<strong className="text-yellow-400">2 胡</strong></li>
+                        <li>明碰 (碰出去的三張)：<strong className="text-yellow-400">1 胡</strong></li>
+                        <li>暗坎 (手牌三張)：<strong className="text-yellow-400">3 胡</strong></li>
+                        <li>明開車 / 明槓：<strong className="text-yellow-400">6 胡</strong></li>
+                        <li>暗開車 / 暗槓：<strong className="text-yellow-400">8 胡</strong></li>
+                        <li>三異色 / 四異色組：<strong className="text-yellow-400">1 胡 / 4 胡</strong></li>
                       </ul>
                     </div>
                   </div>
@@ -1791,10 +1791,10 @@ export default function App() {
               </div>
 
               {/* Back trigger button */}
-              <div className="p-3 border-t border-white/10 bg-[#064e3b] shrink-0">
+              <div className="p-4 border-t border-white/10 bg-[#064e3b] shrink-0">
                 <button
                   onClick={handleBackFromRules}
-                  className="w-full py-3.5 bg-yellow-500 hover:bg-yellow-400 text-slate-950 font-black rounded-2xl text-base"
+                  className="w-full py-5 bg-yellow-500 hover:bg-yellow-400 text-slate-950 font-black rounded-2xl text-xl"
                 >
                   細讀完畢，返回上一頁
                 </button>
