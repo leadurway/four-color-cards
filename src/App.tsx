@@ -1014,7 +1014,6 @@ export default function App() {
       {/* FULLSCREEN GAME BOARD CONSOLE */}
       <div
         className="w-full h-full max-w-7xl bg-[#064e3b]/95 shadow-2xl flex flex-col overflow-hidden relative border-x border-emerald-950/40 z-20 animate-fade-in"
-        style={{ paddingTop: 'env(safe-area-inset-top, 0px)', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
       >
 
         {/* ========================================== */}
@@ -1024,7 +1023,7 @@ export default function App() {
           
           {/* 1. Lobby/Setup Page (遊戲開始設定頁面) */}
           {activePage === 'lobby' && (
-            <div className="flex-1 px-5 py-4 lg:px-16 xl:px-32 flex flex-col justify-between h-full select-none text-white overflow-hidden min-h-0">
+            <div className="flex-1 px-5 lg:px-16 xl:px-32 flex flex-col justify-between h-full select-none text-white overflow-hidden min-h-0" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 1rem)', paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)' }}>
               
               {/* Grand compact title */}
               <div className="text-center space-y-1 py-1 shrink-0">
@@ -1193,39 +1192,59 @@ export default function App() {
           {activePage === 'game' && (
             <div className="flex-1 flex flex-col h-full w-full select-none text-white overflow-hidden relative">
               
-              {/* Compact header */}
-              <header className="h-[60px] bg-black/40 border-b border-white/10 px-3 flex items-center justify-between shrink-0 select-none z-10">
-                <button
-                  onClick={handleQuitToLobby}
-                  className="py-2 px-4 bg-red-950/60 hover:bg-red-900/80 border border-red-800 text-sm font-extrabold text-red-200 rounded-xl transition-all"
-                >
-                  🚪 返回大廳
-                </button>
-
-                <div className="flex items-center gap-2">
-                  {/* Sound toggle */}
+              {/* Compact header — paddingTop fills behind the notch */}
+              <header
+                className="bg-black/40 border-b border-white/10 px-3 flex flex-col shrink-0 select-none z-10"
+                style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
+              >
+                {/* Row 1: navigation buttons */}
+                <div className="h-12 flex items-center justify-between">
                   <button
-                    onClick={() => { playSound('click'); setSoundEnabled(!soundEnabled); }}
-                    className="p-2 bg-white/5 border border-white/10 text-slate-300 hover:text-white rounded-full transition-colors"
+                    onClick={handleQuitToLobby}
+                    className="py-1.5 px-3 bg-red-950/60 hover:bg-red-900/80 border border-red-800 text-sm font-extrabold text-red-200 rounded-xl transition-all"
                   >
-                    {soundEnabled ? <Volume2 className="w-5 h-5 text-emerald-400" /> : <VolumeX className="w-5 h-5 text-red-400" />}
+                    🚪 返回
                   </button>
-                  {/* Log history (mobile) */}
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => { playSound('click'); setSoundEnabled(!soundEnabled); }}
+                      className="p-2 bg-white/5 border border-white/10 text-slate-300 hover:text-white rounded-full transition-colors"
+                    >
+                      {soundEnabled ? <Volume2 className="w-5 h-5 text-emerald-400" /> : <VolumeX className="w-5 h-5 text-red-400" />}
+                    </button>
+                    <button
+                      onClick={() => setShowLogDrawer(!showLogDrawer)}
+                      className="p-2 bg-white/5 border border-white/10 text-slate-300 hover:text-white rounded-full transition-colors lg:hidden"
+                    >
+                      <History className="w-5 h-5 text-slate-400" />
+                    </button>
+                  </div>
+
                   <button
-                    onClick={() => setShowLogDrawer(!showLogDrawer)}
-                    className="p-2 bg-white/5 border border-white/10 text-slate-300 hover:text-white rounded-full transition-colors lg:hidden"
+                    onClick={handleOpenRules}
+                    className="py-1.5 px-3 bg-yellow-500 text-slate-950 text-sm font-black rounded-xl transition-all flex items-center gap-1 shadow hover:bg-yellow-400"
                   >
-                    <History className="w-5 h-5 text-slate-400" />
+                    <HelpCircle className="w-4 h-4 shrink-0" />
+                    說明
                   </button>
                 </div>
 
-                <button
-                  onClick={handleOpenRules}
-                  className="py-2 px-4 bg-yellow-500 text-slate-950 text-sm font-black rounded-xl transition-all flex items-center gap-1 shadow hover:bg-yellow-400"
-                >
-                  <HelpCircle className="w-4 h-4 shrink-0" />
-                  遊戲說明
-                </button>
+                {/* Row 2: guide bar — placed near the notch zone, always visible */}
+                <div className={`flex items-center gap-2 px-2 py-1.5 mb-1.5 rounded-xl border text-sm font-bold leading-snug transition-colors lg:hidden ${
+                  pendingMoves && gamePhase === 'waiting_player_action'
+                    ? 'bg-orange-900/50 border-orange-500/50 text-orange-100'
+                    : mode === 'standard' && activeHuCheck.canHu
+                      ? 'bg-emerald-900/60 border-emerald-400/60 text-emerald-100'
+                      : 'bg-yellow-500/10 border-yellow-500/25 text-slate-100'
+                }`}>
+                  <span className="text-base shrink-0 leading-none">
+                    {pendingMoves && gamePhase === 'waiting_player_action' ? '🚨'
+                     : mode === 'standard' && activeHuCheck.canHu ? '🏆'
+                     : 'ℹ️'}
+                  </span>
+                  <p className="text-xs leading-snug">{guideMessage}</p>
+                </div>
               </header>
 
               {/* GAME SPACE FLOW */}
@@ -1362,26 +1381,8 @@ export default function App() {
 
                 </div>{/* end 遊戲頁面 */}
 
-                {/* STICKY GUIDE BAR — always visible on mobile, above scrollable controls */}
-                <div className="shrink-0 lg:hidden px-3 py-2 border-b border-white/10">
-                  <div className={`flex items-start gap-2.5 p-3 rounded-xl border text-sm font-bold leading-snug transition-colors ${
-                    pendingMoves && gamePhase === 'waiting_player_action'
-                      ? 'bg-orange-900/40 border-orange-500/50 text-orange-100'
-                      : mode === 'standard' && activeHuCheck.canHu
-                        ? 'bg-emerald-900/50 border-emerald-400/60 text-emerald-100'
-                        : 'bg-yellow-500/10 border-yellow-500/25 text-slate-100'
-                  }`}>
-                    <span className="text-lg shrink-0 leading-none mt-px">
-                      {pendingMoves && gamePhase === 'waiting_player_action' ? '🚨'
-                       : mode === 'standard' && activeHuCheck.canHu ? '🏆'
-                       : 'ℹ️'}
-                    </span>
-                    <p>{guideMessage}</p>
-                  </div>
-                </div>
-
-                {/* ② 控制頁面 — Control Panel */}
-                <div className="flex-1 flex flex-col overflow-y-auto min-h-0 px-3 pt-1.5 pb-2 space-y-1.5">
+                {/* ② 控制頁面 — Control Panel (no vertical scroll — everything fits) */}
+                <div className="flex-1 flex flex-col min-h-0 px-3 pt-1.5 gap-1.5 overflow-hidden">
 
                 {/* GAME ACTIVE DECISIONS */}
                 {pendingMoves && gamePhase === 'waiting_player_action' && (
@@ -1443,64 +1444,59 @@ export default function App() {
                   </div>
                 )}
 
-                {/* ELDER ACTION CONTROLLER AID (Bottom) */}
-                <div className="bg-black/35 p-3 rounded-2xl border border-white/10 space-y-2 select-none relative shrink-0">
-                  <div className="flex flex-col gap-1.5">
-                    
-                    {/* User profile banner */}
-                    <div className="flex justify-between items-center bg-[#073a2a] py-2 px-3 rounded-xl border border-emerald-600/30">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xl leading-none">{playerAvatar}</span>
-                        <span className="text-sm font-black text-yellow-300">{playerName}</span>
-                      </div>
+                {/* ELDER ACTION CONTROLLER AID — flex-1 fills remaining height */}
+                <div className="flex-1 flex flex-col min-h-0 bg-black/35 rounded-2xl border border-white/10 select-none overflow-hidden">
 
-                      {/* Score metrics */}
-                      {mode === 'pairs' ? (
-                        <div className="text-xs font-bold text-red-300 leading-none">
-                          散牌目標：<strong className="text-sm text-red-400 font-extrabold">{playerGrouping.strays.length}</strong> 張
-                        </div>
-                      ) : (
-                        <div className="text-xs font-bold leading-none">
-                          當前積分：{activeHuCheck.canHu ? (
-                            <span className="text-emerald-400 font-black">✔ 滿足胡牌條件！</span>
-                          ) : (
-                            <span>{activeHuCheck.totalHoo} 胡 / 10胡過關</span>
-                          )}
-                        </div>
-                      )}
+                  {/* User profile banner */}
+                  <div className="flex justify-between items-center bg-[#073a2a] py-2 px-3 border-b border-white/5 shrink-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl leading-none">{playerAvatar}</span>
+                      <span className="text-sm font-black text-yellow-300">{playerName}</span>
                     </div>
-
-                    {/* Pairs groupings display if in Pairs mode */}
-                    {mode === 'pairs' && (
-                      <div className="grid grid-cols-4 gap-1 select-none text-[10px] font-mono border-b border-white/5 pb-1 mt-0.5">
-                        <div className="bg-emerald-950/40 p-1.5 rounded text-center">
-                          <span className="text-emerald-400 block font-bold leading-none">暗開車✕{playerGrouping.quads.length}</span>
-                        </div>
-                        <div className="bg-cyan-950/40 p-1.5 rounded text-center">
-                          <span className="text-cyan-400 block font-bold leading-none">暗坎✕{playerGrouping.triples.length}</span>
-                        </div>
-                        <div className="bg-purple-950/40 p-1.5 rounded text-center">
-                          <span className="text-purple-400 block font-bold leading-none">對子✕{playerGrouping.pairs.length}</span>
-                        </div>
-                        <div className="bg-red-950/40 p-1.5 rounded text-center">
-                          <span className="text-red-400 block font-bold leading-none">散牌✕{playerGrouping.strays.length}</span>
-                        </div>
+                    {mode === 'pairs' ? (
+                      <div className="text-xs font-bold text-red-300 leading-none">
+                        散牌：<strong className="text-sm text-red-400 font-extrabold">{playerGrouping.strays.length}</strong> 張
+                      </div>
+                    ) : (
+                      <div className="text-xs font-bold leading-none">
+                        {activeHuCheck.canHu ? (
+                          <span className="text-emerald-400 font-black">✔ 可胡牌！</span>
+                        ) : (
+                          <span>{activeHuCheck.totalHoo} / 10 胡</span>
+                        )}
                       </div>
                     )}
                   </div>
 
-                  {/* PLAYER HAND CONTAINER */}
-                  <div className="space-y-1 text-left mt-1 select-none">
-                    <span className="text-xs font-black text-yellow-400/90 block">
-                      👇 您的手牌區 (輕敲卡牌選定，再點擊【打牌】)：
-                    </span>
+                  {/* Pairs groupings row */}
+                  {mode === 'pairs' && (
+                    <div className="grid grid-cols-4 gap-1 px-2 py-1 shrink-0 text-[10px] font-mono border-b border-white/5">
+                      <div className="bg-emerald-950/40 p-1 rounded text-center">
+                        <span className="text-emerald-400 block font-bold leading-none">開車✕{playerGrouping.quads.length}</span>
+                      </div>
+                      <div className="bg-cyan-950/40 p-1 rounded text-center">
+                        <span className="text-cyan-400 block font-bold leading-none">暗坎✕{playerGrouping.triples.length}</span>
+                      </div>
+                      <div className="bg-purple-950/40 p-1 rounded text-center">
+                        <span className="text-purple-400 block font-bold leading-none">對子✕{playerGrouping.pairs.length}</span>
+                      </div>
+                      <div className="bg-red-950/40 p-1 rounded text-center">
+                        <span className="text-red-400 block font-bold leading-none">散牌✕{playerGrouping.strays.length}</span>
+                      </div>
+                    </div>
+                  )}
 
-                    <div className="flex flex-wrap justify-center items-center gap-x-1 gap-y-3 p-3.5 bg-black/45 rounded-xl border border-white/10 min-h-[110px] h-auto">
+                  {/* PLAYER HAND — horizontal scroll, single row, no vertical overflow */}
+                  <div className="flex-1 min-h-0 flex flex-col px-2 pt-1 pb-0 overflow-hidden">
+                    <span className="text-xs font-black text-yellow-400/90 shrink-0 mb-1">
+                      👇 您的手牌 (輕敲選牌，再點打牌)：
+                    </span>
+                    <div className="flex-1 min-h-0 flex items-center gap-1 overflow-x-auto overflow-y-hidden scrollbar-none pb-1">
                       {player.hand.map((card) => {
                         const isSelected = card.id === selectedCardId;
                         const isStray = mode === 'pairs' && playerGrouping.strays.some(s => s.id === card.id);
                         return (
-                          <div key={card.id} className="relative flex flex-col items-center">
+                          <div key={card.id} className="relative flex flex-col items-center shrink-0">
                             <FourColorCard
                               card={card}
                               size="sm"
@@ -1509,8 +1505,8 @@ export default function App() {
                               onClick={() => { playSound('click'); setSelectedCardId(isSelected ? null : card.id); }}
                             />
                             {mode === 'pairs' && isStray && (
-                              <span className="absolute bottom-[-9px] text-[8px] scale-90 bg-red-950 text-red-500 font-extrabold border border-red-900/60 px-1 rounded leading-none pointer-events-none">
-                                散牌
+                              <span className="absolute bottom-[-9px] text-[8px] bg-red-950 text-red-500 font-extrabold border border-red-900/60 px-1 rounded leading-none pointer-events-none">
+                                散
                               </span>
                             )}
                           </div>
@@ -1519,20 +1515,22 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* BOTTOM PRIVILEGE PANEL */}
-                  <div className="bg-black/30 p-2.5 rounded-xl flex items-center justify-between gap-2 border border-white/5 mt-1 select-none">
-                    <div className="text-xs text-slate-300 font-bold max-w-[45%] text-left select-none">
+                  {/* ACTION BAR — pinned at bottom, safe-area bottom padding */}
+                  <div
+                    className="bg-black/30 px-3 py-2 flex items-center justify-between gap-2 border-t border-white/5 shrink-0"
+                    style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 0.5rem)' }}
+                  >
+                    <div className="text-xs text-slate-300 font-bold max-w-[40%] text-left select-none">
                       {selectedCardId ? (
                         <p className="leading-tight">
                           選中：<strong className="text-yellow-400 text-base">[{player.hand.find(c => c.id === selectedCardId)?.name}]</strong>
                         </p>
                       ) : (
-                        <p className="text-slate-400 text-xs leading-tight font-semibold">👉 請輕點上面一張牌</p>
+                        <p className="text-slate-400 text-xs leading-tight font-semibold">👉 輕點一張牌</p>
                       )}
                     </div>
 
                     <div className="flex gap-2">
-                      {/* Standard declare win button */}
                       {mode === 'standard' && (
                         <button
                           onClick={handleDeclareHuSelf}
@@ -1635,7 +1633,7 @@ export default function App() {
             <div className="flex-1 flex flex-col justify-between h-full w-full select-none text-white overflow-hidden">
               
               {/* Header */}
-              <header className="h-[72px] bg-black/40 border-b border-white/10 px-3 flex items-center justify-between shrink-0 select-none z-10">
+              <header className="bg-black/40 border-b border-white/10 px-3 flex items-center justify-between shrink-0 select-none z-10" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)', paddingBottom: '0.75rem' }}>
                 <button
                   onClick={handleBackFromRules}
                   className="py-2.5 px-5 bg-white/10 hover:bg-white/15 border border-white/10 text-base font-extrabold text-slate-200 rounded-xl transition-all flex items-center gap-2"
@@ -1791,7 +1789,7 @@ export default function App() {
               </div>
 
               {/* Back trigger button */}
-              <div className="p-4 border-t border-white/10 bg-[#064e3b] shrink-0">
+              <div className="px-4 pt-4 border-t border-white/10 bg-[#064e3b] shrink-0" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)' }}>
                 <button
                   onClick={handleBackFromRules}
                   className="w-full py-5 bg-yellow-500 hover:bg-yellow-400 text-slate-950 font-black rounded-2xl text-xl"
