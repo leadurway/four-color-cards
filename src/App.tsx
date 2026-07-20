@@ -1230,21 +1230,6 @@ export default function App() {
                   </button>
                 </div>
 
-                {/* Row 2: guide bar — placed near the notch zone, always visible */}
-                <div className={`flex items-center gap-2 px-2 py-1.5 mb-1.5 rounded-xl border text-sm font-bold leading-snug transition-colors lg:hidden ${
-                  pendingMoves && gamePhase === 'waiting_player_action'
-                    ? 'bg-orange-900/50 border-orange-500/50 text-orange-100'
-                    : mode === 'standard' && activeHuCheck.canHu
-                      ? 'bg-emerald-900/60 border-emerald-400/60 text-emerald-100'
-                      : 'bg-yellow-500/10 border-yellow-500/25 text-slate-100'
-                }`}>
-                  <span className="text-base shrink-0 leading-none">
-                    {pendingMoves && gamePhase === 'waiting_player_action' ? '🚨'
-                     : mode === 'standard' && activeHuCheck.canHu ? '🏆'
-                     : 'ℹ️'}
-                  </span>
-                  <p className="text-xs leading-snug">{guideMessage}</p>
-                </div>
               </header>
 
               {/* GAME SPACE FLOW */}
@@ -1486,17 +1471,17 @@ export default function App() {
                     </div>
                   )}
 
-                  {/* PLAYER HAND — horizontal scroll, single row, no vertical overflow */}
+                  {/* PLAYER HAND — two-row wrap, no scroll */}
                   <div className="flex-1 min-h-0 flex flex-col px-2 pt-1 pb-0 overflow-hidden">
                     <span className="text-xs font-black text-yellow-400/90 shrink-0 mb-1">
                       👇 您的手牌 (輕敲選牌，再點打牌)：
                     </span>
-                    <div className="flex-1 min-h-0 flex items-center gap-1 overflow-x-auto overflow-y-hidden scrollbar-none pb-1">
+                    <div className="flex-1 min-h-0 flex flex-wrap justify-center content-start gap-x-1 gap-y-3 overflow-hidden py-1">
                       {player.hand.map((card) => {
                         const isSelected = card.id === selectedCardId;
                         const isStray = mode === 'pairs' && playerGrouping.strays.some(s => s.id === card.id);
                         return (
-                          <div key={card.id} className="relative flex flex-col items-center shrink-0">
+                          <div key={card.id} className="relative flex flex-col items-center">
                             <FourColorCard
                               card={card}
                               size="sm"
@@ -1515,11 +1500,8 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* ACTION BAR — pinned at bottom, safe-area bottom padding */}
-                  <div
-                    className="bg-black/30 px-3 py-2 flex items-center justify-between gap-2 border-t border-white/5 shrink-0"
-                    style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 0.5rem)' }}
-                  >
+                  {/* ACTION BAR */}
+                  <div className="bg-black/30 px-3 py-2 flex items-center justify-between gap-2 border-t border-white/5 shrink-0">
                     <div className="text-xs text-slate-300 font-bold max-w-[40%] text-left select-none">
                       {selectedCardId ? (
                         <p className="leading-tight">
@@ -1557,6 +1539,25 @@ export default function App() {
                         🔨 打牌出這張
                       </button>
                     </div>
+                  </div>
+
+                  {/* GUIDE BAR — very bottom of screen, above home indicator */}
+                  <div
+                    className={`lg:hidden flex items-center gap-2 px-3 py-2 shrink-0 border-t transition-colors ${
+                      pendingMoves && gamePhase === 'waiting_player_action'
+                        ? 'bg-orange-900/60 border-orange-500/40 text-orange-100'
+                        : mode === 'standard' && activeHuCheck.canHu
+                          ? 'bg-emerald-900/70 border-emerald-500/40 text-emerald-100'
+                          : 'bg-black/50 border-white/5 text-slate-300'
+                    }`}
+                    style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 0.375rem)' }}
+                  >
+                    <span className="text-base shrink-0 leading-none">
+                      {pendingMoves && gamePhase === 'waiting_player_action' ? '🚨'
+                       : mode === 'standard' && activeHuCheck.canHu ? '🏆'
+                       : 'ℹ️'}
+                    </span>
+                    <p className="text-xs font-semibold leading-snug">{guideMessage}</p>
                   </div>
                 </div>
 
