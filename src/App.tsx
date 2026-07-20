@@ -1006,20 +1006,20 @@ export default function App() {
   const playerGrouping = groupPairsMode(player.hand);
 
   return (
-    <div className="h-[100dvh] w-screen bg-[#022c1e] text-slate-100 flex items-center justify-center relative overflow-hidden font-sans select-none">
+    <div className="h-[100dvh] w-screen bg-[#0a1628] text-slate-100 flex items-center justify-center relative overflow-hidden font-sans select-none">
       
       {/* BACKGROUND GRADIENT */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_#044e39_0%,_#021d14_100%)] opacity-80 z-0 pointer-events-none" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_#0d2d6b_0%,_#071020_100%)] opacity-80 z-0 pointer-events-none" />
 
       {/* FULLSCREEN GAME BOARD CONSOLE */}
       <div
-        className="w-full h-full max-w-7xl bg-[#064e3b]/95 shadow-2xl flex flex-col overflow-hidden relative border-x border-emerald-950/40 z-20 animate-fade-in"
+        className="w-full h-full max-w-7xl bg-[#0f2d5c]/95 shadow-2xl flex flex-col overflow-hidden relative border-x border-blue-950/40 z-20 animate-fade-in"
       >
 
         {/* ========================================== */}
         {/* INTERACTIVE MULTI-PAGE VIEW SYSTEM         */}
         {/* ========================================== */}
-        <div className="flex-1 flex flex-col min-h-0 w-full relative bg-[radial-gradient(circle_at_center,_#0b5c40_0%,_#053c29_100%)] select-none">
+        <div className="flex-1 flex flex-col min-h-0 w-full relative bg-[radial-gradient(circle_at_center,_#1a3d7c_0%,_#0a2347_100%)] select-none">
           
           {/* 1. Lobby/Setup Page (遊戲開始設定頁面) */}
           {activePage === 'lobby' && (
@@ -1034,7 +1034,7 @@ export default function App() {
                   </h1>
                   <Sparkles className="w-5 h-5 text-yellow-500 animate-pulse shrink-0" />
                 </div>
-                <p className="text-[10px] md:text-xs tracking-widest text-emerald-300 font-extrabold uppercase font-mono">
+                <p className="text-[10px] md:text-xs tracking-widest text-blue-200 font-extrabold uppercase font-mono">
                   — 專為銀髮長輩特製 · 護腦防失智 —
                 </p>
               </div>
@@ -1071,7 +1071,7 @@ export default function App() {
                     maxLength={10}
                     value={playerName}
                     onChange={(e) => setUserName(e.target.value || '長輩玩家')}
-                    className="w-full py-2 px-4 bg-[#0a2a1f] border border-emerald-600 rounded-xl text-sm md:text-base text-center font-bold text-white placeholder-slate-400 focus:outline-none focus:border-yellow-500"
+                    className="w-full py-2 px-4 bg-[#0a1e3d] border border-blue-600 rounded-xl text-sm md:text-base text-center font-bold text-white placeholder-slate-400 focus:outline-none focus:border-yellow-500"
                     placeholder="輸入長輩的手遊暱稱"
                   />
                 </div>
@@ -1089,7 +1089,7 @@ export default function App() {
                       onClick={() => { playSound('click'); setMode('pairs'); }}
                       className={`text-left p-3 rounded-xl border transition-all block relative cursor-pointer select-none ${
                         mode === 'pairs'
-                          ? 'bg-emerald-900/40 border-yellow-500 shadow ring-2 ring-yellow-500/20'
+                          ? 'bg-blue-900/40 border-yellow-500 shadow ring-2 ring-yellow-500/20'
                           : 'bg-black/25 border-white/10 hover:border-white/20'
                       }`}
                     >
@@ -1130,7 +1130,7 @@ export default function App() {
                       onClick={() => { playSound('click'); setMode('standard'); }}
                       className={`text-left p-3 rounded-xl border transition-all block relative cursor-pointer select-none ${
                         mode === 'standard'
-                          ? 'bg-emerald-900/40 border-yellow-500 shadow ring-2 ring-yellow-500/20'
+                          ? 'bg-blue-900/40 border-yellow-500 shadow ring-2 ring-yellow-500/20'
                           : 'bg-black/25 border-white/10 hover:border-white/20'
                       }`}
                     >
@@ -1154,7 +1154,7 @@ export default function App() {
                     onClick={() => setSoundEnabled(!soundEnabled)}
                     className="flex items-center gap-1.5 hover:text-white"
                   >
-                    {soundEnabled ? <Volume2 className="w-4 h-4 text-emerald-400" /> : <VolumeX className="w-4 h-4 text-red-400" />}
+                    {soundEnabled ? <Volume2 className="w-4 h-4 text-blue-400" /> : <VolumeX className="w-4 h-4 text-red-400" />}
                     <span>語音配音：{soundEnabled ? '已開啟' : '靜音'}</span>
                   </button>
 
@@ -1162,7 +1162,7 @@ export default function App() {
                     onClick={() => setShowComputerHand(!showComputerHand)}
                     className="flex items-center gap-1.5 hover:text-white"
                   >
-                    {showComputerHand ? <Eye className="w-4 h-4 text-emerald-400" /> : <EyeOff className="w-4 h-4 text-slate-400" />}
+                    {showComputerHand ? <Eye className="w-4 h-4 text-blue-400" /> : <EyeOff className="w-4 h-4 text-slate-400" />}
                     <span>防走失作弊透視：{showComputerHand ? '開' : '關'}</span>
                   </button>
                 </div>
@@ -1211,7 +1211,7 @@ export default function App() {
                       onClick={() => { playSound('click'); setSoundEnabled(!soundEnabled); }}
                       className="p-2 bg-white/5 border border-white/10 text-slate-300 hover:text-white rounded-full transition-colors"
                     >
-                      {soundEnabled ? <Volume2 className="w-5 h-5 text-emerald-400" /> : <VolumeX className="w-5 h-5 text-red-400" />}
+                      {soundEnabled ? <Volume2 className="w-5 h-5 text-blue-400" /> : <VolumeX className="w-5 h-5 text-red-400" />}
                     </button>
                     <button
                       onClick={() => setShowLogDrawer(!showLogDrawer)}
@@ -1433,7 +1433,7 @@ export default function App() {
                 <div className="flex-1 flex flex-col min-h-0 bg-black/35 rounded-2xl border border-white/10 select-none overflow-hidden">
 
                   {/* User profile banner */}
-                  <div className="flex justify-between items-center bg-[#073a2a] py-2 px-3 border-b border-white/5 shrink-0">
+                  <div className="flex justify-between items-center bg-[#0c2852] py-2 px-3 border-b border-white/5 shrink-0">
                     <div className="flex items-center gap-2">
                       <span className="text-xl leading-none">{playerAvatar}</span>
                       <span className="text-sm font-black text-yellow-300">{playerName}</span>
@@ -1471,12 +1471,12 @@ export default function App() {
                     </div>
                   )}
 
-                  {/* PLAYER HAND — two-row wrap, no scroll */}
-                  <div className="flex-1 min-h-0 flex flex-col px-2 pt-1 pb-0 overflow-hidden">
-                    <span className="text-xs font-black text-yellow-400/90 shrink-0 mb-1">
+                  {/* PLAYER HAND — 2 rows, no scroll; xs cards (32px) fit 10/row on all phones */}
+                  <div className="flex-1 min-h-0 flex flex-col px-1 pt-1 pb-0 overflow-hidden">
+                    <span className="text-xs font-black text-yellow-400/90 shrink-0 mb-1 px-1">
                       👇 您的手牌 (輕敲選牌，再點打牌)：
                     </span>
-                    <div className="flex-1 min-h-0 flex flex-wrap justify-center content-start gap-x-1 gap-y-3 overflow-hidden py-1">
+                    <div className="flex-1 min-h-0 flex flex-wrap justify-center content-start gap-x-[1px] gap-y-2.5 overflow-hidden py-1">
                       {player.hand.map((card) => {
                         const isSelected = card.id === selectedCardId;
                         const isStray = mode === 'pairs' && playerGrouping.strays.some(s => s.id === card.id);
@@ -1484,13 +1484,13 @@ export default function App() {
                           <div key={card.id} className="relative flex flex-col items-center">
                             <FourColorCard
                               card={card}
-                              size="sm"
+                              size="xs"
                               isRevealed={true}
                               isSelected={isSelected}
                               onClick={() => { playSound('click'); setSelectedCardId(isSelected ? null : card.id); }}
                             />
                             {mode === 'pairs' && isStray && (
-                              <span className="absolute bottom-[-9px] text-[8px] bg-red-950 text-red-500 font-extrabold border border-red-900/60 px-1 rounded leading-none pointer-events-none">
+                              <span className="absolute bottom-[-8px] text-[7px] bg-red-950 text-red-500 font-extrabold border border-red-900/60 px-0.5 rounded leading-none pointer-events-none">
                                 散
                               </span>
                             )}
@@ -1573,7 +1573,7 @@ export default function App() {
                   <p className="text-slate-100 text-xs leading-relaxed font-bold">{guideMessage}</p>
                 </div>
                 {/* Logs */}
-                <div className="flex-1 flex flex-col min-h-0 bg-[#05291d] border border-emerald-800/30 rounded-xl overflow-hidden">
+                <div className="flex-1 flex flex-col min-h-0 bg-[#071838] border border-blue-800/30 rounded-xl overflow-hidden">
                   <div className="px-3 py-2 border-b border-white/10 text-[11px] font-extrabold text-yellow-500 flex items-center gap-1.5 shrink-0">
                     <History className="w-3.5 h-3.5" />
                     牌局記錄
@@ -1597,7 +1597,7 @@ export default function App() {
 
               {/* RETRO DIALOG HISTORY ON DEMAND OVERLAY */}
               {showLogDrawer && (
-                <div className="lg:hidden absolute inset-x-0 bottom-0 top-[52px] bg-[#022c1e]/98 border-t border-emerald-500/30 z-30 p-4 flex flex-col justify-between select-none">
+                <div className="lg:hidden absolute inset-x-0 bottom-0 top-[52px] bg-[#0a1628]/98 border-t border-blue-500/30 z-30 p-4 flex flex-col justify-between select-none">
                   <div className="text-sm font-extrabold text-yellow-500 border-b border-white/10 pb-2 mb-3 flex items-center justify-between">
                     <span>📋 牌局歷程回顧：</span>
                     <button 
@@ -1790,7 +1790,7 @@ export default function App() {
               </div>
 
               {/* Back trigger button */}
-              <div className="px-4 pt-4 border-t border-white/10 bg-[#064e3b] shrink-0" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)' }}>
+              <div className="px-4 pt-4 border-t border-white/10 bg-[#0f2d5c] shrink-0" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)' }}>
                 <button
                   onClick={handleBackFromRules}
                   className="w-full py-5 bg-yellow-500 hover:bg-yellow-400 text-slate-950 font-black rounded-2xl text-xl"
@@ -1808,10 +1808,10 @@ export default function App() {
 
       {/* GAME OVER IMMERSIVE MODAL OVERLAY */}
       {gamePhase === 'game_over' && (
-        <div className="fixed inset-0 bg-[#021c13]/90 z-[99] flex items-center justify-center p-4 select-none">
-          <div className="bg-[#052d21] border-4 border-yellow-500 shadow-2xl rounded-[32px] p-6 max-w-sm w-full text-center relative border-double animate-pulse text-white select-none">
+        <div className="fixed inset-0 bg-[#060e1e]/90 z-[99] flex items-center justify-center p-4 select-none">
+          <div className="bg-[#091e3e] border-4 border-yellow-500 shadow-2xl rounded-[32px] p-6 max-w-sm w-full text-center relative border-double animate-pulse text-white select-none">
             
-            <div className="absolute top-[-35px] left-1/2 transform -translate-x-1/2 bg-yellow-500 rounded-full p-2.5 border-4 border-[#052d21]">
+            <div className="absolute top-[-35px] left-1/2 transform -translate-x-1/2 bg-yellow-500 rounded-full p-2.5 border-4 border-[#091e3e]">
               <Sparkles className="w-8 h-8 text-slate-900" />
             </div>
 
@@ -1823,7 +1823,7 @@ export default function App() {
               {mode === 'pairs' ? '👦 抓對對子簡單對局' : '🀄 傳統吃碰標準對戰'}
             </p>
 
-            <div className="bg-black/45 p-4 rounded-2xl border border-emerald-800 text-slate-100 text-sm font-serif font-medium leading-relaxed mb-5 max-h-[140px] overflow-y-auto">
+            <div className="bg-black/45 p-4 rounded-2xl border border-blue-800 text-slate-100 text-sm font-serif font-medium leading-relaxed mb-5 max-h-[140px] overflow-y-auto">
               {winExplanation}
             </div>
 

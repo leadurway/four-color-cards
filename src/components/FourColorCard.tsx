@@ -7,7 +7,7 @@ interface FourColorCardProps {
   isSelected?: boolean;
   onClick?: () => void;
   disabled?: boolean;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'xs' | 'sm' | 'md' | 'lg';
 }
 
 export const FourColorCard: React.FC<FourColorCardProps> = ({
@@ -16,7 +16,7 @@ export const FourColorCard: React.FC<FourColorCardProps> = ({
   isSelected = false,
   onClick,
   disabled = false,
-  size = 'md',
+  size = 'md' as 'xs' | 'sm' | 'md' | 'lg',
 }) => {
   // Map colors to beautiful theme palettes matching the uploaded traditional image
   // Yellow: Bright solid yellow background, blood-red ink
@@ -62,6 +62,7 @@ export const FourColorCard: React.FC<FourColorCardProps> = ({
 
   // Sizes
   const sizeClasses = {
+    xs: 'w-8 h-[84px] text-xs',
     sm: 'w-10 h-[100px] text-sm lg:h-[105px]',
     md: 'w-[45px] h-[118px] text-base lg:h-[122px]',
     lg: 'w-[54px] h-[138px] text-lg lg:h-[142px]',
@@ -69,6 +70,7 @@ export const FourColorCard: React.FC<FourColorCardProps> = ({
 
   // Font sizes specifically for authentic huge woodblock-print character look
   const fontSizeClasses = {
+    xs: 'text-[19px]',
     sm: 'text-[25px] md:text-[27px]',
     md: 'text-[35px] md:text-[37px]',
     lg: 'text-[44px] md:text-[46px]',
