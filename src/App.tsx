@@ -1453,14 +1453,20 @@ export default function App() {
                         disabled={gamePhase !== 'playing' || curPlayerId !== 'player' || lastDrawnCard !== null || hasDrawn}
                         className={`relative w-14 h-21 rounded-xl transition-all shadow-md flex flex-col items-center justify-center ${
                           gamePhase === 'playing' && curPlayerId === 'player' && lastDrawnCard === null && !hasDrawn
-                            ? 'scale-105 active:scale-95 ring-3 ring-yellow-500 animate-bounce cursor-pointer'
-                            : 'opacity-70 cursor-not-allowed'
+                            ? 'scale-105 active:scale-95 ring-2 ring-red-400 cursor-pointer'
+                            : 'opacity-60 cursor-not-allowed'
                         }`}
+                        style={
+                          gamePhase === 'playing' && curPlayerId === 'player' && lastDrawnCard === null && !hasDrawn
+                            ? { animation: 'bounceSmall 1s ease-in-out infinite' }
+                            : undefined
+                        }
                       >
                         <div className="absolute top-0.5 left-0.5 w-full h-full bg-[#922b21] rounded-xl border border-white/10 transform translate-x-1 translate-y-1 z-0" />
-                        <div className="relative w-full h-full bg-[#c0392b] border-2 border-white/10 rounded-xl flex flex-col items-center justify-center text-center p-1.5 z-10 leading-none">
-                          <span className="text-[10px] font-extrabold block text-white/60 leading-none">剩餘</span>
-                          <span className="text-lg font-mono font-black text-white leading-none mt-0.5">{deck.length}</span>
+                        <div className="relative w-full h-full bg-[#e53e3e] border-2 border-red-300/30 rounded-xl flex flex-col items-center justify-center text-center p-1 z-10 leading-none gap-0.5">
+                          <span className="text-[15px] font-black text-white leading-none tracking-tight">摸牌</span>
+                          <span className="text-[8px] font-bold text-white/60 leading-none">剩餘</span>
+                          <span className="text-sm font-mono font-black text-yellow-300 leading-none">{deck.length}</span>
                         </div>
                       </button>
                     ) : (
@@ -1542,7 +1548,8 @@ export default function App() {
                       {pendingMoves.canHu && (
                         <button
                           onClick={() => handlePlayerAction('hu')}
-                          className="w-18 h-18 rounded-full bg-red-600 hover:bg-red-500 border-4 border-yellow-400 shadow-lg flex items-center justify-center text-2xl font-black text-white hover:scale-105 active:scale-95 transition-transform animate-bounce"
+                          style={{ animation: 'bounceSmall 0.7s ease-in-out infinite' }}
+                          className="w-18 h-18 rounded-full bg-red-500 hover:bg-red-400 border-4 border-yellow-300 shadow-lg flex items-center justify-center text-2xl font-black text-white hover:scale-105 active:scale-95 transition-transform"
                         >
                           胡！
                         </button>
@@ -1552,7 +1559,8 @@ export default function App() {
                       {pendingMoves.canPong && (
                         <button
                           onClick={() => handlePlayerAction('pong')}
-                          className="w-16 h-16 rounded-full bg-orange-500 hover:bg-orange-400 border-2 border-white/60 shadow flex items-center justify-center text-base font-black text-white hover:scale-105 active:scale-95 transition-transform"
+                          style={{ animation: 'bounceSmall 0.85s ease-in-out infinite' }}
+                          className="w-16 h-16 rounded-full bg-amber-400 hover:bg-amber-300 border-2 border-white shadow-md flex items-center justify-center text-base font-black text-white hover:scale-105 active:scale-95 transition-transform"
                         >
                           {mode === 'pairs' ? '吃對' : '碰'}
                         </button>
@@ -1562,7 +1570,8 @@ export default function App() {
                       {pendingMoves.canQuad && (
                         <button
                           onClick={() => handlePlayerAction('quad')}
-                          className="w-16 h-16 rounded-full bg-yellow-600 hover:bg-yellow-500 border-2 border-white/60 shadow flex items-center justify-center text-base font-black text-white hover:scale-105 active:scale-95 transition-transform"
+                          style={{ animation: 'bounceSmall 0.85s ease-in-out infinite 0.1s' }}
+                          className="w-16 h-16 rounded-full bg-yellow-400 hover:bg-yellow-300 border-2 border-white shadow-md flex items-center justify-center text-base font-black text-black hover:scale-105 active:scale-95 transition-transform"
                         >
                           槓
                         </button>
@@ -1573,7 +1582,8 @@ export default function App() {
                         <button
                           key={i}
                           onClick={() => handlePlayerAction('eat', opt)}
-                          className="px-4 py-3 rounded-xl bg-yellow-600 border border-yellow-500 text-sm font-black text-white active:scale-95 transition-transform"
+                          style={{ animation: `bounceSmall 0.85s ease-in-out infinite ${i * 0.1}s` }}
+                          className="px-4 py-3 rounded-xl bg-lime-400 hover:bg-lime-300 border border-lime-200 text-sm font-black text-black active:scale-95 transition-transform"
                         >
                           吃:{opt.resultCards.map(c=>c.character).join('')}
                         </button>
@@ -1582,7 +1592,7 @@ export default function App() {
                       {/* Drop choices */}
                       <button
                         onClick={handlePlayerSkip}
-                        className="px-4 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-sm font-bold text-slate-300 rounded-xl active:scale-95"
+                        className="px-4 py-3 bg-slate-600 hover:bg-slate-500 border border-slate-400 text-sm font-bold text-white rounded-xl active:scale-95"
                       >
                         過 (放棄)
                       </button>
@@ -1667,13 +1677,14 @@ export default function App() {
                             />
                             {mode === 'pairs' && (
                               <span
-                                className="absolute top-0 inset-x-0 z-10 flex items-center justify-center pointer-events-none text-[9px] font-extrabold leading-none border-b"
+                                className="absolute top-0 z-10 flex items-center justify-center pointer-events-none font-black leading-none"
                                 style={{
-                                  height: 13,
-                                  background: isPaired ? 'rgba(30,58,138,0.52)' : 'rgba(127,29,29,0.52)',
-                                  borderColor: isPaired ? 'rgba(96,165,250,0.95)' : 'rgba(248,113,113,0.95)',
-                                  color: isPaired ? '#bfdbfe' : '#fecaca',
-                                  textShadow: isPaired ? '0 0 5px #93c5fd' : '0 0 5px #fca5a5',
+                                  left: 2, right: 2,
+                                  height: 14,
+                                  fontSize: 9,
+                                  background: isPaired ? '#1d4ed8' : '#dc2626',
+                                  color: '#ffffff',
+                                  borderRadius: 2,
                                 }}
                               >
                                 {isPaired ? '對' : '散'}
@@ -1717,11 +1728,16 @@ export default function App() {
                         disabled={!selectedCardId || !canDiscard || gamePhase !== 'playing' || curPlayerId !== 'player'}
                         className={`px-5 py-2.5 font-black rounded-xl text-sm transition-all flex items-center gap-1 ${
                           selectedCardId && canDiscard && gamePhase === 'playing' && curPlayerId === 'player'
-                            ? 'bg-yellow-500 hover:bg-yellow-400 text-black border border-yellow-300 animate-pulse'
+                            ? 'hover:brightness-110 text-white border border-yellow-300 shadow-lg'
                             : 'bg-white/5 border border-white/10 text-slate-500 cursor-not-allowed'
                         }`}
+                        style={
+                          selectedCardId && canDiscard && gamePhase === 'playing' && curPlayerId === 'player'
+                            ? { background: 'linear-gradient(135deg, #dc2626 0%, #f59e0b 100%)' }
+                            : undefined
+                        }
                       >
-                        🔨 打牌出這張
+                        打出這張牌
                       </button>
                     </div>
                   </div>
@@ -2080,14 +2096,14 @@ export default function App() {
         <div className="fixed inset-0 z-[150] flex items-center justify-center pointer-events-none select-none">
           <div
             style={{
-              width: 'clamp(180px, 44vw, 280px)',
-              height: 'clamp(180px, 44vw, 280px)',
+              width: 'clamp(220px, 55vw, 320px)',
+              height: 'clamp(220px, 55vw, 320px)',
               background: '#f5c218',
               color: '#0a1628',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: 'clamp(3rem, 12vw, 5rem)',
+              fontSize: 'clamp(4.5rem, 18vw, 7rem)',
               fontWeight: 700,
               borderRadius: '1.2rem',
               animation: 'eatPairPop 0.5s cubic-bezier(0.34,1.56,0.64,1) both, boxGlow 0.8s ease-in-out 0.5s infinite alternate',
@@ -2113,14 +2129,14 @@ export default function App() {
             {/* 胡牌 stamp */}
             <div
               style={{
-                width: 'clamp(200px, 50vw, 320px)',
-                height: 'clamp(200px, 50vw, 320px)',
+                width: 'clamp(220px, 55vw, 320px)',
+                height: 'clamp(220px, 55vw, 320px)',
                 background: '#f5c218',
                 color: '#0a1628',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: 'clamp(3.5rem, 14vw, 6rem)',
+                fontSize: 'clamp(4.5rem, 18vw, 7rem)',
                 fontWeight: 700,
                 borderRadius: '1.2rem',
                 animation: 'huStamp 0.7s cubic-bezier(0.22,1,0.36,1) both, boxGlow 1s ease-in-out 0.7s infinite alternate',
