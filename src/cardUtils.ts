@@ -95,6 +95,27 @@ export function groupPairsMode(hand: Card[]): PairsGrouping {
 }
 
 /**
+ * Sort hand for display: groups matching cards together (pairs/triples side-by-side),
+ * highest match count first, then by color then order within each group.
+ */
+export function sortHandForDisplay(hand: Card[]): Card[] {
+  const groups: { [key: string]: Card[] } = {};
+  hand.forEach(card => {
+    const key = `${card.color}-${card.character}`;
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(card);
+  });
+
+  const sortedGroups = Object.values(groups).sort((a, b) => {
+    if (b.length !== a.length) return b.length - a.length; // More matches first
+    if (a[0].color !== b[0].color) return a[0].color.localeCompare(b[0].color);
+    return a[0].order - b[0].order;
+  });
+
+  return sortedGroups.flat();
+}
+
+/**
  * Standard Mode Solver (backtracking DFS)
  * Checks if hand + revealed can win (Hu), and calculates total Hoo.
  */

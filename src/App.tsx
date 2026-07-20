@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  createDeck, 
-  shuffle, 
-  groupPairsMode, 
-  solveHu, 
-  checkAvailableMoves, 
-  isGeneral, 
-  PairsGrouping, 
-  HuResult 
+import {
+  createDeck,
+  shuffle,
+  groupPairsMode,
+  sortHandForDisplay,
+  solveHu,
+  checkAvailableMoves,
+  isGeneral,
+  PairsGrouping,
+  HuResult
 } from './cardUtils';
 import { Card, GameMode, GameState, Player, RevealedMeld } from './types';
 import { FourColorCard } from './components/FourColorCard';
@@ -298,14 +299,14 @@ export default function App() {
     setPlayer({
       id: 'player',
       name: `${playerAvatar} ${playerName}`,
-      hand: playerHand.sort((a,b) => (a.color === b.color ? a.order - b.order : a.color.localeCompare(b.color))),
+      hand: sortHandForDisplay(playerHand),
       revealed: playerRevealed,
       score: 0
     });
     setComputer({
       id: 'computer',
       name: '🤖 智慧電腦 AI',
-      hand: computerHand.sort((a,b) => (a.color === b.color ? a.order - b.order : a.color.localeCompare(b.color))),
+      hand: sortHandForDisplay(computerHand),
       revealed: computerRevealed,
       score: 0
     });
@@ -370,7 +371,7 @@ export default function App() {
         setGuideMessage(`自摸對子！您熟練地摸到 [${drawn.name}]。正好跟手中散牌成對！點點下方的「吃對」按鈕。`);
       } else {
         // No match. Card merges into player's hand, then they must choose one to discard
-        const nextHand = [...player.hand, drawn].sort((a,b) => (a.color === b.color ? a.order - b.order : a.color.localeCompare(b.color)));
+        const nextHand = sortHandForDisplay([...player.hand, drawn]);
         setPlayer(prev => ({
           ...prev,
           hand: nextHand
@@ -389,7 +390,7 @@ export default function App() {
         setGuideMessage(`摸出 [${drawn.name}]！觸發了可配對行動。點選下方操作按鈕，或選擇「過」保留去手牌中。`);
       } else {
         // No moves. Push to hand and configure discard action
-        const nextHand = [...player.hand, drawn].sort((a,b) => (a.color === b.color ? a.order - b.order : a.color.localeCompare(b.color)));
+        const nextHand = sortHandForDisplay([...player.hand, drawn]);
         setPlayer(prev => ({
           ...prev,
           hand: nextHand
@@ -533,7 +534,7 @@ export default function App() {
               setIsComputerThinking(false);
               return;
             }
-            effectiveHand = [...effectiveHand, repCard].sort((a,b) => (a.color === b.color ? a.order - b.order : a.color.localeCompare(b.color)));
+            effectiveHand = sortHandForDisplay([...effectiveHand, repCard]);
             setComputer(prev => ({ ...prev, hand: effectiveHand, revealed: effectiveRevealed }));
           }
           setTimeout(() => { executeComputerDiscard(effectiveHand); }, 900);
@@ -614,7 +615,7 @@ export default function App() {
         }, 900);
       } else {
         // No match. Card remains in computer hand, and AI plays a card
-        const updatedHand = [...computer.hand, drawn].sort((a,b) => (a.color === b.color ? a.order - b.order : a.color.localeCompare(b.color)));
+        const updatedHand = sortHandForDisplay([...computer.hand, drawn]);
         setComputer(prev => ({ ...prev, hand: updatedHand }));
         setLastDrawnCard(null);
         setTimeout(() => {
@@ -662,7 +663,7 @@ export default function App() {
               setIsComputerThinking(false);
               return;
             }
-            finalHand = [...quadHand, repCard].sort((a,b) => (a.color === b.color ? a.order - b.order : a.color.localeCompare(b.color)));
+            finalHand = sortHandForDisplay([...quadHand, repCard]);
             setComputer(prev => ({ ...prev, hand: finalHand, revealed: quadRevealed }));
           }
           setTimeout(() => { executeComputerDiscard(finalHand); }, 900);
@@ -673,7 +674,7 @@ export default function App() {
       // cMoves.canEatSeq is now always false for own-turn draws (isOwnTurn=true); dead branch kept for safety
 
       // Default draw and fallback discard
-      const appendedHand = [...computer.hand, drawn].sort((a,b) => (a.color === b.color ? a.order - b.order : a.color.localeCompare(b.color)));
+      const appendedHand = sortHandForDisplay([...computer.hand, drawn]);
       setComputer(prev => ({ ...prev, hand: appendedHand }));
       setLastDrawnCard(null);
       setTimeout(() => {
@@ -912,7 +913,7 @@ export default function App() {
           setGamePhase('waiting_player_action');
           setGuideMessage(`補摸 [${repCard.name}]！再次觸發行動機會，請選擇！`);
         } else {
-          const finalHand = [...quadHand, repCard].sort((a,b) => (a.color === b.color ? a.order - b.order : a.color.localeCompare(b.color)));
+          const finalHand = sortHandForDisplay([...quadHand, repCard]);
           setPlayer(prev => ({ ...prev, hand: finalHand, revealed: quadRevealed }));
           setGamePhase('playing');
           setCanDiscard(true);
@@ -984,7 +985,7 @@ export default function App() {
 
     if (curPlayerId === 'player' && lastDrawnCard && drawnFromDeck) {
       // Skipped on self-drawn card. Push to hand and prepare discard action
-      const appendedHand = [...player.hand, lastDrawnCard].sort((a,b) => (a.color === b.color ? a.order - b.order : a.color.localeCompare(b.color)));
+      const appendedHand = sortHandForDisplay([...player.hand, lastDrawnCard]);
       setPlayer(prev => ({ ...prev, hand: appendedHand }));
       setLastDrawnCard(null);
       setCanDiscard(true);
