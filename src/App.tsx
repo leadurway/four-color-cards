@@ -1012,21 +1012,10 @@ export default function App() {
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_#044e39_0%,_#021d14_100%)] opacity-80 z-0 pointer-events-none" />
 
       {/* FULLSCREEN GAME BOARD CONSOLE */}
-      <div className="w-full h-full max-w-7xl bg-[#064e3b]/95 shadow-2xl flex flex-col overflow-hidden relative border-x border-emerald-950/40 z-20 animate-fade-in">
-        
-        {/* iPhone Top Status Bar/Notch Area Information Indicator */}
-        <div className="md:hidden w-full bg-[#032e22]/90 text-slate-300 flex items-center justify-between px-6 font-mono text-[10px] sm:text-xs tracking-wide shrink-0 relative border-b border-white/5 pt-[env(safe-area-inset-top,12px)] pb-2.5 z-40 select-none">
-          <div className="flex items-center gap-1.5">
-            <span className="font-extrabold text-yellow-500 font-sans">09:41 🀄</span>
-            <span className="text-[10px] hidden sm:inline text-slate-400">| 四色牌智慧護腦</span>
-          </div>
-          {/* Virtual Notch Dynamic Island Simulation on standard screen view */}
-          <div className="hidden sm:block absolute left-1/2 -translate-x-1/2 top-1.5 w-28 h-5.5 bg-black rounded-b-2xl border-x border-b border-white/10" />
-          <div className="flex items-center gap-1.5 text-[10px] font-bold">
-            <span className="text-emerald-400 font-extrabold font-sans animate-pulse">5G 📶</span>
-            <span className="text-emerald-400 font-sans">🔋 100%</span>
-          </div>
-        </div>
+      <div
+        className="w-full h-full max-w-7xl bg-[#064e3b]/95 shadow-2xl flex flex-col overflow-hidden relative border-x border-emerald-950/40 z-20 animate-fade-in"
+        style={{ paddingTop: 'env(safe-area-inset-top, 0px)', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+      >
 
         {/* ========================================== */}
         {/* INTERACTIVE MULTI-PAGE VIEW SYSTEM         */}
@@ -1205,36 +1194,36 @@ export default function App() {
             <div className="flex-1 flex flex-col h-full w-full select-none text-white overflow-hidden relative">
               
               {/* Compact header */}
-              <header className="h-[52px] bg-black/40 border-b border-white/10 px-3 flex items-center justify-between shrink-0 select-none z-10">
+              <header className="h-[60px] bg-black/40 border-b border-white/10 px-3 flex items-center justify-between shrink-0 select-none z-10">
                 <button
                   onClick={handleQuitToLobby}
-                  className="py-1 px-3 bg-red-950/60 hover:bg-red-900/80 border border-red-800 text-xs font-extrabold text-red-200 rounded-xl transition-all"
+                  className="py-2 px-4 bg-red-950/60 hover:bg-red-900/80 border border-red-800 text-sm font-extrabold text-red-200 rounded-xl transition-all"
                 >
                   🚪 返回大廳
                 </button>
 
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-2">
                   {/* Sound toggle */}
                   <button
                     onClick={() => { playSound('click'); setSoundEnabled(!soundEnabled); }}
-                    className="p-1.5 bg-white/5 border border-white/10 text-slate-300 hover:text-white rounded-full transition-colors"
+                    className="p-2 bg-white/5 border border-white/10 text-slate-300 hover:text-white rounded-full transition-colors"
                   >
-                    {soundEnabled ? <Volume2 className="w-4 h-4 text-emerald-400" /> : <VolumeX className="w-4 h-4 text-red-400" />}
+                    {soundEnabled ? <Volume2 className="w-5 h-5 text-emerald-400" /> : <VolumeX className="w-5 h-5 text-red-400" />}
                   </button>
                   {/* Log history (mobile) */}
                   <button
                     onClick={() => setShowLogDrawer(!showLogDrawer)}
-                    className="p-1.5 bg-white/5 border border-white/10 text-slate-300 hover:text-white rounded-full transition-colors lg:hidden"
+                    className="p-2 bg-white/5 border border-white/10 text-slate-300 hover:text-white rounded-full transition-colors lg:hidden"
                   >
-                    <History className="w-4 h-4 text-slate-400" />
+                    <History className="w-5 h-5 text-slate-400" />
                   </button>
                 </div>
 
                 <button
                   onClick={handleOpenRules}
-                  className="py-1 px-3 bg-yellow-500 text-slate-950 text-xs font-black rounded-xl transition-all flex items-center gap-0.5 shadow hover:bg-yellow-400"
+                  className="py-2 px-4 bg-yellow-500 text-slate-950 text-sm font-black rounded-xl transition-all flex items-center gap-1 shadow hover:bg-yellow-400"
                 >
-                  <HelpCircle className="w-3.5 h-3.5 shrink-0" />
+                  <HelpCircle className="w-4 h-4 shrink-0" />
                   遊戲說明
                 </button>
               </header>
@@ -1375,14 +1364,14 @@ export default function App() {
 
                 {/* STICKY GUIDE BAR — always visible on mobile, above scrollable controls */}
                 <div className="shrink-0 lg:hidden px-3 py-2 border-b border-white/10">
-                  <div className={`flex items-start gap-2 p-2.5 rounded-xl border text-xs font-bold leading-snug transition-colors ${
+                  <div className={`flex items-start gap-2.5 p-3 rounded-xl border text-sm font-bold leading-snug transition-colors ${
                     pendingMoves && gamePhase === 'waiting_player_action'
                       ? 'bg-orange-900/40 border-orange-500/50 text-orange-100'
                       : mode === 'standard' && activeHuCheck.canHu
                         ? 'bg-emerald-900/50 border-emerald-400/60 text-emerald-100'
                         : 'bg-yellow-500/10 border-yellow-500/25 text-slate-100'
                   }`}>
-                    <span className="text-base shrink-0 leading-none mt-px">
+                    <span className="text-lg shrink-0 leading-none mt-px">
                       {pendingMoves && gamePhase === 'waiting_player_action' ? '🚨'
                        : mode === 'standard' && activeHuCheck.canHu ? '🏆'
                        : 'ℹ️'}
@@ -1459,19 +1448,19 @@ export default function App() {
                   <div className="flex flex-col gap-1.5">
                     
                     {/* User profile banner */}
-                    <div className="flex justify-between items-center bg-[#073a2a] py-1 px-2.5 rounded-xl border border-emerald-600/30">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-base leading-none">{playerAvatar}</span>
-                        <span className="text-xs font-black text-yellow-300">{playerName}</span>
+                    <div className="flex justify-between items-center bg-[#073a2a] py-2 px-3 rounded-xl border border-emerald-600/30">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xl leading-none">{playerAvatar}</span>
+                        <span className="text-sm font-black text-yellow-300">{playerName}</span>
                       </div>
 
                       {/* Score metrics */}
                       {mode === 'pairs' ? (
-                        <div className="text-[10px] font-bold text-red-300 leading-none">
-                          散牌目標：<strong className="text-xs text-red-400 font-extrabold">{playerGrouping.strays.length}</strong> 張
+                        <div className="text-xs font-bold text-red-300 leading-none">
+                          散牌目標：<strong className="text-sm text-red-400 font-extrabold">{playerGrouping.strays.length}</strong> 張
                         </div>
                       ) : (
-                        <div className="text-[10px] font-bold leading-none">
+                        <div className="text-xs font-bold leading-none">
                           當前積分：{activeHuCheck.canHu ? (
                             <span className="text-emerald-400 font-black">✔ 滿足胡牌條件！</span>
                           ) : (
@@ -1483,17 +1472,17 @@ export default function App() {
 
                     {/* Pairs groupings display if in Pairs mode */}
                     {mode === 'pairs' && (
-                      <div className="grid grid-cols-4 gap-1 select-none text-[8px] font-mono border-b border-white/5 pb-1 mt-0.5">
-                        <div className="bg-emerald-950/40 p-1 rounded text-center">
+                      <div className="grid grid-cols-4 gap-1 select-none text-[10px] font-mono border-b border-white/5 pb-1 mt-0.5">
+                        <div className="bg-emerald-950/40 p-1.5 rounded text-center">
                           <span className="text-emerald-400 block font-bold leading-none">暗開車✕{playerGrouping.quads.length}</span>
                         </div>
-                        <div className="bg-cyan-950/40 p-1 rounded text-center">
+                        <div className="bg-cyan-950/40 p-1.5 rounded text-center">
                           <span className="text-cyan-400 block font-bold leading-none">暗坎✕{playerGrouping.triples.length}</span>
                         </div>
-                        <div className="bg-purple-950/40 p-1 rounded text-center">
+                        <div className="bg-purple-950/40 p-1.5 rounded text-center">
                           <span className="text-purple-400 block font-bold leading-none">對子✕{playerGrouping.pairs.length}</span>
                         </div>
-                        <div className="bg-red-950/40 p-1 rounded text-center">
+                        <div className="bg-red-950/40 p-1.5 rounded text-center">
                           <span className="text-red-400 block font-bold leading-none">散牌✕{playerGrouping.strays.length}</span>
                         </div>
                       </div>
@@ -1502,8 +1491,8 @@ export default function App() {
 
                   {/* PLAYER HAND CONTAINER */}
                   <div className="space-y-1 text-left mt-1 select-none">
-                    <span className="text-[11px] font-black text-yellow-400/90 block">
-                      👇 您的手牌區 (輕敲卡牌可選定，再點擊右下角黃色【打牌】)：
+                    <span className="text-xs font-black text-yellow-400/90 block">
+                      👇 您的手牌區 (輕敲卡牌選定，再點擊【打牌】)：
                     </span>
 
                     <div className="flex flex-wrap justify-center items-center gap-x-1 gap-y-3 p-3.5 bg-black/45 rounded-xl border border-white/10 min-h-[110px] h-auto">
@@ -1531,24 +1520,24 @@ export default function App() {
                   </div>
 
                   {/* BOTTOM PRIVILEGE PANEL */}
-                  <div className="bg-black/30 p-2 rounded-xl flex items-center justify-between gap-2 border border-white/5 mt-1 text-xs select-none">
-                    <div className="text-[11px] text-slate-300 font-bold max-w-[50%] truncate text-left select-none">
+                  <div className="bg-black/30 p-2.5 rounded-xl flex items-center justify-between gap-2 border border-white/5 mt-1 select-none">
+                    <div className="text-xs text-slate-300 font-bold max-w-[45%] text-left select-none">
                       {selectedCardId ? (
                         <p className="leading-tight">
-                          選中：<strong className="text-yellow-400 text-sm">[{player.hand.find(c => c.id === selectedCardId)?.name}]</strong>
+                          選中：<strong className="text-yellow-400 text-base">[{player.hand.find(c => c.id === selectedCardId)?.name}]</strong>
                         </p>
                       ) : (
-                        <p className="text-slate-400 text-[10px] leading-tight font-semibold">👉 請輕點上面一張牌</p>
+                        <p className="text-slate-400 text-xs leading-tight font-semibold">👉 請輕點上面一張牌</p>
                       )}
                     </div>
-                    
+
                     <div className="flex gap-2">
                       {/* Standard declare win button */}
                       {mode === 'standard' && (
                         <button
                           onClick={handleDeclareHuSelf}
                           disabled={gamePhase !== 'playing'}
-                          className={`px-3 py-2 text-[11px] text-white font-extrabold rounded-xl shadow border transition-all disabled:opacity-40 ${
+                          className={`px-4 py-2.5 text-sm text-white font-extrabold rounded-xl shadow border transition-all disabled:opacity-40 ${
                             activeHuCheck.canHu && gamePhase === 'playing'
                               ? 'bg-gradient-to-r from-red-500 to-yellow-500 border-yellow-300 animate-pulse scale-105'
                               : 'bg-gradient-to-r from-red-900 to-yellow-900 border-yellow-800'
@@ -1561,7 +1550,7 @@ export default function App() {
                       <button
                         onClick={() => handlePlayerDiscard(selectedCardId!)}
                         disabled={!selectedCardId || !canDiscard || gamePhase !== 'playing' || curPlayerId !== 'player'}
-                        className={`px-5 py-2 font-black rounded-xl text-xs transition-all flex items-center gap-1 ${
+                        className={`px-5 py-2.5 font-black rounded-xl text-sm transition-all flex items-center gap-1 ${
                           selectedCardId && canDiscard && gamePhase === 'playing' && curPlayerId === 'player'
                             ? 'bg-yellow-500 hover:bg-yellow-400 text-black border border-yellow-300 animate-pulse'
                             : 'bg-white/5 border border-white/10 text-slate-500 cursor-not-allowed'
@@ -1646,41 +1635,41 @@ export default function App() {
             <div className="flex-1 flex flex-col justify-between h-full w-full select-none text-white overflow-hidden">
               
               {/* Header */}
-              <header className="h-[52px] bg-black/40 border-b border-white/10 px-3 flex items-center justify-between shrink-0 select-none z-10">
+              <header className="h-[60px] bg-black/40 border-b border-white/10 px-3 flex items-center justify-between shrink-0 select-none z-10">
                 <button
                   onClick={handleBackFromRules}
-                  className="py-1 px-3 bg-white/10 hover:bg-white/15 border border-white/10 text-xs font-extrabold text-slate-200 rounded-xl transition-all flex items-center gap-0.5"
+                  className="py-2 px-4 bg-white/10 hover:bg-white/15 border border-white/10 text-sm font-extrabold text-slate-200 rounded-xl transition-all flex items-center gap-1"
                 >
-                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <ArrowLeft className="w-4 h-4" />
                   返回
                 </button>
-                <span className="text-sm font-black text-yellow-500 tracking-wider">🀄 傳統四色牌指引</span>
+                <span className="text-base font-black text-yellow-500 tracking-wider">🀄 傳統四色牌指引</span>
                 <div className="w-16 h-3" />
               </header>
 
               {/* Sub tabs */}
-              <div className="bg-black/20 p-2 flex border-b border-white/5 justify-between gap-1 shrink-0 text-[11px] font-semibold select-none">
+              <div className="bg-black/20 p-2 flex border-b border-white/5 justify-between gap-1 shrink-0 text-xs font-semibold select-none">
                 <button
                   onClick={() => handleSwitchTab('ranks')}
-                  className={`flex-1 py-1 px-0.5 rounded text-center transition-colors ${activeTutorialTab === 'ranks' ? 'bg-yellow-500 text-black font-extrabold' : 'hover:bg-white/5 text-slate-300 font-medium'}`}
+                  className={`flex-1 py-2 px-0.5 rounded text-center transition-colors ${activeTutorialTab === 'ranks' ? 'bg-yellow-500 text-black font-extrabold' : 'hover:bg-white/5 text-slate-300 font-medium'}`}
                 >
                   🎨 牌色圖鑑
                 </button>
                 <button
                   onClick={() => handleSwitchTab('pairs')}
-                  className={`flex-1 py-1 px-0.5 rounded text-center transition-colors ${activeTutorialTab === 'pairs' ? 'bg-yellow-500 text-black font-extrabold' : 'hover:bg-white/5 text-slate-300 font-medium'}`}
+                  className={`flex-1 py-2 px-0.5 rounded text-center transition-colors ${activeTutorialTab === 'pairs' ? 'bg-yellow-500 text-black font-extrabold' : 'hover:bg-white/5 text-slate-300 font-medium'}`}
                 >
                   👦 簡單對子
                 </button>
                 <button
                   onClick={() => handleSwitchTab('standard')}
-                  className={`flex-1 py-1 px-0.5 rounded text-center transition-colors ${activeTutorialTab === 'standard' ? 'bg-yellow-500 text-black font-extrabold' : 'hover:bg-white/5 text-slate-300 font-medium'}`}
+                  className={`flex-1 py-2 px-0.5 rounded text-center transition-colors ${activeTutorialTab === 'standard' ? 'bg-yellow-500 text-black font-extrabold' : 'hover:bg-white/5 text-slate-300 font-medium'}`}
                 >
                   🀄 傳統吃碰
                 </button>
                 <button
                   onClick={() => handleSwitchTab('point')}
-                  className={`flex-1 py-1 px-0.5 rounded text-center transition-colors ${activeTutorialTab === 'point' ? 'bg-yellow-500 text-black font-extrabold' : 'hover:bg-white/5 text-slate-300 font-medium'}`}
+                  className={`flex-1 py-2 px-0.5 rounded text-center transition-colors ${activeTutorialTab === 'point' ? 'bg-yellow-500 text-black font-extrabold' : 'hover:bg-white/5 text-slate-300 font-medium'}`}
                 >
                   📊 胡數計分
                 </button>
@@ -1815,11 +1804,6 @@ export default function App() {
 
         </div>
 
-        {/* iPhone Bottom Home Indicator Safe Zone Area (上滑回主頁保護區) */}
-        <div className="md:hidden w-full bg-[#032e22]/95 py-2.5 flex flex-col items-center justify-center shrink-0 border-t border-white/5 z-40 select-none pb-[env(safe-area-inset-bottom,12px)]">
-          <div className="w-[124px] h-[5px] bg-slate-400/70 rounded-full mb-1" />
-          <span className="text-[9px] font-bold tracking-widest text-[#5ba283] opacity-80 select-none uppercase">上滑返回主畫面</span>
-        </div>
 
       </div>
 
