@@ -100,6 +100,7 @@ export default function App() {
 
   // Animation overlays
   const [showEatPairAnim, setShowEatPairAnim] = useState(false);
+  const [drawnCardPreview, setDrawnCardPreview] = useState<import('./types').Card | null>(null);
   const [showHuCelebration, setShowHuCelebration] = useState(false);
   const [huCelebShowContinue, setHuCelebShowContinue] = useState(false);
   const fireworksCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -422,35 +423,41 @@ export default function App() {
       const matchedCard = pGroup.strays.find(c => c.color === drawn.color && c.character === drawn.character);
 
       if (matchedCard) {
-        // AUTO-PAIR: pair immediately without asking, then show 吃對 animation
-        const nextHand = player.hand.filter(c => c.id !== matchedCard.id);
-        const autoPairMeld: RevealedMeld = {
-          id: `player-pair-${Date.now()}`,
-          type: 'pair',
-          cards: [drawn, matchedCard],
-          hoo: isGeneral(drawn) ? 2 : 0,
-          name: `對子 [${drawn.name}]`
-        };
-        setPlayer(prev => ({ ...prev, hand: nextHand, revealed: [...prev.revealed, autoPairMeld] }));
+        // Step 1: show drawn card for 3s
         setLastDrawnCard(null);
         setLastDiscardedCard(null);
-        addLog(`【自動配對】自摸 [${drawn.name}] 已自動與手中 [${matchedCard.name}] 配對！`);
-        setShowEatPairAnim(true);
+        setDrawnCardPreview(drawn);
+        addLog(`【自摸】摸到 [${drawn.name}]，正好與手中 [${matchedCard.name}] 配對！`);
 
-        const autoCheck = groupPairsMode(nextHand);
-        if (autoCheck.strays.length === 0) {
+        setTimeout(() => {
+          // Step 2: execute pair + show 吃對 for 3s
+          setDrawnCardPreview(null);
+          const nextHand = player.hand.filter(c => c.id !== matchedCard.id);
+          const autoPairMeld: RevealedMeld = {
+            id: `player-pair-${Date.now()}`,
+            type: 'pair',
+            cards: [drawn, matchedCard],
+            hoo: isGeneral(drawn) ? 2 : 0,
+            name: `對子 [${drawn.name}]`
+          };
+          setPlayer(prev => ({ ...prev, hand: nextHand, revealed: [...prev.revealed, autoPairMeld] }));
+          setShowEatPairAnim(true);
+
+          const autoCheck = groupPairsMode(nextHand);
+          if (autoCheck.strays.length === 0) {
+            setTimeout(() => {
+              setShowEatPairAnim(false);
+              handleWin('player', 'pairs', '恭喜！自摸配對完成所有散牌，宣告勝出！');
+            }, 3000);
+            return;
+          }
+          setHasDrawn(true);
+          setCanDiscard(false);
           setTimeout(() => {
             setShowEatPairAnim(false);
-            handleWin('player', 'pairs', '恭喜！自摸配對完成所有散牌，宣告勝出！');
+            setCanDiscard(true);
+            setGuideMessage('自動配對成功！請選取一張散牌打出。');
           }, 3000);
-          return;
-        }
-        setHasDrawn(true);
-        setCanDiscard(false);
-        setTimeout(() => {
-          setShowEatPairAnim(false);
-          setCanDiscard(true);
-          setGuideMessage('自動配對成功！請選取一張散牌打出。');
         }, 3000);
       } else {
         // No match — add to hand, player chooses which stray to discard
@@ -2045,33 +2052,48 @@ export default function App() {
         </div>
       )}
 
+      {/* 摸牌預覽 OVERLAY — shows drawn card for 3s before auto-pair */}
+      {drawnCardPreview && (
+        <div className="fixed inset-0 z-[145] flex flex-col items-center justify-center pointer-events-none select-none" style={{ background: 'rgba(6,14,30,0.78)' }}>
+          <div style={{ animation: 'cardReveal 0.5s cubic-bezier(0.34,1.56,0.64,1) both' }}>
+            <div className="flex flex-col items-center gap-4">
+              <div
+                className="font-bold tracking-widest"
+                style={{
+                  fontSize: 'clamp(1rem, 4vw, 1.5rem)',
+                  color: '#f5c218',
+                  letterSpacing: '0.25em',
+                  animation: 'fadeInUp 0.4s ease 0.3s both',
+                  textShadow: '0 0 16px rgba(245,194,24,0.85)',
+                }}
+              >
+                自 摸
+              </div>
+              <FourColorCard card={drawnCardPreview} size="lg" isRevealed={true} />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 吃對 ANIMATION OVERLAY — 3 seconds, pointer-events-none */}
       {showEatPairAnim && (
         <div className="fixed inset-0 z-[150] flex items-center justify-center pointer-events-none select-none">
-          <div className="flex flex-col items-center gap-3">
-            <div
-              className="text-white font-black leading-none"
-              style={{
-                fontFamily: 'Georgia, serif',
-                fontSize: 'clamp(5rem, 22vw, 9rem)',
-                color: '#f5c218',
-                animation: 'eatPairPop 0.5s cubic-bezier(0.34,1.56,0.64,1) both, eatPairGlow 0.8s ease-in-out 0.5s infinite alternate',
-                WebkitTextStroke: '2px rgba(240,120,0,0.6)',
-              }}
-            >
-              吃對！
-            </div>
-            <div
-              className="text-yellow-200 font-extrabold tracking-widest"
-              style={{
-                fontSize: 'clamp(1.1rem, 5vw, 1.8rem)',
-                animation: 'fadeInUp 0.4s ease 0.4s both',
-                textShadow: '0 0 20px rgba(240,179,41,0.9)',
-                letterSpacing: '0.2em',
-              }}
-            >
-              ✨ 配對成功 ✨
-            </div>
+          <div
+            style={{
+              width: 'clamp(180px, 44vw, 280px)',
+              height: 'clamp(180px, 44vw, 280px)',
+              background: '#f5c218',
+              color: '#0a1628',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 'clamp(3rem, 12vw, 5rem)',
+              fontWeight: 700,
+              borderRadius: '1.2rem',
+              animation: 'eatPairPop 0.5s cubic-bezier(0.34,1.56,0.64,1) both, boxGlow 0.8s ease-in-out 0.5s infinite alternate',
+            }}
+          >
+            吃對
           </div>
         </div>
       )}
@@ -2091,16 +2113,20 @@ export default function App() {
             {/* 胡牌 stamp */}
             <div
               style={{
-                fontFamily: 'Georgia, serif',
-                fontSize: 'clamp(5.5rem, 28vw, 11rem)',
-                fontWeight: 900,
-                color: '#ff4444',
-                lineHeight: 1,
-                animation: 'huStamp 0.7s cubic-bezier(0.22,1,0.36,1) both, huGlow 1s ease-in-out 0.7s infinite alternate',
-                WebkitTextStroke: '3px rgba(240,179,41,0.7)',
+                width: 'clamp(200px, 50vw, 320px)',
+                height: 'clamp(200px, 50vw, 320px)',
+                background: '#f5c218',
+                color: '#0a1628',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 'clamp(3.5rem, 14vw, 6rem)',
+                fontWeight: 700,
+                borderRadius: '1.2rem',
+                animation: 'huStamp 0.7s cubic-bezier(0.22,1,0.36,1) both, boxGlow 1s ease-in-out 0.7s infinite alternate',
               }}
             >
-              胡牌！
+              胡牌
             </div>
 
             {/* Sub-label */}
@@ -2108,13 +2134,13 @@ export default function App() {
               style={{
                 fontSize: 'clamp(1rem, 4.5vw, 1.6rem)',
                 color: '#f5c218',
-                fontWeight: 800,
+                fontWeight: 700,
                 letterSpacing: '0.15em',
                 animation: 'fadeInUp 0.5s ease 0.6s both',
                 textShadow: '0 0 20px rgba(245,194,24,0.8)',
               }}
             >
-              🏆 恭喜大獲全勝！🏆
+              恭喜大獲全勝！
             </div>
 
             {/* 繼續下局 button — appears after 5s */}
