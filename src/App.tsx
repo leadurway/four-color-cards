@@ -94,10 +94,42 @@ export default function App() {
   const [guideMessage, setGuideMessage] = useState('歡迎進入四色牌遊藝廳！請選擇想玩的玩法，輸入大名並點擊下方按鈕即可開盤！');
   
   const logsEndRef = useRef<HTMLDivElement>(null);
+  const handContainerRef = useRef<HTMLDivElement>(null);
+  const [handCardDims, setHandCardDims] = useState({ w: 32, h: 84, fs: 19 });
 
   useEffect(() => {
     logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [logs]);
+
+  // Recalculate hand card size whenever hand count or container size changes
+  useEffect(() => {
+    const el = handContainerRef.current;
+    if (!el || player.hand.length === 0) return;
+
+    const calc = (containerW: number, containerH: number) => {
+      const count = player.hand.length;
+      const cols = Math.ceil(count / 2) || 1;
+      const colGap = 1;
+      const rowGap = 10; // gap-y-2.5
+      const maxCardW = (containerW - colGap * (cols - 1)) / cols;
+      const maxCardH = (containerH - rowGap) / 2; // 2 rows
+      const aspect = 32 / 84; // xs card W/H ratio
+      let w: number, h: number;
+      if (maxCardW / aspect <= maxCardH) {
+        w = maxCardW; h = maxCardW / aspect;
+      } else {
+        h = maxCardH; w = maxCardH * aspect;
+      }
+      setHandCardDims({ w: Math.floor(w), h: Math.floor(h), fs: Math.round(w * 19 / 32) });
+    };
+
+    calc(el.getBoundingClientRect().width, el.getBoundingClientRect().height);
+    const obs = new ResizeObserver(([entry]) => {
+      calc(entry.contentRect.width, entry.contentRect.height);
+    });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [player.hand.length]);
 
   // Web Audio Synthesizer for high-fidelity direct physical sounds
   const playSound = (type: 'draw' | 'discard' | 'action' | 'win' | 'lose' | 'click') => {
@@ -1471,42 +1503,40 @@ export default function App() {
                     </div>
                   )}
 
-                  {/* PLAYER HAND — exactly 2 rows: grid cols = ceil(count/2) */}
-                  {(() => {
-                    const handCols = Math.ceil(player.hand.length / 2) || 1;
-                    return (
-                      <div className="flex-1 min-h-0 flex flex-col px-1 pt-1 pb-0 overflow-hidden">
-                        <span className="text-xs font-black text-yellow-400/90 shrink-0 mb-1 px-1">
-                          👇 您的手牌 (輕敲選牌，再點打牌)：
-                        </span>
-                        <div
-                          className="flex-1 min-h-0 grid justify-center content-start gap-x-[1px] gap-y-2.5 overflow-hidden py-1"
-                          style={{ gridTemplateColumns: `repeat(${handCols}, 2rem)` }}
-                        >
-                          {player.hand.map((card) => {
-                            const isSelected = card.id === selectedCardId;
-                            const isStray = mode === 'pairs' && playerGrouping.strays.some(s => s.id === card.id);
-                            return (
-                              <div key={card.id} className="relative flex flex-col items-center">
-                                <FourColorCard
-                                  card={card}
-                                  size="xs"
-                                  isRevealed={true}
-                                  isSelected={isSelected}
-                                  onClick={() => { playSound('click'); setSelectedCardId(isSelected ? null : card.id); }}
-                                />
-                                {mode === 'pairs' && isStray && (
-                                  <span className="absolute bottom-[-8px] text-[7px] bg-red-950 text-red-500 font-extrabold border border-red-900/60 px-0.5 rounded leading-none pointer-events-none">
-                                    散
-                                  </span>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })()}
+                  {/* PLAYER HAND — 2 rows, max card size via ResizeObserver */}
+                  <div className="flex-1 min-h-0 flex flex-col px-1 pt-1 pb-0 overflow-hidden">
+                    <span className="text-xs font-black text-yellow-400/90 shrink-0 mb-1 px-1">
+                      👇 您的手牌 (輕敲選牌，再點打牌)：
+                    </span>
+                    <div
+                      ref={handContainerRef}
+                      className="flex-1 min-h-0 grid justify-center content-start gap-x-[1px] gap-y-2.5 overflow-hidden py-1"
+                      style={{ gridTemplateColumns: `repeat(${Math.ceil(player.hand.length / 2) || 1}, ${handCardDims.w}px)` }}
+                    >
+                      {player.hand.map((card) => {
+                        const isSelected = card.id === selectedCardId;
+                        const isStray = mode === 'pairs' && playerGrouping.strays.some(s => s.id === card.id);
+                        return (
+                          <div key={card.id} className="relative flex flex-col items-center">
+                            <FourColorCard
+                              card={card}
+                              size="xs"
+                              isRevealed={true}
+                              isSelected={isSelected}
+                              onClick={() => { playSound('click'); setSelectedCardId(isSelected ? null : card.id); }}
+                              cardStyle={{ width: handCardDims.w, height: handCardDims.h }}
+                              charFontSize={handCardDims.fs}
+                            />
+                            {mode === 'pairs' && isStray && (
+                              <span className="absolute bottom-[-8px] text-[7px] bg-red-950 text-red-500 font-extrabold border border-red-900/60 px-0.5 rounded leading-none pointer-events-none">
+                                散
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
 
                   {/* ACTION BAR */}
                   <div className="bg-black/30 px-3 py-2 flex items-center justify-between gap-2 border-t border-white/5 shrink-0">

@@ -8,6 +8,8 @@ interface FourColorCardProps {
   onClick?: () => void;
   disabled?: boolean;
   size?: 'xs' | 'sm' | 'md' | 'lg';
+  cardStyle?: React.CSSProperties;
+  charFontSize?: number;
 }
 
 export const FourColorCard: React.FC<FourColorCardProps> = ({
@@ -17,6 +19,8 @@ export const FourColorCard: React.FC<FourColorCardProps> = ({
   onClick,
   disabled = false,
   size = 'md' as 'xs' | 'sm' | 'md' | 'lg',
+  cardStyle,
+  charFontSize,
 }) => {
   // Map colors to beautiful theme palettes matching the uploaded traditional image
   // Yellow: Bright solid yellow background, blood-red ink
@@ -164,6 +168,7 @@ export const FourColorCard: React.FC<FourColorCardProps> = ({
             'radial-gradient(circle, #7f1d1d 10%, transparent 11%), radial-gradient(circle, #7f1d1d 10%, transparent 11%)',
           backgroundSize: '8px 8px',
           backgroundPosition: '0 0, 4px 4px',
+          ...cardStyle,
         }}
       >
         <div className="absolute inset-1 border border-amber-500/40 rounded flex flex-col items-center justify-center">
@@ -186,6 +191,7 @@ export const FourColorCard: React.FC<FourColorCardProps> = ({
       } ${
         isSelected ? 'ring-4 ring-cyan-400 scale-105 -translate-y-2' : ''
       }`}
+      style={cardStyle}
     >
       {/* Outer black/red frame matching traditional woodblock designs */}
       <div className={`absolute inset-[1.5px] md:inset-[2.5px] border-[2px] md:border-[3px] border-solid rounded-xs opacity-95 pointer-events-none ${theme.border}`} />
@@ -193,7 +199,10 @@ export const FourColorCard: React.FC<FourColorCardProps> = ({
       {/* Top Character and Decoration */}
       <div className={`z-10 flex flex-col items-center w-full px-1 ${theme.text}`}>
         {getDecoration(card.character)}
-        <span className={`font-black font-serif leading-none mt-1 ${fontSizeClasses[size]} tracking-tight text-center select-none`}>
+        <span
+          className={`font-black font-serif leading-none mt-1 ${fontSizeClasses[size]} tracking-tight text-center select-none`}
+          style={charFontSize ? { fontSize: charFontSize } : undefined}
+        >
           {card.character}
         </span>
       </div>
@@ -206,7 +215,10 @@ export const FourColorCard: React.FC<FourColorCardProps> = ({
       {/* Bottom Character and Decoration (Upside right-side characters on both sides is traditional) */}
       <div className={`z-10 flex flex-col items-center rotate-180 w-full px-1 ${theme.text}`}>
         {getDecoration(card.character)}
-        <span className={`font-black font-serif leading-none mt-1 ${fontSizeClasses[size]} tracking-tight text-center select-none`}>
+        <span
+          className={`font-black font-serif leading-none mt-1 ${fontSizeClasses[size]} tracking-tight text-center select-none`}
+          style={charFontSize ? { fontSize: charFontSize } : undefined}
+        >
           {card.character}
         </span>
       </div>
