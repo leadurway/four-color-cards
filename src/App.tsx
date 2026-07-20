@@ -1641,15 +1641,6 @@ export default function App() {
                         const isSelected = card.id === selectedCardId && isStray;
                         return (
                           <div key={card.id} className="relative flex flex-col items-center">
-                            {mode === 'pairs' && (
-                              <span className={`absolute top-[-11px] left-1/2 -translate-x-1/2 z-10 text-[9px] font-extrabold px-1 py-px rounded leading-none pointer-events-none border ${
-                                isPaired
-                                  ? 'bg-blue-900 text-blue-300 border-blue-500 shadow-[0_0_6px_rgba(96,165,250,0.7)]'
-                                  : 'bg-red-900 text-red-300 border-red-500 shadow-[0_0_6px_rgba(248,113,113,0.7)]'
-                              }`}>
-                                {isPaired ? '對' : '散'}
-                              </span>
-                            )}
                             <FourColorCard
                               card={card}
                               size="xs"
@@ -1664,12 +1655,24 @@ export default function App() {
                               cardStyle={{
                                 width: handCardDims.w,
                                 height: handCardDims.h,
-                                opacity: isPaired ? 0.45 : 1,
-                                filter: isPaired ? 'brightness(0.6) saturate(0.5)' : undefined,
-                                transition: 'opacity 0.3s, filter 0.3s',
                               }}
                               charFontSize={handCardDims.fs}
                             />
+                            {mode === 'pairs' && (
+                              <span
+                                className="absolute top-0 left-0 z-10 flex items-center justify-center pointer-events-none text-[9px] font-extrabold leading-none border-b"
+                                style={{
+                                  width: handCardDims.w,
+                                  height: 13,
+                                  background: isPaired ? 'rgba(30,58,138,0.55)' : 'rgba(127,29,29,0.55)',
+                                  borderColor: isPaired ? 'rgba(96,165,250,0.9)' : 'rgba(248,113,113,0.9)',
+                                  color: isPaired ? '#93c5fd' : '#fca5a5',
+                                  textShadow: isPaired ? '0 0 6px rgba(96,165,250,0.9)' : '0 0 6px rgba(248,113,113,0.9)',
+                                }}
+                              >
+                                {isPaired ? '對' : '散'}
+                              </span>
+                            )}
                           </div>
                         );
                       })}
