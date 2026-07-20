@@ -3,3 +3,31 @@
 html, body {
   background-color: #0a1628;
 }
+
+@keyframes eatPairPop {
+  0%   { transform: scale(0.4) rotate(-8deg); opacity: 0; }
+  60%  { transform: scale(1.15) rotate(3deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+@keyframes eatPairGlow {
+  0%   { text-shadow: 0 0 30px #f0b329, 0 0 60px #f0b329; }
+  100% { text-shadow: 0 0 60px #f5c218, 0 0 120px #f5c218, 0 0 180px rgba(245,194,24,0.5); }
+}
+@keyframes huStamp {
+  0%   { transform: scale(2.5); opacity: 0; }
+  50%  { transform: scale(0.92); opacity: 1; }
+  65%  { transform: scale(1.05); }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes huGlow {
+  0%   { text-shadow: 0 0 40px #ff4444, 0 0 80px #f0b329; filter: drop-shadow(0 0 20px #ff4444); }
+  100% { text-shadow: 0 0 80px #ff6666, 0 0 160px #f5c218, 0 0 240px rgba(255,68,68,0.4); filter: drop-shadow(0 0 40px #ff6666); }
+}
+@keyframes continuePulse {
+  0%   { box-shadow: 0 0 20px #f0b329, 0 0 40px rgba(240,179,41,0.5); transform: scale(1); }
+  100% { box-shadow: 0 0 50px #f5c218, 0 0 100px rgba(245,194,24,0.6), 0 0 150px rgba(245,194,24,0.3); transform: scale(1.04); }
+}
+@keyframes fadeInUp {
+  0%   { opacity: 0; transform: translateY(30px); }
+  100% { opacity: 1; transform: translateY(0); }
+}

@@ -98,6 +98,12 @@ export default function App() {
   const handContainerRef = useRef<HTMLDivElement>(null);
   const [handCardDims, setHandCardDims] = useState({ w: 32, h: 84, fs: 19 });
 
+  // Animation overlays
+  const [showEatPairAnim, setShowEatPairAnim] = useState(false);
+  const [showHuCelebration, setShowHuCelebration] = useState(false);
+  const [huCelebShowContinue, setHuCelebShowContinue] = useState(false);
+  const fireworksCanvasRef = useRef<HTMLCanvasElement | null>(null);
+
   useEffect(() => {
     logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [logs]);
@@ -131,6 +137,64 @@ export default function App() {
     obs.observe(el);
     return () => obs.disconnect();
   }, [player.hand.length]);
+
+  // Fireworks canvas animation
+  useEffect(() => {
+    if (!showHuCelebration) return;
+    const canvas = fireworksCanvasRef.current;
+    if (!canvas) return;
+
+    const resize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
+    resize();
+    window.addEventListener('resize', resize);
+
+    const ctx = canvas.getContext('2d')!;
+    const colors = ['#f0b329','#ff5511','#f5c218','#5ed07a','#60a5fa','#e8541a','#ff6b9d','#c084fc','#ffffff'];
+    type Particle = { x: number; y: number; vx: number; vy: number; color: string; life: number; size: number };
+    const particles: Particle[] = [];
+
+    const burst = () => {
+      const x = 0.15 * canvas.width + Math.random() * canvas.width * 0.7;
+      const y = 0.1 * canvas.height + Math.random() * canvas.height * 0.45;
+      const count = 55 + Math.floor(Math.random() * 30);
+      const color = colors[Math.floor(Math.random() * colors.length)];
+      for (let i = 0; i < count; i++) {
+        const angle = (i / count) * Math.PI * 2;
+        const speed = 2.5 + Math.random() * 6;
+        particles.push({ x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed - 1, color, life: 1, size: 2 + Math.random() * 3 });
+      }
+    };
+
+    let animId: number;
+    let lastBurst = -1000;
+    const animate = (t: number) => {
+      if (t - lastBurst > 420) { burst(); if (Math.random() > 0.5) burst(); lastBurst = t; }
+      ctx.fillStyle = 'rgba(6,14,30,0.18)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx; p.y += p.vy; p.vy += 0.13; p.vx *= 0.99; p.life -= 0.016;
+        if (p.life <= 0) { particles.splice(i, 1); continue; }
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = p.life;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+      animId = requestAnimationFrame(animate);
+    };
+    animId = requestAnimationFrame(animate);
+
+    return () => { cancelAnimationFrame(animId); window.removeEventListener('resize', resize); };
+  }, [showHuCelebration]);
+
+  // Clear selected card if it becomes paired (e.g. after draw-and-pair)
+  useEffect(() => {
+    if (!selectedCardId || mode !== 'pairs') return;
+    const group = groupPairsMode(player.hand);
+    if (!group.strays.some(s => s.id === selectedCardId)) setSelectedCardId(null);
+  }, [player.hand]);
 
   // Web Audio Synthesizer for high-fidelity direct physical sounds
   const playSound = (type: 'draw' | 'discard' | 'action' | 'win' | 'lose' | 'click') => {
@@ -354,31 +418,47 @@ export default function App() {
     addLog(`【您摸牌】摸到了一張牌：[${drawn.name}]`);
 
     if (mode === 'pairs') {
-      // Check if this newly drawn card matches any of player's strays
       const pGroup = groupPairsMode(player.hand);
       const matchedCard = pGroup.strays.find(c => c.color === drawn.color && c.character === drawn.character);
 
       if (matchedCard) {
-        // Automatically set up 吃對 Match!
-        setPendingMoves({
-          canHu: false,
-          canQuad: false,
-          canPong: true, // Used here to represent standard pair match
-          canEatSeq: false,
-          eatSeqOptions: []
-        });
-        setGamePhase('waiting_player_action');
-        setGuideMessage(`自摸對子！您熟練地摸到 [${drawn.name}]。正好跟手中散牌成對！點點下方的「吃對」按鈕。`);
+        // AUTO-PAIR: pair immediately without asking, then show 吃對 animation
+        const nextHand = player.hand.filter(c => c.id !== matchedCard.id);
+        const autoPairMeld: RevealedMeld = {
+          id: `player-pair-${Date.now()}`,
+          type: 'pair',
+          cards: [drawn, matchedCard],
+          hoo: isGeneral(drawn) ? 2 : 0,
+          name: `對子 [${drawn.name}]`
+        };
+        setPlayer(prev => ({ ...prev, hand: nextHand, revealed: [...prev.revealed, autoPairMeld] }));
+        setLastDrawnCard(null);
+        setLastDiscardedCard(null);
+        addLog(`【自動配對】自摸 [${drawn.name}] 已自動與手中 [${matchedCard.name}] 配對！`);
+        setShowEatPairAnim(true);
+
+        const autoCheck = groupPairsMode(nextHand);
+        if (autoCheck.strays.length === 0) {
+          setTimeout(() => {
+            setShowEatPairAnim(false);
+            handleWin('player', 'pairs', '恭喜！自摸配對完成所有散牌，宣告勝出！');
+          }, 3000);
+          return;
+        }
+        setHasDrawn(true);
+        setCanDiscard(false);
+        setTimeout(() => {
+          setShowEatPairAnim(false);
+          setCanDiscard(true);
+          setGuideMessage('自動配對成功！請選取一張散牌打出。');
+        }, 3000);
       } else {
-        // No match. Card merges into player's hand, then they must choose one to discard
+        // No match — add to hand, player chooses which stray to discard
         const nextHand = sortHandForDisplay([...player.hand, drawn]);
-        setPlayer(prev => ({
-          ...prev,
-          hand: nextHand
-        }));
+        setPlayer(prev => ({ ...prev, hand: nextHand }));
         setLastDrawnCard(null);
         setCanDiscard(true);
-        setGuideMessage(`摸到的 [${drawn.name}] 未能與手牌散牌配對，已自動調入您手牌。請選取一張不需要的牌打出。`);
+        setGuideMessage(`摸到的 [${drawn.name}] 未能配對，已加入手牌。請選取一張散牌打出。`);
       }
     } else {
       // Standard Mahjong-like rules check when drawing from deck
@@ -405,9 +485,15 @@ export default function App() {
   // Player Manual Touch to Discard a selected Card
   const handlePlayerDiscard = (cardId: string) => {
     if (gamePhase !== 'playing' || curPlayerId !== 'player' || !canDiscard) return;
-    
+
     const cardToDiscard = player.hand.find(c => c.id === cardId);
     if (!cardToDiscard) return;
+
+    // In pairs mode, only stray (unpaired) cards can be discarded
+    if (mode === 'pairs') {
+      const dGroup = groupPairsMode(player.hand);
+      if (!dGroup.strays.some(s => s.id === cardId)) return;
+    }
 
     playSound('discard');
     const updatedHand = player.hand.filter(c => c.id !== cardId);
@@ -824,18 +910,26 @@ export default function App() {
           setLastDiscardedCard(null);
           setPendingMoves(null);
           setGamePhase('playing');
+          setShowEatPairAnim(true);
 
           const checkGroup = groupPairsMode(nextHand);
           if (checkGroup.strays.length === 0) {
-            handleWin('player', 'pairs', '恭喜！您成功配對了手中所有單張散牌，解鎖大勝！');
+            setTimeout(() => {
+              setShowEatPairAnim(false);
+              handleWin('player', 'pairs', '恭喜！您成功配對了手中所有單張散牌，解鎖大勝！');
+            }, 3000);
             return;
           }
 
-          // Active turn continues but is own turn - player must discard
-          setCanDiscard(true);
+          // Show animation, then allow discard
           setCurPlayerId('player');
           setHasDrawn(true);
-          setGuideMessage('配對成功！請在手牌選取一張多餘拋牌，並點擊下方「打牌」按鈕，傳遞回合。');
+          setCanDiscard(false);
+          setTimeout(() => {
+            setShowEatPairAnim(false);
+            setCanDiscard(true);
+            setGuideMessage('配對成功！請在手牌選取一張散牌打出。');
+          }, 3000);
         } else {
           // Fallback to avoid deadlocks/hangs if mismatch occurs
           addLog(`【配對提示】手牌未找到與 [${trigger.name}] 相同的牌，無法配對，已自動回歸您的打牌階段。`);
@@ -1012,6 +1106,11 @@ export default function App() {
     setWinType(type);
     setWinExplanation(explanation);
     addLog(`📢 牌局終止！【${winner === 'player' ? '玩家' : '電腦 AI'}】宣佈贏得本盤勝利！理由：${explanation}`);
+    if (winner === 'player') {
+      setShowHuCelebration(true);
+      setHuCelebShowContinue(false);
+      setTimeout(() => setHuCelebShowContinue(true), 5000);
+    }
   };
 
   // Triggers draw game when remaining cards hit zero
@@ -1537,8 +1636,9 @@ export default function App() {
                       style={{ gridTemplateColumns: `repeat(${Math.ceil(player.hand.length / 2) || 1}, ${handCardDims.w}px)` }}
                     >
                       {player.hand.map((card) => {
-                        const isSelected = card.id === selectedCardId;
-                        const isStray = mode === 'pairs' && playerGrouping.strays.some(s => s.id === card.id);
+                        const isStray = mode !== 'pairs' || playerGrouping.strays.some(s => s.id === card.id);
+                        const isPaired = mode === 'pairs' && !isStray;
+                        const isSelected = card.id === selectedCardId && isStray;
                         return (
                           <div key={card.id} className="relative flex flex-col items-center">
                             <FourColorCard
@@ -1546,10 +1646,26 @@ export default function App() {
                               size="xs"
                               isRevealed={true}
                               isSelected={isSelected}
-                              onClick={() => { playSound('click'); setSelectedCardId(isSelected ? null : card.id); }}
-                              cardStyle={{ width: handCardDims.w, height: handCardDims.h }}
+                              disabled={isPaired}
+                              onClick={() => {
+                                if (isPaired) return;
+                                playSound('click');
+                                setSelectedCardId(isSelected ? null : card.id);
+                              }}
+                              cardStyle={{
+                                width: handCardDims.w,
+                                height: handCardDims.h,
+                                opacity: isPaired ? 0.45 : 1,
+                                filter: isPaired ? 'brightness(0.6) saturate(0.5)' : undefined,
+                                transition: 'opacity 0.3s, filter 0.3s',
+                              }}
                               charFontSize={handCardDims.fs}
                             />
+                            {mode === 'pairs' && isPaired && (
+                              <span className="absolute bottom-[-8px] text-[7px] bg-purple-950 text-purple-400 font-extrabold border border-purple-900/60 px-0.5 rounded leading-none pointer-events-none">
+                                對
+                              </span>
+                            )}
                             {mode === 'pairs' && isStray && (
                               <span className="absolute bottom-[-8px] text-[7px] bg-red-950 text-red-500 font-extrabold border border-red-900/60 px-0.5 rounded leading-none pointer-events-none">
                                 散
@@ -1897,11 +2013,11 @@ export default function App() {
 
       </div>
 
-      {/* GAME OVER IMMERSIVE MODAL OVERLAY */}
-      {gamePhase === 'game_over' && (
+      {/* GAME OVER MODAL — hidden while player-win celebration is showing */}
+      {gamePhase === 'game_over' && !showHuCelebration && (
         <div className="fixed inset-0 bg-[#060e1e]/90 z-[99] flex items-center justify-center p-4 select-none">
           <div className="bg-[#091e3e] border-4 border-yellow-500 shadow-2xl rounded-[32px] p-6 max-w-sm w-full text-center relative border-double animate-pulse text-white select-none">
-            
+
             <div className="absolute top-[-35px] left-1/2 transform -translate-x-1/2 bg-yellow-500 rounded-full p-2.5 border-4 border-[#091e3e]">
               <Sparkles className="w-8 h-8 text-slate-900" />
             </div>
@@ -1909,7 +2025,7 @@ export default function App() {
             <h2 className="text-3xl font-serif font-black text-yellow-500 mt-5 mb-2 leading-tight">
               {winnerId === 'player' ? '🏆 恭喜您大獲全勝！' : winnerId === 'computer' ? '🤖 電腦拔得頭籌' : '🤝 雙方和局流局'}
             </h2>
-            
+
             <p className="text-emerald-400 font-extrabold text-sm mb-3">
               {mode === 'pairs' ? '👦 抓對對子簡單對局' : '🀄 傳統吃碰標準對戰'}
             </p>
@@ -1924,6 +2040,107 @@ export default function App() {
             >
               重新發牌，再開一局 🀄
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* 吃對 ANIMATION OVERLAY — 3 seconds, pointer-events-none */}
+      {showEatPairAnim && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center pointer-events-none select-none">
+          <div className="flex flex-col items-center gap-3">
+            <div
+              className="text-white font-black leading-none"
+              style={{
+                fontFamily: 'Georgia, serif',
+                fontSize: 'clamp(5rem, 22vw, 9rem)',
+                color: '#f5c218',
+                animation: 'eatPairPop 0.5s cubic-bezier(0.34,1.56,0.64,1) both, eatPairGlow 0.8s ease-in-out 0.5s infinite alternate',
+                WebkitTextStroke: '2px rgba(240,120,0,0.6)',
+              }}
+            >
+              吃對！
+            </div>
+            <div
+              className="text-yellow-200 font-extrabold tracking-widest"
+              style={{
+                fontSize: 'clamp(1.1rem, 5vw, 1.8rem)',
+                animation: 'fadeInUp 0.4s ease 0.4s both',
+                textShadow: '0 0 20px rgba(240,179,41,0.9)',
+                letterSpacing: '0.2em',
+              }}
+            >
+              ✨ 配對成功 ✨
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 胡牌 CELEBRATION OVERLAY — fireworks + stamp + 繼續下局 button */}
+      {showHuCelebration && (
+        <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center select-none overflow-hidden">
+          {/* Fireworks canvas */}
+          <canvas
+            ref={fireworksCanvasRef}
+            className="absolute inset-0 w-full h-full"
+            style={{ background: 'rgba(6,14,30,0.82)' }}
+          />
+
+          {/* Content on top of canvas */}
+          <div className="relative z-10 flex flex-col items-center gap-6 px-6 text-center">
+            {/* 胡牌 stamp */}
+            <div
+              style={{
+                fontFamily: 'Georgia, serif',
+                fontSize: 'clamp(5.5rem, 28vw, 11rem)',
+                fontWeight: 900,
+                color: '#ff4444',
+                lineHeight: 1,
+                animation: 'huStamp 0.7s cubic-bezier(0.22,1,0.36,1) both, huGlow 1s ease-in-out 0.7s infinite alternate',
+                WebkitTextStroke: '3px rgba(240,179,41,0.7)',
+              }}
+            >
+              胡牌！
+            </div>
+
+            {/* Sub-label */}
+            <div
+              style={{
+                fontSize: 'clamp(1rem, 4.5vw, 1.6rem)',
+                color: '#f5c218',
+                fontWeight: 800,
+                letterSpacing: '0.15em',
+                animation: 'fadeInUp 0.5s ease 0.6s both',
+                textShadow: '0 0 20px rgba(245,194,24,0.8)',
+              }}
+            >
+              🏆 恭喜大獲全勝！🏆
+            </div>
+
+            {/* 繼續下局 button — appears after 5s */}
+            {huCelebShowContinue && (
+              <button
+                onClick={() => {
+                  setShowHuCelebration(false);
+                  setHuCelebShowContinue(false);
+                  playSound('click');
+                  initGame();
+                }}
+                style={{
+                  fontSize: 'clamp(1.4rem, 6vw, 2.2rem)',
+                  padding: 'clamp(0.9rem, 3vw, 1.4rem) clamp(2rem, 8vw, 4rem)',
+                  background: 'linear-gradient(135deg, #f0b329 0%, #f5c218 50%, #f0b329 100%)',
+                  color: '#0a1628',
+                  fontWeight: 900,
+                  borderRadius: '2rem',
+                  border: '4px solid #fff8cc',
+                  animation: 'fadeInUp 0.6s ease both, continuePulse 1.2s ease-in-out infinite alternate',
+                  cursor: 'pointer',
+                  letterSpacing: '0.05em',
+                }}
+              >
+                🀄 繼續下局
+              </button>
+            )}
           </div>
         </div>
       )}
