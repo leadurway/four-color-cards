@@ -1236,16 +1236,16 @@ export default function App() {
                 <div className="shrink-0 flex flex-col px-3 pt-2 pb-1.5 space-y-1.5 border-b-2 border-white/10">
 
                 {/* AI / OPPONENT STATUS (Top) */}
-                <div className="bg-black/35 p-2 rounded-2xl border border-white/5 space-y-1 text-xs relative select-none">
+                <div className="bg-black/35 p-2 rounded-2xl border border-white/5 space-y-1 text-sm relative select-none">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5 text-cyan-400 font-black">
-                      <Cpu className="w-3.5 h-3.5 animate-pulse text-cyan-400" />
+                      <Cpu className="w-4 h-4 animate-pulse text-cyan-400" />
                       <span>{computer.name}</span>
                     </div>
-                    
-                    <div className="flex items-center gap-1 text-[10px] text-slate-300 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full font-bold">
+
+                    <div className="flex items-center gap-1 text-xs text-slate-300 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full font-bold">
                       <span>賸餘牌:</span>
-                      <strong className="text-yellow-400">{computer.hand.length}</strong>
+                      <strong className="text-yellow-400 text-sm">{computer.hand.length}</strong>
                       <span>張</span>
                     </div>
                   </div>
@@ -1253,10 +1253,10 @@ export default function App() {
                   {/* Robot's revealed sets on screen */}
                   {computer.revealed.length > 0 && (
                     <div className="flex items-center gap-1 p-1 bg-black/40 rounded-xl border border-white/5 mt-0.5 overflow-x-auto whitespace-nowrap scrollbar-none">
-                      <span className="text-[9px] text-slate-400 font-bold shrink-0">案前亮相：</span>
+                      <span className="text-xs text-slate-400 font-bold shrink-0">案前亮相：</span>
                       <div className="flex gap-1">
                         {computer.revealed.map((meld) => (
-                          <div key={meld.id} className="bg-white/5 px-1 py-0.5 rounded border border-white/10 text-[9px] flex items-center gap-0.5">
+                          <div key={meld.id} className="bg-white/5 px-1.5 py-0.5 rounded border border-white/10 text-xs flex items-center gap-0.5">
                             <span className="text-yellow-500 font-bold leading-none">{meld.name}</span>
                           </div>
                         ))}
@@ -1281,7 +1281,7 @@ export default function App() {
                   
                   {/* Left: Deck stack (摸牌) */}
                   <div className="col-span-4 flex flex-col items-center justify-center border-r border-white/10 py-1 pr-1">
-                    <span className="text-[10px] font-bold text-yellow-500/80 mb-1.5">🎴 牌庫摸牌</span>
+                    <span className="text-xs font-bold text-yellow-500/80 mb-1.5">🎴 牌庫摸牌</span>
                     {deck.length > 0 ? (
                       <button
                         onClick={handlePlayerDraw}
@@ -1294,29 +1294,29 @@ export default function App() {
                       >
                         <div className="absolute top-0.5 left-0.5 w-full h-full bg-[#922b21] rounded-xl border border-white/10 transform translate-x-1 translate-y-1 z-0" />
                         <div className="relative w-full h-full bg-[#c0392b] border-2 border-white/10 rounded-xl flex flex-col items-center justify-center text-center p-1.5 z-10 leading-none">
-                          <span className="text-[8px] font-extrabold block text-white/50 leading-none">剩餘</span>
-                          <span className="text-base font-mono font-black text-white leading-none mt-1">{deck.length}</span>
+                          <span className="text-[10px] font-extrabold block text-white/60 leading-none">剩餘</span>
+                          <span className="text-lg font-mono font-black text-white leading-none mt-0.5">{deck.length}</span>
                         </div>
                       </button>
                     ) : (
-                      <div className="w-14 h-21 border border-dashed border-white/20 bg-white/5 rounded-xl flex items-center justify-center text-center text-[10px] text-slate-500 leading-tight">
+                      <div className="w-14 h-21 border border-dashed border-white/20 bg-white/5 rounded-xl flex items-center justify-center text-center text-xs text-slate-500 leading-tight">
                         牌庫空
                       </div>
                     )}
-                    <span className="text-[9px] text-slate-300 font-extrabold tracking-tighter mt-1 text-center scale-90">
+                    <span className="text-[10px] text-slate-300 font-extrabold mt-1 text-center leading-tight">
                       {gamePhase === 'playing' && curPlayerId === 'player' && lastDrawnCard === null && !hasDrawn
-                        ? '👆 輪您！點熟摸'
-                        : '等您下子'}
+                        ? '👆 點此摸牌'
+                        : '等待中…'}
                     </span>
                   </div>
 
                   {/* Center: Current Focus Table card */}
                   <div className="col-span-5 flex flex-col items-center justify-center px-1">
-                    <span className="text-[10px] font-bold text-yellow-500/80 mb-1">🔥 桌上焦點牌</span>
+                    <span className="text-xs font-bold text-yellow-500/80 mb-1">🔥 桌上焦點牌</span>
                     <div className="h-[95px] flex items-center justify-center relative">
                       {lastDrawnCard ? (
                         <div className="flex flex-col items-center gap-0.5 animate-bounce">
-                          <span className="text-[8px] bg-cyan-900/60 text-cyan-300 border border-cyan-700/50 py-0.5 px-1.5 rounded leading-none font-bold">
+                          <span className="text-[10px] bg-cyan-900/60 text-cyan-300 border border-cyan-700/50 py-0.5 px-1.5 rounded leading-none font-bold">
                             {drawnFromDeck ? '自摸摸出 ➔' : '電腦打出 ➔'}
                           </span>
                           <div className="scale-75">
@@ -1325,7 +1325,7 @@ export default function App() {
                         </div>
                       ) : lastDiscardedCard ? (
                         <div className="flex flex-col items-center gap-0.5 animate-pulse">
-                          <span className="text-[8px] bg-red-950/60 text-red-300 border border-red-900/50 py-0.5 px-1.5 rounded leading-none font-bold">
+                          <span className="text-[10px] bg-red-950/60 text-red-300 border border-red-900/50 py-0.5 px-1.5 rounded leading-none font-bold">
                             {curPlayerId === 'computer' ? '您打出 ➔' : '電腦棄牌 ➔'}
                           </span>
                           <div className="scale-75">
@@ -1333,8 +1333,8 @@ export default function App() {
                           </div>
                         </div>
                       ) : (
-                        <div className="w-14 h-21 border border-white/10 bg-white/5 rounded-xl flex flex-col items-center justify-center text-center text-slate-500 p-1 select-none whitespace-normal scale-95">
-                          <span className="text-[9px] scale-90 leading-tight">摸牌或棄牌顯示處</span>
+                        <div className="w-14 h-21 border border-white/10 bg-white/5 rounded-xl flex flex-col items-center justify-center text-center text-slate-500 p-1 select-none whitespace-normal">
+                          <span className="text-[10px] leading-tight">等待摸牌或棄牌</span>
                         </div>
                       )}
                     </div>
@@ -1342,10 +1342,10 @@ export default function App() {
 
                   {/* Right: recycler grid (牌河) */}
                   <div className="col-span-3 flex flex-col items-center justify-center border-l border-white/10 py-1 pl-1 max-h-[110px] overflow-hidden">
-                    <span className="text-[9px] font-bold text-yellow-500/80 mb-1 text-center scale-95 leading-none">🗑️ 牌河回收</span>
+                    <span className="text-[10px] font-bold text-yellow-500/80 mb-1 text-center leading-none">🗑️ 牌河回收</span>
                     <div className="w-full flex-1 min-h-[75px] max-h-[85px] overflow-y-auto bg-black/40 border border-white/5 p-1 rounded-xl flex flex-wrap gap-0.5 justify-center scrollbar-none">
                       {discardPile.map((c, idx) => (
-                        <div key={`${c.id}-${idx}`} className="w-[14px] h-[34px] rounded flex items-center justify-center font-bold text-[8px] opacity-75" style={{
+                        <div key={`${c.id}-${idx}`} className="w-[16px] h-[36px] rounded flex items-center justify-center font-bold text-[9px] opacity-80" style={{
                           backgroundColor: c.color === 'yellow' ? '#fef3c7' : c.color === 'green' ? '#047857' : c.color === 'red' ? '#ea580c' : '#f8fafc',
                           color: c.color === 'yellow' ? '#b91c1c' : '#09090b',
                           border: '1px solid #111111'
@@ -1354,7 +1354,7 @@ export default function App() {
                         </div>
                       ))}
                       {discardPile.length === 0 && (
-                        <span className="text-[9px] text-slate-500 my-auto text-center font-medium leading-none">空無一物</span>
+                        <span className="text-xs text-slate-500 my-auto text-center font-medium leading-none">空無一物</span>
                       )}
                     </div>
                   </div>
