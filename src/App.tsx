@@ -460,9 +460,10 @@ export default function App() {
           const pKey = `${playerDiscard.color}-${playerDiscard.character}`;
           const inHand = computer.hand.filter(c => `${c.color}-${c.character}` === pKey);
           let effectiveHand = computer.hand;
+          let effectiveRevealed = computer.revealed;
 
           if (inHand.length === 3) {
-            const newHand = computer.hand.filter(c => !inHand.map(r => r.id).includes(c.id));
+            effectiveHand = computer.hand.filter(c => !inHand.map(r => r.id).includes(c.id));
             const newMeld: RevealedMeld = {
               id: `comp-quad-${Date.now()}`,
               type: 'quad',
@@ -470,11 +471,27 @@ export default function App() {
               hoo: 6,
               name: `明開車 [${playerDiscard.name}*4]`
             };
-            setComputer(prev => ({ ...prev, hand: newHand, revealed: [...prev.revealed, newMeld] }));
-            effectiveHand = newHand;
+            effectiveRevealed = [...computer.revealed, newMeld];
+            setComputer(prev => ({ ...prev, hand: effectiveHand, revealed: effectiveRevealed }));
           }
           addLog(`🤖 電腦 AI 吃牌宣告【明開車/槓】，霸氣槓出您的 [${playerDiscard.name}]！`);
           setLastDiscardedCard(null);
+
+          // Replacement draw after quad (rule requirement)
+          if (deck.length > 0) {
+            const repDeck = [...deck];
+            const repCard = repDeck.shift()!;
+            setDeck(repDeck);
+            addLog(`🤖 電腦開車補摸：[${repCard.name}]`);
+            const repMoves = checkAvailableMoves(effectiveHand, effectiveRevealed, repCard, true);
+            if (repMoves.canHu) {
+              handleWin('computer', 'hu', `電腦開車補摸後胡牌！${repMoves.huResult!.explanation}`);
+              setIsComputerThinking(false);
+              return;
+            }
+            effectiveHand = [...effectiveHand, repCard].sort((a,b) => (a.color === b.color ? a.order - b.order : a.color.localeCompare(b.color)));
+            setComputer(prev => ({ ...prev, hand: effectiveHand, revealed: effectiveRevealed }));
+          }
           setTimeout(() => { executeComputerDiscard(effectiveHand); }, 900);
           return;
         }
@@ -487,7 +504,7 @@ export default function App() {
             id: `comp-pong-${Date.now()}`,
             type: 'triple',
             cards: [playerDiscard, ...toRemove],
-            hoo: 1,
+            hoo: isGeneral(playerDiscard) ? 3 : 1,
             name: `明刻 [${playerDiscard.name}*3]`
           };
           setComputer(prev => ({ ...prev, hand: newHand, revealed: [...prev.revealed, newMeld] }));
@@ -573,42 +590,43 @@ export default function App() {
       if (cMoves.canQuad) {
         const pKey = `${drawn.color}-${drawn.character}`;
         const inHand = computer.hand.filter(c => `${c.color}-${c.character}` === pKey);
-        
+
         if (inHand.length === 3) {
-          const newHand = computer.hand.filter(c => !inHand.map(r => r.id).includes(c.id));
+          const quadHand = computer.hand.filter(c => !inHand.map(r => r.id).includes(c.id));
           const newMeld: RevealedMeld = {
             id: `comp-quad-self-${Date.now()}`,
             type: 'quad',
             cards: [drawn, ...inHand],
-            hoo: 8, // Concealed Quad getting 8 Hoo
+            hoo: 8,
             name: `暗開車 [${drawn.name}*4]`
           };
-          setComputer(prev => ({ ...prev, hand: newHand, revealed: [...prev.revealed, newMeld] }));
+          const quadRevealed = [...computer.revealed, newMeld];
+          setComputer(prev => ({ ...prev, hand: quadHand, revealed: quadRevealed }));
           addLog(`🤖 電腦 AI 喜獲四張自摸【暗開車/暗槓】，將 [${drawn.name}] 案前暗開。`);
           setLastDrawnCard(null);
-          setTimeout(() => { executeComputerDiscard(newHand); }, 900);
+
+          // Replacement draw after quad (rule requirement)
+          let finalHand = quadHand;
+          if (deck.length > 0) {
+            const repDeck = [...deck];
+            const repCard = repDeck.shift()!;
+            setDeck(repDeck);
+            addLog(`🤖 電腦暗開車補摸：[${repCard.name}]`);
+            const repMoves = checkAvailableMoves(quadHand, quadRevealed, repCard, true);
+            if (repMoves.canHu) {
+              handleWin('computer', 'hu', `電腦暗開車補摸後胡牌！${repMoves.huResult!.explanation}`);
+              setIsComputerThinking(false);
+              return;
+            }
+            finalHand = [...quadHand, repCard].sort((a,b) => (a.color === b.color ? a.order - b.order : a.color.localeCompare(b.color)));
+            setComputer(prev => ({ ...prev, hand: finalHand, revealed: quadRevealed }));
+          }
+          setTimeout(() => { executeComputerDiscard(finalHand); }, 900);
           return;
         }
       }
 
-      if (cMoves.canEatSeq) {
-        const opt = cMoves.eatSeqOptions[0];
-        const idsToRemove = opt.cardsToUse.map(c => c.id);
-        const newHand = computer.hand.filter(c => !idsToRemove.includes(c.id));
-        const newMeld: RevealedMeld = {
-          id: `comp-eat-seq-${Date.now()}`,
-          type: 'consec_three',
-          cards: opt.resultCards,
-          hoo: 2,
-          name: opt.meldName
-        };
-
-        setComputer(prev => ({ ...prev, hand: newHand, revealed: [...prev.revealed, newMeld] }));
-        addLog(`🤖 電腦 AI 自摸吃牌！湊齊了同色棋牌序列 [${opt.meldName}]。`);
-        setLastDrawnCard(null);
-        setTimeout(() => { executeComputerDiscard(newHand); }, 900);
-        return;
-      }
+      // cMoves.canEatSeq is now always false for own-turn draws (isOwnTurn=true); dead branch kept for safety
 
       // Default draw and fallback discard
       const appendedHand = [...computer.hand, drawn].sort((a,b) => (a.color === b.color ? a.order - b.order : a.color.localeCompare(b.color)));
@@ -693,9 +711,9 @@ export default function App() {
         setGuideMessage(`電腦拋出 [${discarded.name}]！正好可以為您的單張配對。點選下方【吃對】按鈕以攤派對子，或按【過】。`);
       } else {
         setCurPlayerId('player');
-        setCanDiscard(true);
+        setCanDiscard(false);
         setHasDrawn(false);
-        setGuideMessage('輪到您的回合！沒有可用配對。請點登左邊「紅疊牌庫」摸新牌。');
+        setGuideMessage('輪到您的回合！沒有可用配對。請點選左邊「紅疊牌庫」摸新牌。');
       }
     } else {
       // Standard rule checks
@@ -705,7 +723,7 @@ export default function App() {
         setGuideMessage(`電腦大意拋出 [${discarded.name}]！您有可用吃碰胡牌機會。請點選下方亮明或吃跑按鈕。`);
       } else {
         setCurPlayerId('player');
-        setCanDiscard(true);
+        setCanDiscard(false);
         setHasDrawn(false);
         setGuideMessage('輪到您的回合！無吃碰吃跑。請點選「紅疊牌庫」抽取下一張。');
       }
@@ -807,31 +825,55 @@ export default function App() {
       // Quad /槓 /開車
       const triggerKey = `${trigger.color}-${trigger.character}`;
       const toRemove = player.hand.filter(c => `${c.color}-${c.character}` === triggerKey);
-      const nextHand = player.hand.filter(c => !toRemove.map(r => r.id).includes(c.id));
-      
+      const quadHand = player.hand.filter(c => !toRemove.map(r => r.id).includes(c.id));
       const newMeld: RevealedMeld = {
         id: `player-quad-${Date.now()}`,
         type: 'quad',
         cards: [trigger, ...toRemove],
-        hoo: 6, // Quad gets 6 Hoo
+        hoo: 6,
         name: `明開車 [${trigger.name}*4]`
       };
-
-      setPlayer(prev => ({
-        ...prev,
-        hand: nextHand,
-        revealed: [...prev.revealed, newMeld]
-      }));
+      const quadRevealed = [...player.revealed, newMeld];
 
       addLog(`【開車】您高喊「開車(槓)」！明開車 [${trigger.name}]。`);
       setLastDrawnCard(null);
       setLastDiscardedCard(null);
       setPendingMoves(null);
-      setGamePhase('playing');
-      setCanDiscard(true);
-      setCurPlayerId('player');
-      setHasDrawn(true);
-      setGuideMessage('開車順利！多抽補牌。請從手中選出一拋牌打出。');
+
+      // Replacement draw after Quad (rule requirement)
+      if (deck.length > 0) {
+        const repDeck = [...deck];
+        const repCard = repDeck.shift()!;
+        setDeck(repDeck);
+        addLog(`【開車補牌】補摸一張：[${repCard.name}]`);
+        playSound('draw');
+
+        const repMoves = checkAvailableMoves(quadHand, quadRevealed, repCard, true);
+        setPlayer(prev => ({ ...prev, hand: quadHand, revealed: quadRevealed }));
+
+        if (repMoves.canHu || repMoves.canQuad) {
+          setLastDrawnCard(repCard);
+          setDrawnFromDeck(true);
+          setPendingMoves(repMoves);
+          setGamePhase('waiting_player_action');
+          setGuideMessage(`補摸 [${repCard.name}]！再次觸發行動機會，請選擇！`);
+        } else {
+          const finalHand = [...quadHand, repCard].sort((a,b) => (a.color === b.color ? a.order - b.order : a.color.localeCompare(b.color)));
+          setPlayer(prev => ({ ...prev, hand: finalHand, revealed: quadRevealed }));
+          setGamePhase('playing');
+          setCanDiscard(true);
+          setCurPlayerId('player');
+          setHasDrawn(true);
+          setGuideMessage(`開車順利！補摸 [${repCard.name}]，請選牌打出。`);
+        }
+      } else {
+        setPlayer(prev => ({ ...prev, hand: quadHand, revealed: quadRevealed }));
+        setGamePhase('playing');
+        setCanDiscard(true);
+        setCurPlayerId('player');
+        setHasDrawn(true);
+        setGuideMessage('開車成功！牌庫已空，請選牌打出。');
+      }
     } else if (actionType === 'eat' && eatOption) {
       // Eat Sequence for Standard mode
       const idsToRemove = eatOption.cardsToUse.map((c: Card) => c.id);
@@ -958,7 +1000,9 @@ export default function App() {
   };
 
   // Dynamic checks for Standard Mode score preview helper
-  const activeHuCheck = solveHu(player.hand, player.revealed);
+  // Include lastDrawnCard when it is pending (not yet merged into player.hand)
+  const huCheckHand = lastDrawnCard && drawnFromDeck ? [...player.hand, lastDrawnCard] : player.hand;
+  const activeHuCheck = solveHu(huCheckHand, player.revealed);
   const playerGrouping = groupPairsMode(player.hand);
 
   return (

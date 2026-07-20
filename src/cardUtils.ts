@@ -467,7 +467,7 @@ export function checkAvailableMoves(
     huResult: canHu ? huResult : undefined,
     canQuad,
     canPong,
-    canEatSeq: eatSeqOptions.length > 0,
-    eatSeqOptions
+    canEatSeq: !isOwnTurn && eatSeqOptions.length > 0,
+    eatSeqOptions: isOwnTurn ? [] : eatSeqOptions
   };
 }
