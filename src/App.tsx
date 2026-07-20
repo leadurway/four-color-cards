@@ -1026,15 +1026,15 @@ export default function App() {
             <div className="flex-1 px-5 lg:px-16 xl:px-32 flex flex-col justify-between h-full select-none text-white overflow-hidden min-h-0" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 1rem)', paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)' }}>
               
               {/* Grand compact title */}
-              <div className="text-center space-y-1 py-1 shrink-0">
-                <div className="flex items-center justify-center gap-2">
-                  <Sparkles className="w-5 h-5 text-yellow-500 animate-pulse shrink-0" />
-                  <h1 className="text-xl md:text-2xl lg:text-3xl font-serif font-black tracking-widest text-yellow-500 italic select-none">
+              <div className="text-center space-y-1.5 py-2 shrink-0">
+                <div className="flex items-center justify-center gap-3">
+                  <Sparkles className="w-6 h-6 text-yellow-500 animate-pulse shrink-0" />
+                  <h1 className="text-3xl md:text-4xl font-serif font-black tracking-widest text-yellow-500 italic select-none">
                     四色牌傳統遊藝廳
                   </h1>
-                  <Sparkles className="w-5 h-5 text-yellow-500 animate-pulse shrink-0" />
+                  <Sparkles className="w-6 h-6 text-yellow-500 animate-pulse shrink-0" />
                 </div>
-                <p className="text-[10px] md:text-xs tracking-widest text-blue-200 font-extrabold uppercase font-mono">
+                <p className="text-sm tracking-widest text-blue-200 font-extrabold uppercase font-mono">
                   — 專為銀髮長輩特製 · 護腦防失智 —
                 </p>
               </div>
@@ -1045,19 +1045,19 @@ export default function App() {
                 {/* Step 1: Avatar Selector and username setup */}
                 <div className="bg-black/35 p-4 rounded-2xl border border-white/10 flex flex-col justify-center space-y-4">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs bg-yellow-500 text-slate-950 font-black px-2 py-0.5 rounded shrink-0">1. 入席編制</span>
-                    <p className="text-xs md:text-sm font-extrabold text-yellow-400">入席玩家暱稱與頭像：</p>
+                    <span className="text-sm bg-yellow-500 text-slate-950 font-black px-2.5 py-1 rounded shrink-0">1. 入席編制</span>
+                    <p className="text-sm font-extrabold text-yellow-400">入席玩家暱稱與頭像：</p>
                   </div>
-                  
+
                   {/* Picker list */}
-                  <div className="flex justify-between items-center gap-1.5 select-none my-1">
+                  <div className="flex justify-between items-center gap-1 select-none">
                     {avatars.map((av, idx) => (
                       <button
                         key={idx}
                         onClick={() => { playSound('click'); setUserAvatar(av); }}
-                        className={`text-xl md:text-2xl h-9 w-9 flex items-center justify-center rounded-xl transition-all ${
-                          playerAvatar === av 
-                            ? 'bg-yellow-500 scale-110 border-2 border-white text-3xl shadow-lg ring-3 ring-yellow-500/40' 
+                        className={`text-2xl h-11 w-11 flex items-center justify-center rounded-xl transition-all ${
+                          playerAvatar === av
+                            ? 'bg-yellow-500 scale-110 border-2 border-white shadow-lg ring-3 ring-yellow-500/40'
                             : 'bg-white/10 hover:bg-white/15'
                         }`}
                       >
@@ -1071,7 +1071,7 @@ export default function App() {
                     maxLength={10}
                     value={playerName}
                     onChange={(e) => setUserName(e.target.value || '長輩玩家')}
-                    className="w-full py-2 px-4 bg-[#0a1e3d] border border-blue-600 rounded-xl text-sm md:text-base text-center font-bold text-white placeholder-slate-400 focus:outline-none focus:border-yellow-500"
+                    className="w-full py-3 px-4 bg-[#0a1e3d] border border-blue-600 rounded-xl text-lg text-center font-bold text-white placeholder-slate-400 focus:outline-none focus:border-yellow-500"
                     placeholder="輸入長輩的手遊暱稱"
                   />
                 </div>
@@ -1079,8 +1079,8 @@ export default function App() {
                 {/* Step 2: Game Mode Picker */}
                 <div className="bg-black/35 p-4 rounded-2xl border border-white/10 flex flex-col justify-center space-y-3">
                   <div className="flex items-center gap-2 px-1">
-                    <span className="text-xs bg-yellow-500 text-slate-950 font-black px-2 py-0.5 rounded shrink-0">2. 自選玩法</span>
-                    <p className="text-xs md:text-sm font-extrabold text-yellow-400">挑選您喜愛的對戰玩法：</p>
+                    <span className="text-sm bg-yellow-500 text-slate-950 font-black px-2.5 py-1 rounded shrink-0">2. 自選玩法</span>
+                    <p className="text-sm font-extrabold text-yellow-400">挑選您喜愛的對戰玩法：</p>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-2">
@@ -1093,21 +1093,21 @@ export default function App() {
                           : 'bg-black/25 border-white/10 hover:border-white/20'
                       }`}
                     >
-                      <div className="flex items-center justify-between mb-0.5">
-                        <span className="text-xs md:text-sm font-black text-white flex items-center gap-1">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-base font-black text-white flex items-center gap-1">
                           👦 抓對對子簡單對戰
                         </span>
                       </div>
-                      <p className="text-[10px] text-slate-300 leading-tight font-medium">
+                      <p className="text-xs text-slate-300 leading-snug font-medium">
                         簡易配對，長輩首選！系統會自動為您挑出暗坎同色組，只需輕敲出子配對！
                       </p>
 
                       {/* Mode pairs hand size controls */}
                       {mode === 'pairs' && (
-                        <div className="mt-2 flex items-center justify-between gap-1 bg-black/60 p-1 rounded-lg border border-white/5" onClick={(e)=>e.stopPropagation()}>
+                        <div className="mt-2 flex items-center justify-between gap-1 bg-black/60 p-1.5 rounded-lg border border-white/5" onClick={(e)=>e.stopPropagation()}>
                           <button
                             onClick={() => { playSound('click'); setPairsHandSize(10); }}
-                            className={`flex-1 py-1 text-[9px] font-bold rounded-md transition-colors ${
+                            className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-colors ${
                               pairsHandSize === 10 ? 'bg-yellow-500 text-black' : 'bg-white/10 text-slate-200'
                             }`}
                           >
@@ -1115,7 +1115,7 @@ export default function App() {
                           </button>
                           <button
                             onClick={() => { playSound('click'); setPairsHandSize(15); }}
-                            className={`flex-1 py-1 text-[9px] font-bold rounded-md transition-colors ${
+                            className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-colors ${
                               pairsHandSize === 15 ? 'bg-yellow-500 text-black' : 'bg-white/10 text-slate-200'
                             }`}
                           >
@@ -1134,12 +1134,12 @@ export default function App() {
                           : 'bg-black/25 border-white/10 hover:border-white/20'
                       }`}
                     >
-                      <div className="flex items-center justify-between mb-0.5">
-                        <span className="text-xs md:text-sm font-black text-white flex items-center gap-1">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-base font-black text-white flex items-center gap-1">
                           🀄 傳統吃碰客家玩法
                         </span>
                       </div>
-                      <p className="text-[10px] text-slate-350 leading-tight font-medium">
+                      <p className="text-xs text-slate-300 leading-snug font-medium">
                         正宗客家經典二十張！包含將士象、車馬包同色吃、碰、槓。達成 10 胡之牌點數自摸。
                       </p>
                     </div>
@@ -1148,21 +1148,21 @@ export default function App() {
               </div>
 
               {/* Launcher & Extras Combined Dock */}
-              <div className="bg-black/20 p-3 rounded-2xl border border-white/5 space-y-2 shrink-0">
-                <div className="flex justify-between items-center gap-4 text-[11px] font-bold text-slate-300">
+              <div className="bg-black/20 p-3 rounded-2xl border border-white/5 space-y-3 shrink-0">
+                <div className="flex justify-between items-center gap-4 text-sm font-bold text-slate-300">
                   <button
                     onClick={() => setSoundEnabled(!soundEnabled)}
-                    className="flex items-center gap-1.5 hover:text-white"
+                    className="flex items-center gap-2 hover:text-white"
                   >
-                    {soundEnabled ? <Volume2 className="w-4 h-4 text-blue-400" /> : <VolumeX className="w-4 h-4 text-red-400" />}
+                    {soundEnabled ? <Volume2 className="w-5 h-5 text-blue-400" /> : <VolumeX className="w-5 h-5 text-red-400" />}
                     <span>語音配音：{soundEnabled ? '已開啟' : '靜音'}</span>
                   </button>
 
                   <button
                     onClick={() => setShowComputerHand(!showComputerHand)}
-                    className="flex items-center gap-1.5 hover:text-white"
+                    className="flex items-center gap-2 hover:text-white"
                   >
-                    {showComputerHand ? <Eye className="w-4 h-4 text-blue-400" /> : <EyeOff className="w-4 h-4 text-slate-400" />}
+                    {showComputerHand ? <Eye className="w-5 h-5 text-blue-400" /> : <EyeOff className="w-5 h-5 text-slate-400" />}
                     <span>防走失作弊透視：{showComputerHand ? '開' : '關'}</span>
                   </button>
                 </div>
@@ -1170,17 +1170,17 @@ export default function App() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => { playSound('click'); initGame(); }}
-                    className="flex-1 py-3 bg-gradient-to-r from-red-600 via-amber-500 to-yellow-500 hover:brightness-110 active:scale-98 transition-all font-black text-slate-950 text-base md:text-lg rounded-xl shadow-xl flex items-center justify-center gap-2 select-none"
+                    className="flex-1 py-4 bg-gradient-to-r from-red-600 via-amber-500 to-yellow-500 hover:brightness-110 active:scale-98 transition-all font-black text-slate-950 text-xl rounded-xl shadow-xl flex items-center justify-center gap-2 select-none"
                   >
                     開始洗牌、發牌入席 🀄
                   </button>
 
                   <button
                     onClick={handleOpenRules}
-                    className="py-3 px-4 bg-white/10 hover:bg-white/15 text-slate-300 hover:text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shrink-0"
+                    className="py-4 px-4 bg-white/10 hover:bg-white/15 text-slate-300 hover:text-white rounded-xl text-sm font-black flex items-center justify-center gap-1.5 shrink-0"
                   >
-                    <BookOpen className="w-3.5 h-3.5 text-yellow-500" />
-                    <span>對戰說明</span>
+                    <BookOpen className="w-4 h-4 text-yellow-500" />
+                    <span>說明</span>
                   </button>
                 </div>
               </div>
@@ -1471,34 +1471,42 @@ export default function App() {
                     </div>
                   )}
 
-                  {/* PLAYER HAND — 2 rows, no scroll; xs cards (32px) fit 10/row on all phones */}
-                  <div className="flex-1 min-h-0 flex flex-col px-1 pt-1 pb-0 overflow-hidden">
-                    <span className="text-xs font-black text-yellow-400/90 shrink-0 mb-1 px-1">
-                      👇 您的手牌 (輕敲選牌，再點打牌)：
-                    </span>
-                    <div className="flex-1 min-h-0 flex flex-wrap justify-center content-start gap-x-[1px] gap-y-2.5 overflow-hidden py-1">
-                      {player.hand.map((card) => {
-                        const isSelected = card.id === selectedCardId;
-                        const isStray = mode === 'pairs' && playerGrouping.strays.some(s => s.id === card.id);
-                        return (
-                          <div key={card.id} className="relative flex flex-col items-center">
-                            <FourColorCard
-                              card={card}
-                              size="xs"
-                              isRevealed={true}
-                              isSelected={isSelected}
-                              onClick={() => { playSound('click'); setSelectedCardId(isSelected ? null : card.id); }}
-                            />
-                            {mode === 'pairs' && isStray && (
-                              <span className="absolute bottom-[-8px] text-[7px] bg-red-950 text-red-500 font-extrabold border border-red-900/60 px-0.5 rounded leading-none pointer-events-none">
-                                散
-                              </span>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
+                  {/* PLAYER HAND — exactly 2 rows: grid cols = ceil(count/2) */}
+                  {(() => {
+                    const handCols = Math.ceil(player.hand.length / 2) || 1;
+                    return (
+                      <div className="flex-1 min-h-0 flex flex-col px-1 pt-1 pb-0 overflow-hidden">
+                        <span className="text-xs font-black text-yellow-400/90 shrink-0 mb-1 px-1">
+                          👇 您的手牌 (輕敲選牌，再點打牌)：
+                        </span>
+                        <div
+                          className="flex-1 min-h-0 grid justify-center content-start gap-x-[1px] gap-y-2.5 overflow-hidden py-1"
+                          style={{ gridTemplateColumns: `repeat(${handCols}, 2rem)` }}
+                        >
+                          {player.hand.map((card) => {
+                            const isSelected = card.id === selectedCardId;
+                            const isStray = mode === 'pairs' && playerGrouping.strays.some(s => s.id === card.id);
+                            return (
+                              <div key={card.id} className="relative flex flex-col items-center">
+                                <FourColorCard
+                                  card={card}
+                                  size="xs"
+                                  isRevealed={true}
+                                  isSelected={isSelected}
+                                  onClick={() => { playSound('click'); setSelectedCardId(isSelected ? null : card.id); }}
+                                />
+                                {mode === 'pairs' && isStray && (
+                                  <span className="absolute bottom-[-8px] text-[7px] bg-red-950 text-red-500 font-extrabold border border-red-900/60 px-0.5 rounded leading-none pointer-events-none">
+                                    散
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {/* ACTION BAR */}
                   <div className="bg-black/30 px-3 py-2 flex items-center justify-between gap-2 border-t border-white/5 shrink-0">
