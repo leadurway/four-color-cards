@@ -55,43 +55,83 @@ export interface PairsGrouping {
   strays: Card[];
 }
 
+// For 10-card pairs mode: triple = 1 pair + 1 stray; quad = 2 pairs.
+// quads/triples arrays are always empty after decomposition.
 export function groupPairsMode(hand: Card[]): PairsGrouping {
   const groupsMap: { [key: string]: Card[] } = {};
-  
   hand.forEach(card => {
     const key = `${card.color}-${card.character}`;
-    if (!groupsMap[key]) {
-      groupsMap[key] = [];
-    }
+    if (!groupsMap[key]) groupsMap[key] = [];
     groupsMap[key].push(card);
   });
-  
-  const quads: Card[][] = [];
-  const triples: Card[][] = [];
+
   const pairs: Card[][] = [];
   const strays: Card[] = [];
-  
+
   Object.values(groupsMap).forEach(cards => {
-    if (cards.length === 4) {
-      quads.push(cards);
-    } else if (cards.length === 3) {
-      triples.push(cards);
-    } else if (cards.length === 2) {
+    const n = cards.length;
+    if (n >= 4) {
+      pairs.push([cards[0], cards[1]]);
+      pairs.push([cards[2], cards[3]]);
+      for (let i = 4; i < n; i++) strays.push(cards[i]);
+    } else if (n === 3) {
+      pairs.push([cards[0], cards[1]]);
+      strays.push(cards[2]);
+    } else if (n === 2) {
       pairs.push(cards);
-    } else if (cards.length === 1) {
+    } else {
       strays.push(cards[0]);
     }
   });
-  
-  // Sort strays by color and order
+
   strays.sort((a, b) => {
-    if (a.color !== b.color) {
-      return a.color.localeCompare(b.color);
-    }
+    if (a.color !== b.color) return a.color.localeCompare(b.color);
     return a.order - b.order;
   });
-  
-  return { quads, triples, pairs, strays };
+
+  return { quads: [], triples: [], pairs, strays };
+}
+
+// ── 15-card mode: check if hand can be partitioned into valid trios ──
+
+function isValidTrio(a: Card, b: Card, c: Card): boolean {
+  // Type 1: same color, same character (3 identical)
+  if (a.color === b.color && b.color === c.color &&
+      a.character === b.character && b.character === c.character) return true;
+
+  // Type 2: same color, consecutive sequence (orders 1-2-3 or 4-5-6)
+  if (a.color === b.color && b.color === c.color) {
+    const orders = [a.order, b.order, c.order].sort((x, y) => x - y);
+    if ((orders[0] === 1 && orders[1] === 2 && orders[2] === 3) ||
+        (orders[0] === 4 && orders[1] === 5 && orders[2] === 6)) return true;
+  }
+
+  // Type 3: same character, 3 different colors
+  if (a.character === b.character && b.character === c.character) {
+    const colors = new Set([a.color, b.color, c.color]);
+    if (colors.size === 3) return true;
+  }
+
+  return false;
+}
+
+function partitionIntoTrios(cards: Card[]): boolean {
+  if (cards.length === 0) return true;
+  if (cards.length % 3 !== 0) return false;
+  const [first, ...rest] = cards;
+  for (let i = 0; i < rest.length - 1; i++) {
+    for (let j = i + 1; j < rest.length; j++) {
+      if (isValidTrio(first, rest[i], rest[j])) {
+        const remaining = rest.filter((_, idx) => idx !== i && idx !== j);
+        if (partitionIntoTrios(remaining)) return true;
+      }
+    }
+  }
+  return false;
+}
+
+export function checkTriosWin(hand: Card[]): boolean {
+  return hand.length > 0 && hand.length % 3 === 0 && partitionIntoTrios(hand);
 }
 
 /**

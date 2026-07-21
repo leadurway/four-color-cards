@@ -3,6 +3,7 @@ import {
   createDeck,
   shuffle,
   groupPairsMode,
+  checkTriosWin,
   sortHandForDisplay,
   solveHu,
   checkAvailableMoves,
@@ -419,7 +420,21 @@ export default function App() {
     setDrawnFromDeck(true); // Player drew this card
     addLog(`【您摸牌】摸到了一張牌：[${drawn.name}]`);
 
-    if (mode === 'pairs') {
+    if (mode === 'pairs' && pairsHandSize === 15) {
+      // ── 15-card mode: no auto-pair; check trio win on full 15-card hand ──
+      const newHand15 = sortHandForDisplay([...player.hand, drawn]);
+      setLastDrawnCard(null);
+      setLastDiscardedCard(null);
+      if (checkTriosWin(newHand15)) {
+        setPlayer(prev => ({ ...prev, hand: newHand15 }));
+        handleWin('player', 'pairs', '恭喜！您的15張牌已湊成5組三張，宣告勝出！');
+        return;
+      }
+      setPlayer(prev => ({ ...prev, hand: newHand15 }));
+      setCanDiscard(true);
+      setGuideMessage(`[${drawn.name}] 加入手牌。請選一張不需要的牌打出。`);
+    } else if (mode === 'pairs') {
+      // ── 10-card mode: auto-pair strays ──
       const pGroup = groupPairsMode(player.hand);
       const matchedCard = pGroup.strays.find(c => c.color === drawn.color && c.character === drawn.character);
 
@@ -497,8 +512,8 @@ export default function App() {
     const cardToDiscard = player.hand.find(c => c.id === cardId);
     if (!cardToDiscard) return;
 
-    // In pairs mode, only stray (unpaired) cards can be discarded
-    if (mode === 'pairs') {
+    // In 10-card pairs mode, only stray (unpaired) cards can be discarded
+    if (mode === 'pairs' && pairsHandSize === 10) {
       const dGroup = groupPairsMode(player.hand);
       if (!dGroup.strays.some(s => s.id === cardId)) return;
     }
@@ -520,14 +535,15 @@ export default function App() {
 
     addLog(`【您打牌】打出了一張棄牌：[${cardToDiscard.name}]`);
 
-    // Pairs mode: check if discarding this card leaves hand with no strays → win
-    if (mode === 'pairs') {
+    // 10-card pairs mode: check if discarding leaves hand with no strays → win
+    if (mode === 'pairs' && pairsHandSize === 10) {
       const afterGroup = groupPairsMode(updatedHand);
       if (afterGroup.strays.length === 0 && updatedHand.length > 0) {
         handleWin('player', 'pairs', '恭喜！您打出多餘單張後，手中所有散牌均已配對完畢，宣告勝出！');
         return;
       }
     }
+    // 15-card: win only triggers on draw; no win check after discard
 
     // Hand turn over to computer. Computer checks if it wants to react to player's discard
     setCurPlayerId('computer');
@@ -550,12 +566,12 @@ export default function App() {
     if (playerDiscard) {
       const moves = checkAvailableMoves(computer.hand, computer.revealed, playerDiscard, false);
       
-      if (mode === 'pairs') {
+      if (mode === 'pairs' && pairsHandSize === 10) {
+        // 10-card: AI checks if player's discard completes a pair
         const cGroup = groupPairsMode(computer.hand);
         const matchesStray = cGroup.strays.find(c => c.color === playerDiscard.color && c.character === playerDiscard.character);
-        
+
         if (matchesStray) {
-          // AI automatically eats the card to pair
           const newHand = computer.hand.filter(c => c.id !== matchesStray.id);
           const newMeld: RevealedMeld = {
             id: `comp-pair-${Date.now()}`,
@@ -564,30 +580,21 @@ export default function App() {
             hoo: isGeneral(playerDiscard) ? 2 : 0,
             name: `對子 [${playerDiscard.name}]`
           };
-
-          setComputer(prev => ({
-            ...prev,
-            hand: newHand,
-            revealed: [...prev.revealed, newMeld]
-          }));
+          setComputer(prev => ({ ...prev, hand: newHand, revealed: [...prev.revealed, newMeld] }));
           setLastDiscardedCard(null);
           addLog(`🤖 電腦 AI 宣告【吃對子】，將剛才您打出的 [${playerDiscard.name}] 配成一對。`);
 
-          // Inspect AI win
           const nextGroup = groupPairsMode(newHand);
           if (nextGroup.strays.length === 0) {
             handleWin('computer', 'pairs', '電腦配對抓完手牌散牌徹底歸零，取得勝利！');
             setIsComputerThinking(false);
             return;
           }
-
-          // AI needs to discard a card from hand to maintain turn flow
-          setTimeout(() => {
-            executeComputerDiscard(newHand);
-          }, 900);
+          setTimeout(() => { executeComputerDiscard(newHand); }, 900);
           return;
         }
-      } else {
+        // No stray match → fall through to computer draw turn
+      } else if (mode !== 'pairs') {
         // Standard Mode AI evaluations on opponent discard
         if (moves.canHu) {
           handleWin('computer', 'hu', `電腦阻擊胡牌！在您拋出 [${playerDiscard.name}] 時完美鳴牌自胡！ ${moves.huResult!.explanation}`);
@@ -673,12 +680,24 @@ export default function App() {
     setDrawnFromDeck(false); // Was drawn by computer
     addLog(`🤖 電腦 AI 從牌庫自摸摸牌：[${drawn.name}]。`);
 
-    if (mode === 'pairs') {
+    if (mode === 'pairs' && pairsHandSize === 15) {
+      // 15-card: no auto-pair; check trio win on 15-card hand
+      const newHand15 = sortHandForDisplay([...computer.hand, drawn]);
+      setLastDrawnCard(null);
+      if (checkTriosWin(newHand15)) {
+        setComputer(prev => ({ ...prev, hand: newHand15 }));
+        handleWin('computer', 'pairs', '電腦的15張牌湊成5組三張，電腦勝出！');
+        setIsComputerThinking(false);
+        return;
+      }
+      setComputer(prev => ({ ...prev, hand: newHand15 }));
+      setTimeout(() => { executeComputerDiscard(newHand15); }, 900);
+    } else if (mode === 'pairs') {
+      // 10-card: auto-pair strays
       const cGroup = groupPairsMode(computer.hand);
       const matchedIdx = cGroup.strays.findIndex(c => c.color === drawn.color && c.character === drawn.character);
-      
+
       if (matchedIdx !== -1) {
-        // AI self-draw matches a stray Card
         const matched = cGroup.strays[matchedIdx];
         const newHand = computer.hand.filter(c => c.id !== matched.id);
         const newMeld: RevealedMeld = {
@@ -688,12 +707,7 @@ export default function App() {
           hoo: isGeneral(drawn) ? 2 : 0,
           name: `對子 [${drawn.name}]`
         };
-
-        setComputer(prev => ({
-          ...prev,
-          hand: newHand,
-          revealed: [...prev.revealed, newMeld]
-        }));
+        setComputer(prev => ({ ...prev, hand: newHand, revealed: [...prev.revealed, newMeld] }));
         setLastDrawnCard(null);
         addLog(`🤖 電腦 AI 自我配對成功！亮出明對：[${drawn.name}]。`);
 
@@ -703,18 +717,12 @@ export default function App() {
           setIsComputerThinking(false);
           return;
         }
-
-        setTimeout(() => {
-          executeComputerDiscard(newHand);
-        }, 900);
+        setTimeout(() => { executeComputerDiscard(newHand); }, 900);
       } else {
-        // No match. Card remains in computer hand, and AI plays a card
         const updatedHand = sortHandForDisplay([...computer.hand, drawn]);
         setComputer(prev => ({ ...prev, hand: updatedHand }));
         setLastDrawnCard(null);
-        setTimeout(() => {
-          executeComputerDiscard(updatedHand);
-        }, 900);
+        setTimeout(() => { executeComputerDiscard(updatedHand); }, 900);
       }
     } else {
       // Standard AI decision-making when drawing card
@@ -781,10 +789,23 @@ export default function App() {
   const executeComputerDiscard = (handBeforeDicard: Card[]) => {
     let discardIndex = -1;
 
-    if (mode === 'pairs') {
+    if (mode === 'pairs' && pairsHandSize === 15) {
+      // 15-card: discard card with fewest potential trio partners
+      const scoreCard = (card: Card) => {
+        const sameKey = handBeforeDicard.filter(x => x.color === card.color && x.character === card.character).length;
+        const sameChar = handBeforeDicard.filter(x => x.character === card.character && x.color !== card.color).length;
+        const seqPartner = handBeforeDicard.filter(x => x.color === card.color &&
+          Math.abs(x.order - card.order) === 1 && card.order !== 7 && x.order !== 7).length;
+        return sameKey + sameChar + seqPartner;
+      };
+      let lowest = Infinity;
+      handBeforeDicard.forEach((c, idx) => {
+        const s = scoreCard(c);
+        if (s < lowest) { lowest = s; discardIndex = idx; }
+      });
+    } else if (mode === 'pairs') {
       const group = groupPairsMode(handBeforeDicard);
       if (group.strays.length > 0) {
-        // AI discards the first stray card
         const choice = group.strays[0];
         discardIndex = handBeforeDicard.findIndex(c => c.id === choice.id);
       }
@@ -830,8 +851,8 @@ export default function App() {
     setLastDiscardedCard(discarded);
     addLog(`🤖 電腦 AI 思考後打出了拋牌：[${discarded.name}]`);
 
-    // Pairs mode: check if computer's hand is now all-paired after discarding
-    if (mode === 'pairs') {
+    // Pairs mode: check if computer's hand is all-paired after discarding (10-card only)
+    if (mode === 'pairs' && pairsHandSize === 10) {
       const compAfterGroup = groupPairsMode(finalHand);
       if (compAfterGroup.strays.length === 0 && finalHand.length > 0) {
         handleWin('computer', 'pairs', '電腦打出多餘單張後，手中散牌全部配對完畢，電腦勝出！');
@@ -844,7 +865,14 @@ export default function App() {
     const playerMoves = checkAvailableMoves(player.hand, player.revealed, discarded, false);
     setIsComputerThinking(false);
 
-    if (mode === 'pairs') {
+    if (mode === 'pairs' && pairsHandSize === 15) {
+      // 15-card: no pong from discards; straight to player's draw turn
+      setCurPlayerId('player');
+      setCanDiscard(false);
+      setHasDrawn(false);
+      setGuideMessage('輪到您的回合！請點選右邊「牌庫摸牌」摸新牌。');
+    } else if (mode === 'pairs') {
+      // 10-card: offer pair match if player has matching stray
       const pGroup = groupPairsMode(player.hand);
       const canPair = pGroup.strays.some(c => c.color === discarded.color && c.character === discarded.character);
 
@@ -852,7 +880,7 @@ export default function App() {
         setPendingMoves({
           canHu: false,
           canQuad: false,
-          canPong: true, // For pair matching
+          canPong: true,
           canEatSeq: false,
           eatSeqOptions: []
         });
@@ -862,7 +890,7 @@ export default function App() {
         setCurPlayerId('player');
         setCanDiscard(false);
         setHasDrawn(false);
-        setGuideMessage('輪到您的回合！沒有可用配對。請點選左邊「紅疊牌庫」摸新牌。');
+        setGuideMessage('輪到您的回合！沒有可用配對。請點選右邊「牌庫摸牌」摸新牌。');
       }
     } else {
       // Standard rule checks
@@ -1170,7 +1198,7 @@ export default function App() {
   const playerGrouping = groupPairsMode(player.hand);
 
   return (
-    <div className="h-[100dvh] w-screen bg-[#0a1628] text-slate-100 flex items-center justify-center relative overflow-hidden font-sans select-none">
+    <div className="h-[100dvh] w-screen bg-[#0a1628] text-slate-100 flex items-center justify-center relative overflow-hidden font-sans select-none" style={{ position: 'fixed', inset: 0 }}>
       
       {/* BACKGROUND GRADIENT */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_#0d2d6b_0%,_#071020_100%)] opacity-80 z-0 pointer-events-none" />
@@ -1187,7 +1215,7 @@ export default function App() {
           
           {/* 1. Lobby/Setup Page (遊戲開始設定頁面) */}
           {activePage === 'lobby' && (
-            <div className="flex-1 px-5 lg:px-16 xl:px-32 flex flex-col justify-between h-full select-none text-white overflow-hidden min-h-0" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 1rem)', paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)' }}>
+            <div className="flex-1 px-5 lg:px-16 xl:px-32 flex flex-col justify-between select-none text-white overflow-y-auto min-h-0" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)', paddingBottom: '1rem' }}>
               
               {/* Grand compact title */}
               <div className="text-center space-y-1.5 py-2 shrink-0">
