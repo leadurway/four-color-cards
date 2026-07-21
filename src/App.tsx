@@ -1511,8 +1511,8 @@ export default function App() {
                     <div className="flex-1 overflow-y-auto bg-black/40 border border-white/5 p-0.5 rounded-lg flex flex-wrap gap-[2px] content-start scrollbar-none">
                       {discardPile.map((c, idx) => (
                         <div key={`${c.id}-${idx}`} className="w-[13px] h-[13px] rounded-sm flex items-center justify-center font-black text-[7px]" style={{
-                          backgroundColor: c.color === 'yellow' ? '#fef3c7' : c.color === 'green' ? '#047857' : c.color === 'red' ? '#dc2626' : '#e2e8f0',
-                          color: c.color === 'yellow' ? '#92400e' : c.color === 'green' ? '#d1fae5' : '#ffffff',
+                          backgroundColor: c.color === 'yellow' ? '#ffd300' : c.color === 'green' ? '#299c42' : c.color === 'red' ? '#ff5511' : '#ffffff',
+                          color: c.color === 'yellow' ? '#ab1313' : '#111111',
                         }}>
                           {c.character}
                         </div>
@@ -1556,7 +1556,6 @@ export default function App() {
 
                   {/* Right: 摸牌 button */}
                   <div className="col-span-4 flex flex-col border-l border-white/10 py-1 pl-1">
-                    <span className="text-[10px] font-bold text-yellow-500/80 mb-0.5 leading-none shrink-0">摸牌</span>
                     {deck.length > 0 ? (
                       <button
                         onClick={handlePlayerDraw}
