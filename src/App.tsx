@@ -1226,6 +1226,22 @@ export default function App() {
   const playerRevealedCards = player.revealed.flatMap(m => m.cards);
   const computerRevealedCards = computer.revealed.flatMap(m => m.cards);
 
+  // 15-card mode: visual-only hint for any 3 identical cards currently held (does not lock/restrict discard)
+  const compute15TrioIds = (hand: Card[]): Set<string> => {
+    const groups: { [key: string]: Card[] } = {};
+    hand.forEach(c => {
+      const key = `${c.color}-${c.character}`;
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(c);
+    });
+    const ids = new Set<string>();
+    Object.values(groups).forEach(cards => {
+      if (cards.length >= 3) cards.slice(0, 3).forEach(c => ids.add(c.id));
+    });
+    return ids;
+  };
+  const player15TrioIds = mode === 'pairs' && pairsHandSize === 15 ? compute15TrioIds(player.hand) : new Set<string>();
+
   const renderMiniCard = (c: Card, key: string) => (
     <div key={key} className="w-[13px] h-[13px] rounded-sm flex items-center justify-center font-black text-[7px] shrink-0" style={{
       backgroundColor: c.color === 'yellow' ? '#ffd300' : c.color === 'green' ? '#299c42' : c.color === 'red' ? '#ff5511' : '#ffffff',
@@ -1260,7 +1276,7 @@ export default function App() {
                 <div className="flex items-center justify-center gap-3">
                   <Sparkles className="w-6 h-6 text-yellow-500 animate-pulse shrink-0" />
                   <h1 className="text-3xl md:text-4xl font-serif font-black tracking-widest text-yellow-500 italic select-none">
-                    四色牌傳統遊藝廳
+                    四色牌-吃一隻
                   </h1>
                   <Sparkles className="w-6 h-6 text-yellow-500 animate-pulse shrink-0" />
                 </div>
@@ -1310,69 +1326,36 @@ export default function App() {
                 <div className="bg-black/35 p-4 rounded-2xl border border-white/10 flex flex-col justify-center space-y-3">
                   <div className="flex items-center gap-2 px-1">
                     <span className="text-sm bg-yellow-500 text-slate-950 font-black px-2.5 py-1 rounded shrink-0">2. 自選玩法</span>
-                    <p className="text-sm font-extrabold text-yellow-400">挑選您喜愛的對戰玩法：</p>
+                    <p className="text-sm font-extrabold text-yellow-400">👦 抓對對子簡單對戰</p>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-2">
-                    {/* Mode 1: Pairs */}
-                    <div
-                      onClick={() => { playSound('click'); setMode('pairs'); }}
-                      className={`text-left p-3 rounded-xl border transition-all block relative cursor-pointer select-none ${
-                        mode === 'pairs'
-                          ? 'bg-blue-900/40 border-yellow-500 shadow ring-2 ring-yellow-500/20'
-                          : 'bg-black/25 border-white/10 hover:border-white/20'
+                  <div className="flex flex-col gap-2">
+                    <button
+                      onClick={() => { playSound('click'); setPairsHandSize(10); }}
+                      className={`text-left px-4 py-4 rounded-xl border-2 transition-all font-black ${
+                        pairsHandSize === 10
+                          ? 'bg-yellow-500 text-slate-950 border-yellow-300 shadow-lg scale-[1.02]'
+                          : 'bg-white/10 text-slate-200 border-white/10 hover:border-white/20'
                       }`}
                     >
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-base font-black text-white flex items-center gap-1">
-                          👦 抓對對子簡單對戰
-                        </span>
+                      <div className="text-lg">10張五對胡（發9張）</div>
+                      <div className={`text-xs font-medium mt-0.5 ${pairsHandSize === 10 ? 'text-slate-800' : 'text-slate-400'}`}>
+                        湊滿 5 對牌即胡，規則最簡單，新手首選
                       </div>
-                      <p className="text-xs text-slate-300 leading-snug font-medium">
-                        簡易配對，長輩首選！系統會自動為您挑出暗坎同色組，只需輕敲出子配對！
-                      </p>
-
-                      {/* Mode pairs hand size controls */}
-                      {mode === 'pairs' && (
-                        <div className="mt-2 flex items-center justify-between gap-1 bg-black/60 p-1.5 rounded-lg border border-white/5" onClick={(e)=>e.stopPropagation()}>
-                          <button
-                            onClick={() => { playSound('click'); setPairsHandSize(10); }}
-                            className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-colors ${
-                              pairsHandSize === 10 ? 'bg-yellow-500 text-black' : 'bg-white/10 text-slate-200'
-                            }`}
-                          >
-                            10張五對胡（發9張）
-                          </button>
-                          <button
-                            onClick={() => { playSound('click'); setPairsHandSize(15); }}
-                            className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-colors ${
-                              pairsHandSize === 15 ? 'bg-yellow-500 text-black' : 'bg-white/10 text-slate-200'
-                            }`}
-                          >
-                            15張五組胡（發14張）
-                          </button>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Mode 2: Standard */}
-                    <div
-                      onClick={() => { playSound('click'); setMode('standard'); }}
-                      className={`text-left p-3 rounded-xl border transition-all block relative cursor-pointer select-none ${
-                        mode === 'standard'
-                          ? 'bg-blue-900/40 border-yellow-500 shadow ring-2 ring-yellow-500/20'
-                          : 'bg-black/25 border-white/10 hover:border-white/20'
+                    </button>
+                    <button
+                      onClick={() => { playSound('click'); setPairsHandSize(15); }}
+                      className={`text-left px-4 py-4 rounded-xl border-2 transition-all font-black ${
+                        pairsHandSize === 15
+                          ? 'bg-yellow-500 text-slate-950 border-yellow-300 shadow-lg scale-[1.02]'
+                          : 'bg-white/10 text-slate-200 border-white/10 hover:border-white/20'
                       }`}
                     >
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-base font-black text-white flex items-center gap-1">
-                          🀄 傳統吃碰客家玩法
-                        </span>
+                      <div className="text-lg">15張五組胡（發14張）</div>
+                      <div className={`text-xs font-medium mt-0.5 ${pairsHandSize === 15 ? 'text-slate-800' : 'text-slate-400'}`}>
+                        湊滿 5 組三張即胡，稍具挑戰性
                       </div>
-                      <p className="text-xs text-slate-300 leading-snug font-medium">
-                        正宗客家經典二十張！包含將士象、車馬包同色吃、碰、槓。達成 10 胡之牌點數自摸。
-                      </p>
-                    </div>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -1400,9 +1383,10 @@ export default function App() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => { playSound('click'); initGame(); }}
-                    className="flex-1 py-4 bg-gradient-to-r from-red-600 via-amber-500 to-yellow-500 hover:brightness-110 active:scale-98 transition-all font-black text-slate-950 text-xl rounded-xl shadow-xl flex items-center justify-center gap-2 select-none"
+                    className="flex-1 py-5 bg-yellow-500 hover:brightness-105 active:scale-98 transition-all font-black text-slate-950 text-2xl rounded-xl border-4 border-red-500 flex items-center justify-center gap-2 select-none"
+                    style={{ animation: 'bounceSmall 1.4s ease-in-out infinite, huBoxGlow 1s ease-in-out infinite alternate' }}
                   >
-                    開始洗牌、發牌入席 🀄
+                    開始遊戲 🀄
                   </button>
 
                   <button
@@ -1740,9 +1724,22 @@ export default function App() {
                       style={{ gridTemplateColumns: `repeat(${Math.ceil(player.hand.length / 2) || 1}, ${handCardDims.w}px)` }}
                     >
                       {player.hand.map((card) => {
-                        const isStray = mode !== 'pairs' || playerGrouping.strays.some(s => s.id === card.id);
-                        const isPaired = mode === 'pairs' && !isStray;
-                        const isSelected = card.id === selectedCardId && isStray;
+                        const is10 = mode === 'pairs' && pairsHandSize === 10;
+                        const is15 = mode === 'pairs' && pairsHandSize === 15;
+                        const isStray = !is10 || playerGrouping.strays.some(s => s.id === card.id);
+                        const isPaired = is10 && !isStray;
+                        const isTrioHint = is15 && player15TrioIds.has(card.id);
+                        const isSelected = card.id === selectedCardId && (isStray || is15);
+                        const badgeStyle: React.CSSProperties = {
+                          left: 2, right: 2,
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          height: Math.max(20, handCardDims.h * 0.24),
+                          fontSize: Math.max(13, handCardDims.fs * 0.5),
+                          background: '#1d4ed8',
+                          color: '#ffffff',
+                          borderRadius: 4,
+                        };
                         return (
                           <div key={card.id} className="relative flex flex-col items-center">
                             <FourColorCard
@@ -1762,19 +1759,20 @@ export default function App() {
                               }}
                               charFontSize={handCardDims.fs}
                             />
-                            {mode === 'pairs' && isPaired && (
+                            {isPaired && (
                               <span
-                                className="absolute top-0 z-10 flex items-center justify-center pointer-events-none font-black leading-none"
-                                style={{
-                                  left: 2, right: 2,
-                                  height: 14,
-                                  fontSize: 9,
-                                  background: '#1d4ed8',
-                                  color: '#ffffff',
-                                  borderRadius: 2,
-                                }}
+                                className="absolute z-10 flex items-center justify-center pointer-events-none font-black leading-none"
+                                style={badgeStyle}
                               >
                                 對
+                              </span>
+                            )}
+                            {isTrioHint && (
+                              <span
+                                className="absolute z-10 flex items-center justify-center pointer-events-none font-black leading-none"
+                                style={badgeStyle}
+                              >
+                                組
                               </span>
                             )}
                           </div>
