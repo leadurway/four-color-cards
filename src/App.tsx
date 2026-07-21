@@ -1524,83 +1524,85 @@ export default function App() {
                   )}
                 </div>
 
-                {/* THE PORTRAIT RIVER / TABLE (Middle) */}
-                <div className="p-2 bg-black/20 rounded-2xl border border-white/5 grid grid-cols-12 gap-1.5 items-stretch select-none" style={{ height: 110 }}>
+                {/* THE PORTRAIT RIVER / TABLE (Middle) — 桌面牌(左半) | 回收牌/摸牌(右半，上下疊放) */}
+                <div className="p-2 bg-black/20 rounded-2xl border border-white/5 flex gap-1.5 items-stretch select-none" style={{ height: Math.max(110, handCardDims.h + 16) }}>
 
-                  {/* Left: recycler (回收牌) */}
-                  <div className="col-span-3 flex flex-col border-r border-white/10 py-1 pr-1 overflow-hidden">
-                    <span className="text-[10px] font-bold text-yellow-500/80 mb-0.5 leading-none shrink-0">回收牌</span>
-                    <div className="flex-1 overflow-y-auto bg-black/40 border border-white/5 p-0.5 rounded-lg flex flex-wrap gap-[2px] content-start scrollbar-none">
-                      {discardPile.map((c, idx) => (
-                        <div key={`${c.id}-${idx}`} className="w-[13px] h-[13px] rounded-sm flex items-center justify-center font-black text-[7px]" style={{
-                          backgroundColor: c.color === 'yellow' ? '#ffd300' : c.color === 'green' ? '#299c42' : c.color === 'red' ? '#ff5511' : '#ffffff',
-                          color: c.color === 'yellow' ? '#ab1313' : '#111111',
-                        }}>
-                          {c.character}
-                        </div>
-                      ))}
-                      {discardPile.length === 0 && (
-                        <span className="text-[9px] text-slate-500 m-auto">空</span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Center: 桌面牌 — card left, label right */}
-                  <div className="col-span-5 flex py-1 px-1 gap-1.5 overflow-hidden">
-                    {/* Left: card display */}
-                    <div className="flex-1 flex items-center justify-center min-w-0">
-                      {lastDrawnCard ? (
-                        <FourColorCard card={lastDrawnCard} size="sm" isRevealed={true} disabled={true} />
-                      ) : lastDiscardedCard ? (
-                        <FourColorCard card={lastDiscardedCard} size="sm" isRevealed={true} disabled={true} />
-                      ) : (
-                        <span className="text-[10px] text-slate-500">—</span>
-                      )}
-                    </div>
-                    {/* Right: 桌面牌 label at top, who-label below */}
-                    <div className="flex flex-col shrink-0 justify-between" style={{ minWidth: 26 }}>
-                      <span className="text-[10px] font-bold text-yellow-500/80 leading-none">桌面牌</span>
+                  {/* Left half: 桌面牌 — text left (enlarged), card right (matches hand card size) */}
+                  <div className="flex-1 basis-1/2 min-w-0 flex gap-2 py-1 px-1 border-r border-white/10 overflow-hidden">
+                    <div className="flex flex-col justify-between shrink-0">
+                      <span className="font-bold text-yellow-500/80 leading-none" style={{ fontSize: 14 }}>桌面牌</span>
                       <div>
                         {lastDrawnCard && (
-                          <span className="text-[10px] font-black text-cyan-300 leading-none block">
+                          <span className="font-black text-cyan-300 leading-none block" style={{ fontSize: 14 }}>
                             {drawnFromDeck ? '自摸' : '電腦'}
                           </span>
                         )}
                         {!lastDrawnCard && lastDiscardedCard && (
-                          <span className="text-[10px] font-black leading-none block"
-                                style={{color: curPlayerId === 'computer' ? '#fca5a5' : '#86efac'}}>
+                          <span className="font-black leading-none block" style={{ fontSize: 14, color: curPlayerId === 'computer' ? '#fca5a5' : '#86efac' }}>
                             {curPlayerId === 'computer' ? '玩家' : '電腦'}
                           </span>
                         )}
                       </div>
                     </div>
+                    <div className="flex-1 flex items-center justify-center min-w-0">
+                      {lastDrawnCard ? (
+                        <FourColorCard card={lastDrawnCard} size="xs" isRevealed={true} disabled={true}
+                          cardStyle={{ width: handCardDims.w, height: handCardDims.h }} charFontSize={handCardDims.fs} />
+                      ) : lastDiscardedCard ? (
+                        <FourColorCard card={lastDiscardedCard} size="xs" isRevealed={true} disabled={true}
+                          cardStyle={{ width: handCardDims.w, height: handCardDims.h }} charFontSize={handCardDims.fs} />
+                      ) : (
+                        <span className="text-[10px] text-slate-500">—</span>
+                      )}
+                    </div>
                   </div>
 
-                  {/* Right: 摸牌 button */}
-                  <div className="col-span-4 flex flex-col border-l border-white/10 py-1 pl-1">
-                    {deck.length > 0 ? (
-                      <button
-                        onClick={handlePlayerDraw}
-                        disabled={gamePhase !== 'playing' || curPlayerId !== 'player' || lastDrawnCard !== null || hasDrawn}
-                        className={`flex-1 w-full rounded-xl transition-all flex flex-col items-center justify-center bg-red-600 border-2 border-red-400 text-white ${
-                          gamePhase === 'playing' && curPlayerId === 'player' && lastDrawnCard === null && !hasDrawn
-                            ? 'active:scale-95 ring-2 ring-red-300 cursor-pointer shadow-lg'
-                            : 'opacity-50 cursor-not-allowed'
-                        }`}
-                        style={
-                          gamePhase === 'playing' && curPlayerId === 'player' && lastDrawnCard === null && !hasDrawn
-                            ? { animation: 'bounceSmall 1s ease-in-out infinite' }
-                            : undefined
-                        }
-                      >
-                        <span className="text-xl font-black leading-none">摸牌</span>
-                        <span className="text-[10px] font-bold text-yellow-200 leading-none mt-1">{deck.length} 張</span>
-                      </button>
-                    ) : (
-                      <div className="flex-1 w-full border border-dashed border-white/20 bg-white/5 rounded-xl flex items-center justify-center text-xs text-slate-500">
-                        牌庫空
+                  {/* Right half: 回收區 (top) + 摸牌按鈕 (bottom) */}
+                  <div className="flex-1 basis-1/2 min-w-0 flex flex-col gap-1.5">
+                    {/* 回收區 */}
+                    <div className="flex-1 min-h-0 flex flex-col py-0.5 px-1 overflow-hidden">
+                      <span className="text-[10px] font-bold text-yellow-500/80 mb-0.5 leading-none shrink-0">回收牌</span>
+                      <div className="flex-1 min-h-0 overflow-y-auto bg-black/40 border border-white/5 p-0.5 rounded-lg flex flex-wrap gap-[2px] content-start scrollbar-none">
+                        {discardPile.map((c, idx) => (
+                          <div key={`${c.id}-${idx}`} className="w-[13px] h-[13px] rounded-sm flex items-center justify-center font-black text-[7px]" style={{
+                            backgroundColor: c.color === 'yellow' ? '#ffd300' : c.color === 'green' ? '#299c42' : c.color === 'red' ? '#ff5511' : '#ffffff',
+                            color: c.color === 'yellow' ? '#ab1313' : '#111111',
+                          }}>
+                            {c.character}
+                          </div>
+                        ))}
+                        {discardPile.length === 0 && (
+                          <span className="text-[9px] text-slate-500 m-auto">空</span>
+                        )}
                       </div>
-                    )}
+                    </div>
+
+                    {/* 摸牌按鈕 */}
+                    <div className="flex-1 min-h-0 px-1">
+                      {deck.length > 0 ? (
+                        <button
+                          onClick={handlePlayerDraw}
+                          disabled={gamePhase !== 'playing' || curPlayerId !== 'player' || lastDrawnCard !== null || hasDrawn}
+                          className={`h-full w-full rounded-xl transition-all flex flex-col items-center justify-center bg-red-600 border-2 border-red-400 text-white ${
+                            gamePhase === 'playing' && curPlayerId === 'player' && lastDrawnCard === null && !hasDrawn
+                              ? 'active:scale-95 ring-2 ring-red-300 cursor-pointer shadow-lg'
+                              : 'opacity-50 cursor-not-allowed'
+                          }`}
+                          style={
+                            gamePhase === 'playing' && curPlayerId === 'player' && lastDrawnCard === null && !hasDrawn
+                              ? { animation: 'bounceSmall 1s ease-in-out infinite' }
+                              : undefined
+                          }
+                        >
+                          <span className="text-xl font-black leading-none">摸牌</span>
+                          <span className="text-[10px] font-bold text-yellow-200 leading-none mt-1">{deck.length} 張</span>
+                        </button>
+                      ) : (
+                        <div className="h-full w-full border border-dashed border-white/20 bg-white/5 rounded-xl flex items-center justify-center text-xs text-slate-500">
+                          牌庫空
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
