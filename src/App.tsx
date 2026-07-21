@@ -121,6 +121,11 @@ export default function App() {
     if (!el || player.hand.length === 0) return;
 
     const calc = (containerW: number, containerH: number) => {
+      // Guard against measuring before layout has settled (e.g. mid page-transition):
+      // an invalid 0/near-0 reading would otherwise collapse the grid into effectively
+      // 0px-wide columns, briefly showing a single vertical column until something else
+      // (like drawing a card) forces a fresh, valid measurement.
+      if (containerW < 10 || containerH < 10) return;
       const count = player.hand.length;
       const cols = Math.ceil(count / 2) || 1;
       const colGap = 1;
@@ -1242,6 +1247,15 @@ export default function App() {
   };
   const player15TrioIds = mode === 'pairs' && pairsHandSize === 15 ? compute15TrioIds(player.hand) : new Set<string>();
 
+  // 桌面牌 discard/drawn card size: mirrors handCardDims's proportions but capped independently
+  // of the (fixed-height) table row, so it never feeds back into the hand container's ResizeObserver.
+  const tableCardDims = (() => {
+    const maxH = 90;
+    const h = Math.min(handCardDims.h, maxH);
+    const aspect = handCardDims.h > 0 ? handCardDims.w / handCardDims.h : 32 / 84;
+    return { w: Math.round(h * aspect), h, fs: Math.round(handCardDims.fs * (h / (handCardDims.h || h))) };
+  })();
+
   const renderMiniCard = (c: Card, key: string) => (
     <div key={key} className="w-[13px] h-[13px] rounded-sm flex items-center justify-center font-black text-[7px] shrink-0" style={{
       backgroundColor: c.color === 'yellow' ? '#ffd300' : c.color === 'green' ? '#299c42' : c.color === 'red' ? '#ff5511' : '#ffffff',
@@ -1516,9 +1530,14 @@ export default function App() {
                 </div>
 
                 {/* THE PORTRAIT RIVER / TABLE (Middle) — 桌面牌(左半) | 回收牌/摸牌(右半，上下疊放) */}
-                <div className="p-2 bg-black/20 rounded-2xl border border-white/5 flex gap-1.5 items-stretch select-none" style={{ height: Math.max(110, handCardDims.h + 16) }}>
+                {/* Fixed row height — must NOT derive from handCardDims: this row is a shrink-0 sibling of
+                    the flex-1 hand container below, so a handCardDims-derived height here would create a
+                    layout feedback loop (row height <-> hand container's measured available height),
+                    which occasionally left the hand grid mis-sized until an unrelated re-render (e.g. drawing
+                    a card) forced the ResizeObserver to settle. The table card is capped independently instead. */}
+                <div className="p-2 bg-black/20 rounded-2xl border border-white/5 flex gap-1.5 items-stretch select-none" style={{ height: 110 }}>
 
-                  {/* Left half: 桌面牌 — text left (enlarged), card right (matches hand card size) */}
+                  {/* Left half: 桌面牌 — text left (enlarged), card right (matches hand card size, capped) */}
                   <div className="flex-1 basis-1/2 min-w-0 flex gap-2 py-1 px-1 border-r border-white/10 overflow-hidden">
                     <div className="flex flex-col justify-between shrink-0">
                       <span className="font-bold text-yellow-500/80 leading-none" style={{ fontSize: 14 }}>桌面牌</span>
@@ -1538,10 +1557,10 @@ export default function App() {
                     <div className="flex-1 flex items-center justify-center min-w-0">
                       {lastDrawnCard ? (
                         <FourColorCard card={lastDrawnCard} size="xs" isRevealed={true} disabled={true}
-                          cardStyle={{ width: handCardDims.w, height: handCardDims.h }} charFontSize={handCardDims.fs} />
+                          cardStyle={{ width: tableCardDims.w, height: tableCardDims.h }} charFontSize={tableCardDims.fs} />
                       ) : lastDiscardedCard ? (
                         <FourColorCard card={lastDiscardedCard} size="xs" isRevealed={true} disabled={true}
-                          cardStyle={{ width: handCardDims.w, height: handCardDims.h }} charFontSize={handCardDims.fs} />
+                          cardStyle={{ width: tableCardDims.w, height: tableCardDims.h }} charFontSize={tableCardDims.fs} />
                       ) : (
                         <span className="text-[10px] text-slate-500">—</span>
                       )}
