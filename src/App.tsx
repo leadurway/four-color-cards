@@ -1610,8 +1610,13 @@ export default function App() {
                       {pendingMoves.canPong && (
                         <button
                           onClick={() => handlePlayerAction('pong')}
-                          style={{ animation: 'bounceSmall 0.85s ease-in-out infinite' }}
-                          className="w-16 h-16 rounded-full bg-amber-400 hover:bg-amber-300 border-2 border-white shadow-md flex items-center justify-center text-base font-black text-white hover:scale-105 active:scale-95 transition-transform"
+                          style={{
+                            width: handCardDims.w * 2,
+                            height: handCardDims.w,
+                            fontSize: Math.min(handCardDims.w * 0.5, handCardDims.h * 0.34),
+                            animation: 'bounceSmall 0.85s ease-in-out infinite',
+                          }}
+                          className="rounded-xl bg-amber-400 hover:bg-amber-300 border-2 border-white shadow-md flex items-center justify-center font-black text-white hover:scale-105 active:scale-95 transition-transform"
                         >
                           {mode === 'pairs' ? '吃對' : '碰'}
                         </button>
@@ -1643,7 +1648,12 @@ export default function App() {
                       {/* Drop choices */}
                       <button
                         onClick={handlePlayerSkip}
-                        className="px-4 py-3 bg-slate-600 hover:bg-slate-500 border border-slate-400 text-sm font-bold text-white rounded-xl active:scale-95"
+                        style={{
+                          width: handCardDims.w * 2,
+                          height: handCardDims.w,
+                          fontSize: Math.min(handCardDims.w * 0.5, handCardDims.h * 0.34),
+                        }}
+                        className="rounded-xl bg-slate-600 hover:bg-slate-500 border border-slate-400 font-bold text-white active:scale-95 flex items-center justify-center"
                       >
                         過 (放棄)
                       </button>
