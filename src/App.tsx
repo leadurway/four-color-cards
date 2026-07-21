@@ -1482,15 +1482,15 @@ export default function App() {
                     </div>
 
                     {mode === 'pairs' ? (
-                      <div className="flex items-center gap-1 text-xs text-cyan-300 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full font-bold">
+                      <div className="flex items-center gap-1 text-xs text-cyan-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full font-bold">
                         <span>散牌:</span>
-                        <strong className="text-yellow-400 text-sm">{computerGrouping.strays.length}</strong>
+                        <strong className="text-cyan-400 text-sm">{computerGrouping.strays.length}</strong>
                         <span>張</span>
                       </div>
                     ) : (
-                      <div className="flex items-center gap-1 text-xs text-slate-300 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full font-bold">
+                      <div className="flex items-center gap-1 text-xs text-cyan-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full font-bold">
                         <span>賸餘牌:</span>
-                        <strong className="text-yellow-400 text-sm">{computer.hand.length}</strong>
+                        <strong className="text-cyan-400 text-sm">{computer.hand.length}</strong>
                         <span>張</span>
                       </div>
                     )}
@@ -1499,20 +1499,20 @@ export default function App() {
                   {/* Robot's revealed sets on screen */}
                   {mode === 'pairs' ? (
                     <div className="flex items-center gap-2 text-xs font-bold">
-                      <span className="text-slate-400 shrink-0">對子：</span>
+                      <span className="text-cyan-400 shrink-0">對子：</span>
                       <div className="flex flex-wrap gap-[2px] flex-1 min-w-0">
                         {computerRevealedCards.length > 0
                           ? computerRevealedCards.map((c, i) => renderMiniCard(c, `comp-pair-${c.id}-${i}`))
-                          : <span className="text-slate-500">無</span>}
+                          : <span className="text-cyan-400/60">無</span>}
                       </div>
                     </div>
                   ) : computer.revealed.length > 0 && (
                     <div className="flex items-center gap-1 p-1 bg-black/40 rounded-xl border border-white/5 mt-0.5 overflow-x-auto whitespace-nowrap scrollbar-none">
-                      <span className="text-xs text-slate-400 font-bold shrink-0">案前亮相：</span>
+                      <span className="text-xs text-cyan-400 font-bold shrink-0">案前亮相：</span>
                       <div className="flex gap-1">
                         {computer.revealed.map((meld) => (
                           <div key={meld.id} className="bg-white/5 px-1.5 py-0.5 rounded border border-white/10 text-xs flex items-center gap-0.5">
-                            <span className="text-yellow-500 font-bold leading-none">{meld.name}</span>
+                            <span className="text-cyan-400 font-bold leading-none">{meld.name}</span>
                           </div>
                         ))}
                       </div>
@@ -1707,13 +1707,13 @@ export default function App() {
                       {mode === 'pairs' ? (
                         <div className="flex items-center gap-1 text-xs text-yellow-300 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full font-bold">
                           <span>散牌:</span>
-                          <strong className="text-yellow-400 text-sm">{playerGrouping.strays.length}</strong>
+                          <strong className="text-yellow-300 text-sm">{playerGrouping.strays.length}</strong>
                           <span>張</span>
                         </div>
                       ) : (
-                        <div className="text-xs font-bold leading-none">
+                        <div className="text-xs font-bold leading-none text-yellow-300">
                           {activeHuCheck.canHu ? (
-                            <span className="text-emerald-400 font-black">✔ 可胡牌！</span>
+                            <span className="text-yellow-300 font-black">✔ 可胡牌！</span>
                           ) : (
                             <span>{activeHuCheck.totalHoo} / 10 胡</span>
                           )}
@@ -1722,11 +1722,11 @@ export default function App() {
                     </div>
                     {mode === 'pairs' && (
                       <div className="flex items-center gap-2 text-xs font-bold">
-                        <span className="text-slate-400 shrink-0">對子：</span>
+                        <span className="text-yellow-300 shrink-0">對子：</span>
                         <div className="flex flex-wrap gap-[2px] flex-1 min-w-0">
                           {playerRevealedCards.length > 0
                             ? playerRevealedCards.map((c, i) => renderMiniCard(c, `player-pair-${c.id}-${i}`))
-                            : <span className="text-slate-500">無</span>}
+                            : <span className="text-yellow-300/60">無</span>}
                         </div>
                       </div>
                     )}
@@ -1790,7 +1790,7 @@ export default function App() {
                       {selectedCardId ? (
                         <p>您的手牌・已選：<strong className="text-yellow-300">{player.hand.find(c => c.id === selectedCardId)?.name}</strong></p>
                       ) : (
-                        <p className="text-slate-300">您的手牌（點牌再點打牌）</p>
+                        <p className="text-yellow-300">您的手牌（點牌再點打牌）</p>
                       )}
                     </div>
 
@@ -1839,7 +1839,7 @@ export default function App() {
                        : mode === 'standard' && activeHuCheck.canHu ? '🏆'
                        : 'ℹ️'}
                     </span>
-                    <p className="text-base font-black leading-tight truncate flex-1" style={{ color: '#fde047' }}>{guideMessage}</p>
+                    <p className="text-base font-black leading-tight truncate flex-1 text-cyan-400">{guideMessage}</p>
                   </div>
                 </div>
 
