@@ -101,9 +101,13 @@ export default function App() {
 
   // Animation overlays
   const [showEatPairAnim, setShowEatPairAnim] = useState(false);
+  const [eatPairAnimWho, setEatPairAnimWho] = useState<'player' | 'computer'>('player');
+  const [eatPairAnimCards, setEatPairAnimCards] = useState<Card[]>([]);
   const [drawnCardPreview, setDrawnCardPreview] = useState<import('./types').Card | null>(null);
   const [showHuCelebration, setShowHuCelebration] = useState(false);
   const [huCelebShowContinue, setHuCelebShowContinue] = useState(false);
+  const [huAnimWho, setHuAnimWho] = useState<'player' | 'computer'>('player');
+  const [huAnimCards, setHuAnimCards] = useState<Card[]>([]);
   const [backConfirmPending, setBackConfirmPending] = useState(false);
   const fireworksCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -457,13 +461,15 @@ export default function App() {
             name: `對子 [${drawn.name}]`
           };
           setPlayer(prev => ({ ...prev, hand: nextHand, revealed: [...prev.revealed, autoPairMeld] }));
+          setEatPairAnimWho('player');
+          setEatPairAnimCards([drawn, matchedCard]);
           setShowEatPairAnim(true);
 
           const autoCheck = groupPairsMode(nextHand);
           if (autoCheck.strays.length === 0) {
             setTimeout(() => {
               setShowEatPairAnim(false);
-              handleWin('player', 'pairs', '恭喜！自摸配對完成所有散牌，宣告勝出！');
+              handleWin('player', 'pairs', '恭喜！自摸配對完成所有散牌，宣告勝出！', [drawn, matchedCard]);
             }, 3000);
             return;
           }
@@ -583,14 +589,23 @@ export default function App() {
           setComputer(prev => ({ ...prev, hand: newHand, revealed: [...prev.revealed, newMeld] }));
           setLastDiscardedCard(null);
           addLog(`🤖 電腦 AI 宣告【吃對子】，將剛才您打出的 [${playerDiscard.name}] 配成一對。`);
+          setEatPairAnimWho('computer');
+          setEatPairAnimCards([playerDiscard, matchesStray]);
+          setShowEatPairAnim(true);
+          setIsComputerThinking(false);
 
           const nextGroup = groupPairsMode(newHand);
           if (nextGroup.strays.length === 0) {
-            handleWin('computer', 'pairs', '電腦配對抓完手牌散牌徹底歸零，取得勝利！');
-            setIsComputerThinking(false);
+            setTimeout(() => {
+              setShowEatPairAnim(false);
+              handleWin('computer', 'pairs', '電腦配對抓完手牌散牌徹底歸零，取得勝利！', [playerDiscard, matchesStray]);
+            }, 3000);
             return;
           }
-          setTimeout(() => { executeComputerDiscard(newHand); }, 900);
+          setTimeout(() => {
+            setShowEatPairAnim(false);
+            executeComputerDiscard(newHand);
+          }, 3000);
           return;
         }
         // No stray match → fall through to computer draw turn
@@ -710,14 +725,23 @@ export default function App() {
         setComputer(prev => ({ ...prev, hand: newHand, revealed: [...prev.revealed, newMeld] }));
         setLastDrawnCard(null);
         addLog(`🤖 電腦 AI 自我配對成功！亮出明對：[${drawn.name}]。`);
+        setEatPairAnimWho('computer');
+        setEatPairAnimCards([drawn, matched]);
+        setShowEatPairAnim(true);
 
         const nextGroup = groupPairsMode(newHand);
         if (nextGroup.strays.length === 0) {
-          handleWin('computer', 'pairs', '電腦自摸對子成功，手中散牌宣告配對歸零，斬獲勝利！');
+          setTimeout(() => {
+            setShowEatPairAnim(false);
+            handleWin('computer', 'pairs', '電腦自摸對子成功，手中散牌宣告配對歸零，斬獲勝利！', [drawn, matched]);
+          }, 3000);
           setIsComputerThinking(false);
           return;
         }
-        setTimeout(() => { executeComputerDiscard(newHand); }, 900);
+        setTimeout(() => {
+          setShowEatPairAnim(false);
+          executeComputerDiscard(newHand);
+        }, 3000);
       } else {
         const updatedHand = sortHandForDisplay([...computer.hand, drawn]);
         setComputer(prev => ({ ...prev, hand: updatedHand }));
@@ -946,13 +970,15 @@ export default function App() {
           setLastDiscardedCard(null);
           setPendingMoves(null);
           setGamePhase('playing');
+          setEatPairAnimWho('player');
+          setEatPairAnimCards([trigger, matchCard]);
           setShowEatPairAnim(true);
 
           const checkGroup = groupPairsMode(nextHand);
           if (checkGroup.strays.length === 0) {
             setTimeout(() => {
               setShowEatPairAnim(false);
-              handleWin('player', 'pairs', '恭喜！您成功配對了手中所有單張散牌，解鎖大勝！');
+              handleWin('player', 'pairs', '恭喜！您成功配對了手中所有單張散牌，解鎖大勝！', [trigger, matchCard]);
             }, 3000);
             return;
           }
@@ -1135,18 +1161,18 @@ export default function App() {
   };
 
   // Triggers game-over winner scene
-  const handleWin = (winner: 'player' | 'computer', type: 'pairs' | 'hu', explanation: string) => {
+  const handleWin = (winner: 'player' | 'computer', type: 'pairs' | 'hu', explanation: string, winCards: Card[] = []) => {
     playSound(winner === 'player' ? 'win' : 'lose');
     setGamePhase('game_over');
     setWinnerId(winner);
     setWinType(type);
     setWinExplanation(explanation);
     addLog(`📢 牌局終止！【${winner === 'player' ? '玩家' : '電腦 AI'}】宣佈贏得本盤勝利！理由：${explanation}`);
-    if (winner === 'player') {
-      setShowHuCelebration(true);
-      setHuCelebShowContinue(false);
-      setTimeout(() => setHuCelebShowContinue(true), 5000);
-    }
+    setHuAnimWho(winner);
+    setHuAnimCards(winCards);
+    setShowHuCelebration(true);
+    setHuCelebShowContinue(false);
+    setTimeout(() => setHuCelebShowContinue(true), 5000);
   };
 
   // Triggers draw game when remaining cards hit zero
@@ -2085,70 +2111,114 @@ export default function App() {
 
       {/* 吃對 ANIMATION OVERLAY — 3 seconds, pointer-events-none */}
       {showEatPairAnim && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center pointer-events-none select-none">
+        <div className="fixed inset-0 z-[150] flex flex-col items-center justify-center pointer-events-none select-none" style={{ background: 'rgba(6,14,30,0.72)', gap: 10 }}>
+          {/* Paired / trio cards above badge */}
+          {eatPairAnimCards.length > 0 && (
+            <div className="flex items-end" style={{ gap: 3, animation: 'cardReveal 0.4s cubic-bezier(0.34,1.56,0.64,1) both' }}>
+              {eatPairAnimCards.map((c, i) => (
+                <FourColorCard
+                  key={`ep-${c.id}-${i}`}
+                  card={c}
+                  size="xs"
+                  isRevealed={true}
+                  cardStyle={{ width: handCardDims.w, height: handCardDims.h }}
+                  charFontSize={handCardDims.fs}
+                />
+              ))}
+            </div>
+          )}
+          {/* Badge: 長=一個手牌的高度, 高=兩個手牌的寬度 */}
           <div
             style={{
-              width: 'clamp(220px, 55vw, 320px)',
-              height: 'clamp(220px, 55vw, 320px)',
+              width: Math.max(handCardDims.h, eatPairAnimCards.length * (handCardDims.w + 3) - 3),
+              height: handCardDims.w * 2,
               background: '#f5c218',
               color: '#0a1628',
               display: 'flex',
+              flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: 'clamp(4.5rem, 18vw, 7rem)',
-              fontWeight: 700,
-              borderRadius: '1.2rem',
+              fontSize: Math.min(handCardDims.w * 0.88, handCardDims.h * 0.38),
+              fontWeight: 900,
+              borderRadius: '0.6rem',
+              lineHeight: 1.1,
               animation: 'eatPairPop 0.5s cubic-bezier(0.34,1.56,0.64,1) both, boxGlow 0.8s ease-in-out 0.5s infinite alternate',
             }}
           >
-            吃對
+            <span>{eatPairAnimWho === 'player' ? '玩家' : '電腦'}</span>
+            <span>吃對</span>
           </div>
         </div>
       )}
 
-      {/* 胡牌 CELEBRATION OVERLAY — fireworks + stamp + 繼續下局 button */}
+      {/* 胡牌 CELEBRATION OVERLAY — stamp + cards + 繼續下局 button (fireworks for player only) */}
       {showHuCelebration && (
         <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center select-none overflow-hidden">
-          {/* Fireworks canvas */}
-          <canvas
-            ref={fireworksCanvasRef}
-            className="absolute inset-0 w-full h-full"
-            style={{ background: 'rgba(6,14,30,0.82)' }}
-          />
+          {/* Fireworks canvas — player wins only */}
+          {huAnimWho === 'player' && (
+            <canvas
+              ref={fireworksCanvasRef}
+              className="absolute inset-0 w-full h-full"
+              style={{ background: 'rgba(6,14,30,0.82)' }}
+            />
+          )}
+          {/* Plain dark overlay — computer wins */}
+          {huAnimWho === 'computer' && (
+            <div className="absolute inset-0" style={{ background: 'rgba(6,14,30,0.88)' }} />
+          )}
 
-          {/* Content on top of canvas */}
-          <div className="relative z-10 flex flex-col items-center gap-6 px-6 text-center">
-            {/* 胡牌 stamp */}
+          {/* Content on top */}
+          <div className="relative z-10 flex flex-col items-center px-6 text-center" style={{ gap: 10 }}>
+            {/* Cards above badge */}
+            {huAnimCards.length > 0 && (
+              <div className="flex items-end" style={{ gap: 3, animation: 'cardReveal 0.4s cubic-bezier(0.34,1.56,0.64,1) both' }}>
+                {huAnimCards.map((c, i) => (
+                  <FourColorCard
+                    key={`hu-${c.id}-${i}`}
+                    card={c}
+                    size="xs"
+                    isRevealed={true}
+                    cardStyle={{ width: handCardDims.w, height: handCardDims.h }}
+                    charFontSize={handCardDims.fs}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* 胡牌 badge: 長=一個手牌的高度, 高=兩個手牌的寬度, 紅底白字 */}
             <div
               style={{
-                width: 'clamp(220px, 55vw, 320px)',
-                height: 'clamp(220px, 55vw, 320px)',
-                background: '#f5c218',
-                color: '#0a1628',
+                width: Math.max(handCardDims.h, huAnimCards.length > 0 ? huAnimCards.length * (handCardDims.w + 3) - 3 : 0),
+                height: handCardDims.w * 2,
+                background: '#dc2626',
+                color: '#ffffff',
                 display: 'flex',
+                flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: 'clamp(4.5rem, 18vw, 7rem)',
-                fontWeight: 700,
-                borderRadius: '1.2rem',
-                animation: 'huStamp 0.7s cubic-bezier(0.22,1,0.36,1) both, boxGlow 1s ease-in-out 0.7s infinite alternate',
+                fontSize: Math.min(handCardDims.w * 0.88, handCardDims.h * 0.38),
+                fontWeight: 900,
+                borderRadius: '0.6rem',
+                lineHeight: 1.1,
+                animation: 'huStamp 0.7s cubic-bezier(0.22,1,0.36,1) both, huBoxGlow 1s ease-in-out 0.7s infinite alternate',
               }}
             >
-              胡牌
+              <span>{huAnimWho === 'player' ? '玩家' : '電腦'}</span>
+              <span>胡牌</span>
             </div>
 
             {/* Sub-label */}
             <div
               style={{
-                fontSize: 'clamp(1rem, 4.5vw, 1.6rem)',
-                color: '#f5c218',
+                fontSize: 'clamp(0.8rem, 3.5vw, 1.2rem)',
+                color: huAnimWho === 'player' ? '#f5c218' : '#fca5a5',
                 fontWeight: 700,
                 letterSpacing: '0.15em',
                 animation: 'fadeInUp 0.5s ease 0.6s both',
-                textShadow: '0 0 20px rgba(245,194,24,0.8)',
+                textShadow: huAnimWho === 'player' ? '0 0 20px rgba(245,194,24,0.8)' : '0 0 20px rgba(239,68,68,0.8)',
               }}
             >
-              恭喜大獲全勝！
+              {huAnimWho === 'player' ? '恭喜大獲全勝！' : '電腦勝出'}
             </div>
 
             {/* 繼續下局 button — appears after 5s */}
@@ -2161,13 +2231,15 @@ export default function App() {
                   initGame();
                 }}
                 style={{
-                  fontSize: 'clamp(1.4rem, 6vw, 2.2rem)',
-                  padding: 'clamp(0.9rem, 3vw, 1.4rem) clamp(2rem, 8vw, 4rem)',
-                  background: 'linear-gradient(135deg, #f0b329 0%, #f5c218 50%, #f0b329 100%)',
-                  color: '#0a1628',
+                  fontSize: 'clamp(1.2rem, 5vw, 1.8rem)',
+                  padding: 'clamp(0.7rem, 2.5vw, 1.2rem) clamp(1.5rem, 6vw, 3rem)',
+                  background: huAnimWho === 'player'
+                    ? 'linear-gradient(135deg, #f0b329 0%, #f5c218 50%, #f0b329 100%)'
+                    : 'linear-gradient(135deg, #4b5563 0%, #374151 100%)',
+                  color: huAnimWho === 'player' ? '#0a1628' : '#ffffff',
                   fontWeight: 900,
                   borderRadius: '2rem',
-                  border: '4px solid #fff8cc',
+                  border: `4px solid ${huAnimWho === 'player' ? '#fff8cc' : '#6b7280'}`,
                   animation: 'fadeInUp 0.6s ease both, continuePulse 1.2s ease-in-out infinite alternate',
                   cursor: 'pointer',
                   letterSpacing: '0.05em',
