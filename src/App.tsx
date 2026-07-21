@@ -2221,7 +2221,7 @@ export default function App() {
               {huAnimWho === 'player' ? '恭喜大獲全勝！' : '電腦勝出'}
             </div>
 
-            {/* 繼續下局 button — appears after 5s */}
+            {/* 繼續下局 button — appears after 5s, styled like 吃對 badge */}
             {huCelebShowContinue && (
               <button
                 onClick={() => {
@@ -2231,21 +2231,25 @@ export default function App() {
                   initGame();
                 }}
                 style={{
-                  fontSize: 'clamp(1.2rem, 5vw, 1.8rem)',
-                  padding: 'clamp(0.7rem, 2.5vw, 1.2rem) clamp(1.5rem, 6vw, 3rem)',
-                  background: huAnimWho === 'player'
-                    ? 'linear-gradient(135deg, #f0b329 0%, #f5c218 50%, #f0b329 100%)'
-                    : 'linear-gradient(135deg, #4b5563 0%, #374151 100%)',
-                  color: huAnimWho === 'player' ? '#0a1628' : '#ffffff',
+                  width: handCardDims.h,
+                  height: handCardDims.w * 2,
+                  background: '#f5c218',
+                  color: '#0a1628',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: Math.min(handCardDims.w * 0.88, handCardDims.h * 0.38),
                   fontWeight: 900,
-                  borderRadius: '2rem',
-                  border: `4px solid ${huAnimWho === 'player' ? '#fff8cc' : '#6b7280'}`,
-                  animation: 'fadeInUp 0.6s ease both, continuePulse 1.2s ease-in-out infinite alternate',
+                  borderRadius: '0.6rem',
+                  lineHeight: 1.1,
+                  border: 'none',
                   cursor: 'pointer',
-                  letterSpacing: '0.05em',
+                  animation: 'fadeInUp 0.6s ease both, continuePulse 1.2s ease-in-out infinite alternate',
                 }}
               >
-                🀄 繼續下局
+                <span>繼續</span>
+                <span>下局</span>
               </button>
             )}
           </div>
