@@ -1,15 +1,15 @@
 @import "tailwindcss";
 
 html, body {
-  height: 100%;
-  width: 100%;
+  position: fixed;
+  inset: 0;
   overflow: hidden;
   overscroll-behavior: none;
   background-color: #0a1628;
 }
 
 #root {
-  height: var(--app-height, 100dvh);
+  height: var(--app-height, 100%);
   width: 100%;
   overflow: hidden;
 }
