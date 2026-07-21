@@ -1376,7 +1376,7 @@ export default function App() {
                     className="flex items-center gap-2 hover:text-white"
                   >
                     {showComputerHand ? <Eye className="w-5 h-5 text-blue-400" /> : <EyeOff className="w-5 h-5 text-slate-400" />}
-                    <span>防走失作弊透視：{showComputerHand ? '開' : '關'}</span>
+                    <span>電腦手牌顯示：{showComputerHand ? '開' : '關'}</span>
                   </button>
                 </div>
 
