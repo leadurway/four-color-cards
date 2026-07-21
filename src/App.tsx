@@ -1590,19 +1590,18 @@ export default function App() {
                         <button
                           onClick={handlePlayerDraw}
                           disabled={gamePhase !== 'playing' || curPlayerId !== 'player' || lastDrawnCard !== null || hasDrawn}
-                          className={`h-full w-full rounded-xl transition-all flex flex-col items-center justify-center bg-red-600 border-2 border-red-400 text-white ${
+                          className={`h-full w-full rounded-xl transition-all flex items-center justify-center bg-red-600 border-2 border-red-400 text-white ${
                             gamePhase === 'playing' && curPlayerId === 'player' && lastDrawnCard === null && !hasDrawn
                               ? 'active:scale-95 ring-2 ring-red-300 cursor-pointer shadow-lg'
                               : 'opacity-50 cursor-not-allowed'
                           }`}
                           style={
                             gamePhase === 'playing' && curPlayerId === 'player' && lastDrawnCard === null && !hasDrawn
-                              ? { animation: 'bounceSmall 1s ease-in-out infinite' }
-                              : undefined
+                              ? { animation: 'bounceSmall 1s ease-in-out infinite', fontSize: 'clamp(1.1rem, 6vw, 1.8rem)' }
+                              : { fontSize: 'clamp(1.1rem, 6vw, 1.8rem)' }
                           }
                         >
-                          <span className="text-xl font-black leading-none">摸牌</span>
-                          <span className="text-[10px] font-bold text-yellow-200 leading-none mt-1">{deck.length} 張</span>
+                          <span className="font-black leading-none whitespace-nowrap">摸牌 {deck.length}張</span>
                         </button>
                       ) : (
                         <div className="h-full w-full border border-dashed border-white/20 bg-white/5 rounded-xl flex items-center justify-center text-xs text-slate-500">
