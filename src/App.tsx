@@ -4,6 +4,8 @@ import {
   shuffle,
   groupPairsMode,
   checkTriosWin,
+  checkTrioClaims,
+  TrioClaimOption,
   sortHandForDisplay,
   solveHu,
   checkAvailableMoves,
@@ -83,6 +85,7 @@ export default function App() {
   
   // Available moves for player during checking state
   const [pendingMoves, setPendingMoves] = useState<ReturnType<typeof checkAvailableMoves> | null>(null);
+  const [pendingTrioOptions, setPendingTrioOptions] = useState<TrioClaimOption[]>([]);
   const [canDiscard, setCanDiscard] = useState(false);
   const [hasDrawn, setHasDrawn] = useState(false);
   
@@ -430,7 +433,17 @@ export default function App() {
     addLog(`【您摸牌】摸到了一張牌：[${drawn.name}]`);
 
     if (mode === 'pairs' && pairsHandSize === 15) {
-      // ── 15-card mode: no auto-pair; check trio win on full 15-card hand ──
+      // ── 15-card mode: check if the drawn card completes a claimable trio first ──
+      const trioOptions = checkTrioClaims(player.hand, drawn);
+      if (trioOptions.length > 0) {
+        setLastDiscardedCard(null);
+        setPendingTrioOptions(trioOptions);
+        setGamePhase('waiting_player_action');
+        setGuideMessage(`自摸 [${drawn.name}] 可湊成一組三張！請選擇動作，或按【過】把牌收進手牌。`);
+        return;
+      }
+
+      // No auto-pair; check trio win on full 15-card hand
       const newHand15 = sortHandForDisplay([...player.hand, drawn]);
       setLastDrawnCard(null);
       setLastDiscardedCard(null);
@@ -614,6 +627,41 @@ export default function App() {
           return;
         }
         // No stray match → fall through to computer draw turn
+      } else if (mode === 'pairs' && pairsHandSize === 15) {
+        // 15-card: AI checks if player's discard completes a claimable trio (碰一隻/吃一隻)
+        const trioOptions = checkTrioClaims(computer.hand, playerDiscard);
+        if (trioOptions.length > 0 && Math.random() < 0.75) {
+          const option = trioOptions[Math.floor(Math.random() * trioOptions.length)];
+          const newHand = computer.hand.filter(c => !option.cardsToUse.map(u => u.id).includes(c.id));
+          const newMeld: RevealedMeld = {
+            id: `comp-trio-${Date.now()}`,
+            type: option.meldType,
+            cards: option.resultCards,
+            hoo: 0,
+            name: option.meldName
+          };
+          setComputer(prev => ({ ...prev, hand: newHand, revealed: [...prev.revealed, newMeld] }));
+          setLastDiscardedCard(null);
+          addLog(`🤖 電腦 AI 宣告【${option.actionLabel}】，用您打出的 [${playerDiscard.name}] 湊成${option.meldName}。`);
+          setEatPairAnimWho('computer');
+          setEatPairAnimCards(option.resultCards);
+          setShowEatPairAnim(true);
+          setIsComputerThinking(false);
+
+          if (newHand.length === 0) {
+            setTimeout(() => {
+              setShowEatPairAnim(false);
+              handleWin('computer', 'pairs', '電腦的15張牌湊成5組三張，電腦勝出！', option.resultCards);
+            }, 3000);
+            return;
+          }
+          setTimeout(() => {
+            setShowEatPairAnim(false);
+            executeComputerDiscard(newHand);
+          }, 3000);
+          return;
+        }
+        // No claim taken → fall through to computer draw turn
       } else if (mode !== 'pairs') {
         // Standard Mode AI evaluations on opponent discard
         if (moves.canHu) {
@@ -701,7 +749,41 @@ export default function App() {
     addLog(`🤖 電腦 AI 從牌庫自摸摸牌：[${drawn.name}]。`);
 
     if (mode === 'pairs' && pairsHandSize === 15) {
-      // 15-card: no auto-pair; check trio win on 15-card hand
+      // 15-card: self-drawn card may complete a claimable trio (碰一隻/吃一隻) — claim it immediately
+      const trioOptions = checkTrioClaims(computer.hand, drawn);
+      if (trioOptions.length > 0) {
+        const option = trioOptions[0];
+        const newHand = computer.hand.filter(c => !option.cardsToUse.map(u => u.id).includes(c.id));
+        const newMeld: RevealedMeld = {
+          id: `comp-trio-self-${Date.now()}`,
+          type: option.meldType,
+          cards: option.resultCards,
+          hoo: 0,
+          name: option.meldName
+        };
+        setComputer(prev => ({ ...prev, hand: newHand, revealed: [...prev.revealed, newMeld] }));
+        setLastDrawnCard(null);
+        addLog(`🤖 電腦 AI 自摸【${option.actionLabel}】，湊成${option.meldName}。`);
+        setEatPairAnimWho('computer');
+        setEatPairAnimCards(option.resultCards);
+        setShowEatPairAnim(true);
+
+        if (newHand.length === 0) {
+          setTimeout(() => {
+            setShowEatPairAnim(false);
+            handleWin('computer', 'pairs', '電腦的15張牌湊成5組三張，電腦勝出！', option.resultCards);
+          }, 3000);
+          setIsComputerThinking(false);
+          return;
+        }
+        setTimeout(() => {
+          setShowEatPairAnim(false);
+          executeComputerDiscard(newHand);
+        }, 3000);
+        return;
+      }
+
+      // No auto-pair; check trio win on 15-card hand
       const newHand15 = sortHandForDisplay([...computer.hand, drawn]);
       setLastDrawnCard(null);
       if (checkTriosWin(newHand15)) {
@@ -895,11 +977,18 @@ export default function App() {
     setIsComputerThinking(false);
 
     if (mode === 'pairs' && pairsHandSize === 15) {
-      // 15-card: no pong from discards; straight to player's draw turn
-      setCurPlayerId('player');
-      setCanDiscard(false);
-      setHasDrawn(false);
-      setGuideMessage('輪到您！請摸牌。');
+      // 15-card: check if the discard completes a claimable trio (碰一隻/吃一隻)
+      const trioOptions = checkTrioClaims(player.hand, discarded);
+      if (trioOptions.length > 0) {
+        setPendingTrioOptions(trioOptions);
+        setGamePhase('waiting_player_action');
+        setGuideMessage(`電腦拋出 [${discarded.name}]！可湊成一組三張，請選擇動作或按【過】。`);
+      } else {
+        setCurPlayerId('player');
+        setCanDiscard(false);
+        setHasDrawn(false);
+        setGuideMessage('輪到您！請摸牌。');
+      }
     } else if (mode === 'pairs') {
       // 10-card: offer pair match if player has matching stray
       const pGroup = groupPairsMode(player.hand);
@@ -1123,6 +1212,50 @@ export default function App() {
     }
   };
 
+  // 15-card mode: player claims a 碰一隻/吃一隻 trio (either self-drawn or from opponent's discard)
+  const handlePlayerTrioAction = (option: TrioClaimOption) => {
+    const trigger = lastDrawnCard || lastDiscardedCard;
+    if (!trigger) return;
+
+    playSound('action');
+
+    const nextHand = player.hand.filter(c => !option.cardsToUse.map(u => u.id).includes(c.id));
+    const newMeld: RevealedMeld = {
+      id: `player-trio-${Date.now()}`,
+      type: option.meldType,
+      cards: option.resultCards,
+      hoo: 0,
+      name: option.meldName
+    };
+    setPlayer(prev => ({ ...prev, hand: nextHand, revealed: [...prev.revealed, newMeld] }));
+    addLog(`【${option.actionLabel}】您用 [${trigger.name}] 湊成${option.meldName}，鎖定亮出。`);
+    setLastDrawnCard(null);
+    setLastDiscardedCard(null);
+    setPendingMoves(null);
+    setPendingTrioOptions([]);
+    setGamePhase('playing');
+    setEatPairAnimWho('player');
+    setEatPairAnimCards(option.resultCards);
+    setShowEatPairAnim(true);
+
+    if (nextHand.length === 0) {
+      setTimeout(() => {
+        setShowEatPairAnim(false);
+        handleWin('player', 'pairs', '恭喜！您的15張牌已湊成5組三張，宣告勝出！', option.resultCards);
+      }, 3000);
+      return;
+    }
+
+    setCurPlayerId('player');
+    setHasDrawn(true);
+    setCanDiscard(false);
+    setTimeout(() => {
+      setShowEatPairAnim(false);
+      setCanDiscard(true);
+      setGuideMessage('組合成功！請選牌打出。');
+    }, 3000);
+  };
+
   // Human manual trigger of WIN (HU)
   const handleDeclareHuSelf = () => {
     playSound('click');
@@ -1140,8 +1273,9 @@ export default function App() {
   const handlePlayerSkip = () => {
     playSound('click');
     addLog(`您的回合判定：您選擇【過 (跳過行動)】。`);
-    
+
     setPendingMoves(null);
+    setPendingTrioOptions([]);
     setGamePhase('playing');
 
     if (curPlayerId === 'player' && lastDrawnCard && drawnFromDeck) {
@@ -1497,7 +1631,7 @@ export default function App() {
                   {/* Robot's revealed sets on screen */}
                   {mode === 'pairs' ? (
                     <div className="flex items-center gap-2 text-xs font-bold">
-                      <span className="text-cyan-400 shrink-0">對子：</span>
+                      <span className="text-cyan-400 shrink-0">{pairsHandSize === 15 ? '組子：' : '對子：'}</span>
                       <div className="flex flex-wrap gap-[2px] flex-1 min-w-0">
                         {computerRevealedCards.length > 0
                           ? computerRevealedCards.map((c, i) => renderMiniCard(c, `comp-pair-${c.id}-${i}`))
@@ -1621,7 +1755,7 @@ export default function App() {
                 <div className="flex-1 flex flex-col min-h-0 px-3 pt-1.5 gap-1.5 overflow-hidden">
 
                 {/* GAME ACTIVE DECISIONS */}
-                {pendingMoves && gamePhase === 'waiting_player_action' && (
+                {(pendingMoves || pendingTrioOptions.length > 0) && gamePhase === 'waiting_player_action' && (
                   <div className="bg-black/95 border-2 border-yellow-500 p-2.5 rounded-2xl flex flex-col items-center gap-2 animate-pulse shadow-2xl shrink-0 z-40">
                     <div className="text-[11px] font-black text-yellow-400 border-b border-white/10 w-full text-center pb-1">
                       🚨 雷達鎖定配對信號！請選擇：
@@ -1629,7 +1763,7 @@ export default function App() {
                     
                     <div className="flex flex-wrap items-center justify-center gap-2">
                       {/* Declare HU (Winning) */}
-                      {pendingMoves.canHu && (
+                      {pendingMoves?.canHu && (
                         <button
                           onClick={() => handlePlayerAction('hu')}
                           style={{ animation: 'bounceSmall 0.7s ease-in-out infinite' }}
@@ -1640,7 +1774,7 @@ export default function App() {
                       )}
 
                       {/* Pairs Match or standard Pong */}
-                      {pendingMoves.canPong && (
+                      {pendingMoves?.canPong && (
                         <button
                           onClick={() => handlePlayerAction('pong')}
                           style={{
@@ -1656,7 +1790,7 @@ export default function App() {
                       )}
 
                       {/* Quads action */}
-                      {pendingMoves.canQuad && (
+                      {pendingMoves?.canQuad && (
                         <button
                           onClick={() => handlePlayerAction('quad')}
                           style={{ animation: 'bounceSmall 0.85s ease-in-out infinite 0.1s' }}
@@ -1667,7 +1801,7 @@ export default function App() {
                       )}
 
                       {/* Eat sequences (with lists support) */}
-                      {pendingMoves.canEatSeq && pendingMoves.eatSeqOptions.map((opt, i) => (
+                      {pendingMoves?.canEatSeq && pendingMoves.eatSeqOptions.map((opt, i) => (
                         <button
                           key={i}
                           onClick={() => handlePlayerAction('eat', opt)}
@@ -1675,6 +1809,25 @@ export default function App() {
                           className="px-4 py-3 rounded-xl bg-lime-400 hover:bg-lime-300 border border-lime-200 text-sm font-black text-black active:scale-95 transition-transform"
                         >
                           吃:{opt.resultCards.map(c=>c.character).join('')}
+                        </button>
+                      ))}
+
+                      {/* 15-card mode: 碰一隻/吃一隻 trio claim options */}
+                      {pendingTrioOptions.map((opt, i) => (
+                        <button
+                          key={i}
+                          onClick={() => handlePlayerTrioAction(opt)}
+                          style={{
+                            width: handCardDims.w * 3,
+                            height: handCardDims.w,
+                            animation: `bounceSmall 0.85s ease-in-out infinite ${i * 0.1}s`,
+                          }}
+                          className="rounded-xl bg-amber-400 hover:bg-amber-300 border-2 border-white shadow-md flex flex-col items-center justify-center font-black text-white hover:scale-105 active:scale-95 transition-transform"
+                        >
+                          <span style={{ fontSize: Math.min(handCardDims.w * 0.42, handCardDims.h * 0.28) }}>{opt.actionLabel}</span>
+                          <span className="opacity-90" style={{ fontSize: Math.min(handCardDims.w * 0.22, handCardDims.h * 0.15) }}>
+                            {opt.resultCards.map(c => c.name).join('‧')}
+                          </span>
                         </button>
                       ))}
 
@@ -1722,7 +1875,7 @@ export default function App() {
                     </div>
                     {mode === 'pairs' && (
                       <div className="flex items-center gap-2 text-xs font-bold">
-                        <span className="text-yellow-300 shrink-0">對子：</span>
+                        <span className="text-yellow-300 shrink-0">{pairsHandSize === 15 ? '組子：' : '對子：'}</span>
                         <div className="flex flex-wrap gap-[2px] flex-1 min-w-0">
                           {playerRevealedCards.length > 0
                             ? playerRevealedCards.map((c, i) => renderMiniCard(c, `player-pair-${c.id}-${i}`))
@@ -1840,7 +1993,7 @@ export default function App() {
                   {/* GUIDE BAR — very bottom of screen, above home indicator */}
                   <div
                     className={`lg:hidden flex items-center gap-2 px-3 py-2 shrink-0 border-t transition-colors ${
-                      pendingMoves && gamePhase === 'waiting_player_action'
+                      (pendingMoves || pendingTrioOptions.length > 0) && gamePhase === 'waiting_player_action'
                         ? 'bg-orange-900/60 border-orange-500/40 text-orange-100'
                         : mode === 'standard' && activeHuCheck.canHu
                           ? 'bg-emerald-900/70 border-emerald-500/40 text-emerald-100'
@@ -1849,7 +2002,7 @@ export default function App() {
                     style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 0.375rem)' }}
                   >
                     <span className="text-lg shrink-0 leading-none">
-                      {pendingMoves && gamePhase === 'waiting_player_action' ? '🚨'
+                      {(pendingMoves || pendingTrioOptions.length > 0) && gamePhase === 'waiting_player_action' ? '🚨'
                        : mode === 'standard' && activeHuCheck.canHu ? '🏆'
                        : 'ℹ️'}
                     </span>

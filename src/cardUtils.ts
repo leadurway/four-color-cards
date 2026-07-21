@@ -134,6 +134,86 @@ export function checkTriosWin(hand: Card[]): boolean {
   return hand.length > 0 && hand.length % 3 === 0 && partitionIntoTrios(hand);
 }
 
+// ── 15-card mode: detect claimable trio completions (自摸 or claiming an opponent's discard) ──
+export interface TrioClaimOption {
+  kind: 'sameChar' | 'sequence' | 'rainbow';
+  actionLabel: '碰一隻' | '吃一隻';
+  cardsToUse: Card[];
+  resultCards: Card[];
+  meldName: string;
+  meldType: 'triple' | 'consec_three' | 'different_colors';
+}
+
+const colorName = (color: CardColor) =>
+  color === 'red' ? '紅' : color === 'yellow' ? '黃' : color === 'green' ? '綠' : '白';
+
+export function checkTrioClaims(hand: Card[], trigger: Card): TrioClaimOption[] {
+  const options: TrioClaimOption[] = [];
+
+  // a. 同色同字三張 (碰一隻)
+  const sameKeyMatches = hand.filter(c => c.color === trigger.color && c.character === trigger.character);
+  if (sameKeyMatches.length >= 2) {
+    const use = sameKeyMatches.slice(0, 2);
+    options.push({
+      kind: 'sameChar',
+      actionLabel: '碰一隻',
+      cardsToUse: use,
+      resultCards: [trigger, ...use],
+      meldName: `同色三張 [${trigger.name}*3]`,
+      meldType: 'triple',
+    });
+  }
+
+  // b. 同色序列：將士象 (order 1-3) 或 車馬包 (order 4-6) (吃一隻)
+  if (trigger.order >= 1 && trigger.order <= 3) {
+    const need = [1, 2, 3].filter(o => o !== trigger.order);
+    const c1 = hand.find(c => c.color === trigger.color && c.order === need[0]);
+    const c2 = hand.find(c => c.color === trigger.color && c.order === need[1] && c.id !== c1?.id);
+    if (c1 && c2) {
+      options.push({
+        kind: 'sequence',
+        actionLabel: '吃一隻',
+        cardsToUse: [c1, c2],
+        resultCards: [trigger, c1, c2].sort((a, b) => a.order - b.order),
+        meldName: `同色將士象 [${colorName(trigger.color)}帥仕相]`,
+        meldType: 'consec_three',
+      });
+    }
+  } else if (trigger.order >= 4 && trigger.order <= 6) {
+    const need = [4, 5, 6].filter(o => o !== trigger.order);
+    const c1 = hand.find(c => c.color === trigger.color && c.order === need[0]);
+    const c2 = hand.find(c => c.color === trigger.color && c.order === need[1] && c.id !== c1?.id);
+    if (c1 && c2) {
+      options.push({
+        kind: 'sequence',
+        actionLabel: '吃一隻',
+        cardsToUse: [c1, c2],
+        resultCards: [trigger, c1, c2].sort((a, b) => a.order - b.order),
+        meldName: `同色車馬包 [${colorName(trigger.color)}車馬包]`,
+        meldType: 'consec_three',
+      });
+    }
+  }
+
+  // c. 同字不同色三張 (碰一隻)
+  const sameCharDiffColor = hand.filter(c => c.character === trigger.character && c.color !== trigger.color);
+  const colorMap = new Map<CardColor, Card>();
+  sameCharDiffColor.forEach(c => { if (!colorMap.has(c.color)) colorMap.set(c.color, c); });
+  if (colorMap.size >= 2) {
+    const use = Array.from(colorMap.values()).slice(0, 2);
+    options.push({
+      kind: 'rainbow',
+      actionLabel: '碰一隻',
+      cardsToUse: use,
+      resultCards: [trigger, ...use],
+      meldName: `同字異色 ${trigger.character}`,
+      meldType: 'different_colors',
+    });
+  }
+
+  return options;
+}
+
 /**
  * Sort hand for display: groups matching cards together (pairs/triples side-by-side),
  * highest match count first, then by color then order within each group.
