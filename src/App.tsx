@@ -59,7 +59,7 @@ export default function App() {
   });
   const [computer, setComputer] = useState<Player>({
     id: 'computer',
-    name: '🤖 智慧電腦 AI',
+    name: '🤖 電腦AI',
     hand: [],
     revealed: [],
     score: 0
@@ -376,7 +376,7 @@ export default function App() {
     });
     setComputer({
       id: 'computer',
-      name: '🤖 智慧電腦 AI',
+      name: '🤖 電腦AI',
       hand: sortHandForDisplay(computerHand),
       revealed: computerRevealed,
       score: 0
@@ -1481,11 +1481,19 @@ export default function App() {
                       <span>{computer.name}</span>
                     </div>
 
-                    <div className="flex items-center gap-1 text-xs text-slate-300 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full font-bold">
-                      <span>賸餘牌:</span>
-                      <strong className="text-yellow-400 text-sm">{computer.hand.length}</strong>
-                      <span>張</span>
-                    </div>
+                    {mode === 'pairs' ? (
+                      <div className="flex items-center gap-1 text-xs text-cyan-300 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full font-bold">
+                        <span>散牌:</span>
+                        <strong className="text-yellow-400 text-sm">{computerGrouping.strays.length}</strong>
+                        <span>張</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1 text-xs text-slate-300 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full font-bold">
+                        <span>賸餘牌:</span>
+                        <strong className="text-yellow-400 text-sm">{computer.hand.length}</strong>
+                        <span>張</span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Robot's revealed sets on screen */}
@@ -1497,7 +1505,6 @@ export default function App() {
                           ? computerRevealedCards.map((c, i) => renderMiniCard(c, `comp-pair-${c.id}-${i}`))
                           : <span className="text-slate-500">無</span>}
                       </div>
-                      <span className="text-red-300 shrink-0">散牌：<strong className="text-sm text-red-400 font-extrabold">{computerGrouping.strays.length}</strong> 張</span>
                     </div>
                   ) : computer.revealed.length > 0 && (
                     <div className="flex items-center gap-1 p-1 bg-black/40 rounded-xl border border-white/5 mt-0.5 overflow-x-auto whitespace-nowrap scrollbar-none">
@@ -1675,11 +1682,13 @@ export default function App() {
                         style={{
                           width: handCardDims.w * 2,
                           height: handCardDims.w,
-                          fontSize: Math.min(handCardDims.w * 0.5, handCardDims.h * 0.34),
+                          fontSize: Math.min(handCardDims.w * 0.3, handCardDims.h * 0.2),
+                          lineHeight: 1.15,
                         }}
-                        className="rounded-xl bg-slate-600 hover:bg-slate-500 border border-slate-400 font-bold text-white active:scale-95 flex items-center justify-center"
+                        className="rounded-xl bg-slate-600 hover:bg-slate-500 border border-slate-400 font-bold text-white active:scale-95 flex flex-col items-center justify-center"
                       >
-                        過 (放棄)
+                        <span>過</span>
+                        <span>(放棄)</span>
                       </button>
                     </div>
                   </div>
@@ -1695,7 +1704,13 @@ export default function App() {
                         <span className="text-xl leading-none">{playerAvatar}</span>
                         <span className="text-sm font-black text-yellow-300">{playerName}</span>
                       </div>
-                      {mode !== 'pairs' && (
+                      {mode === 'pairs' ? (
+                        <div className="flex items-center gap-1 text-xs text-yellow-300 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full font-bold">
+                          <span>散牌:</span>
+                          <strong className="text-yellow-400 text-sm">{playerGrouping.strays.length}</strong>
+                          <span>張</span>
+                        </div>
+                      ) : (
                         <div className="text-xs font-bold leading-none">
                           {activeHuCheck.canHu ? (
                             <span className="text-emerald-400 font-black">✔ 可胡牌！</span>
@@ -1713,7 +1728,6 @@ export default function App() {
                             ? playerRevealedCards.map((c, i) => renderMiniCard(c, `player-pair-${c.id}-${i}`))
                             : <span className="text-slate-500">無</span>}
                         </div>
-                        <span className="text-red-300 shrink-0">散牌：<strong className="text-sm text-red-400 font-extrabold">{playerGrouping.strays.length}</strong> 張</span>
                       </div>
                     )}
                   </div>
@@ -1820,12 +1834,12 @@ export default function App() {
                     }`}
                     style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 0.375rem)' }}
                   >
-                    <span className="text-base shrink-0 leading-none">
+                    <span className="text-lg shrink-0 leading-none">
                       {pendingMoves && gamePhase === 'waiting_player_action' ? '🚨'
                        : mode === 'standard' && activeHuCheck.canHu ? '🏆'
                        : 'ℹ️'}
                     </span>
-                    <p className="text-xs font-semibold leading-none truncate flex-1">{guideMessage}</p>
+                    <p className="text-base font-black leading-tight truncate flex-1" style={{ color: '#fde047' }}>{guideMessage}</p>
                   </div>
                 </div>
 
