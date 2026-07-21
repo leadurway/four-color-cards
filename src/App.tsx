@@ -1224,7 +1224,7 @@ export default function App() {
   const playerGrouping = groupPairsMode(player.hand);
 
   return (
-    <div className="h-[100dvh] w-screen bg-[#0a1628] text-slate-100 flex items-center justify-center relative overflow-hidden font-sans select-none" style={{ position: 'fixed', inset: 0 }}>
+    <div className="bg-[#0a1628] text-slate-100 flex items-center justify-center relative overflow-hidden font-sans select-none" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
       
       {/* BACKGROUND GRADIENT */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_#0d2d6b_0%,_#071020_100%)] opacity-80 z-0 pointer-events-none" />
@@ -1503,10 +1503,10 @@ export default function App() {
                 </div>
 
                 {/* THE PORTRAIT RIVER / TABLE (Middle) */}
-                <div className="p-2 bg-black/20 rounded-2xl border border-white/5 grid grid-cols-12 gap-1.5 items-center select-none">
+                <div className="p-2 bg-black/20 rounded-2xl border border-white/5 grid grid-cols-12 gap-1.5 items-stretch select-none" style={{ height: 110 }}>
 
                   {/* Left: recycler (回收牌) */}
-                  <div className="col-span-3 flex flex-col border-r border-white/10 py-1 pr-1 overflow-hidden" style={{maxHeight: 110}}>
+                  <div className="col-span-3 flex flex-col border-r border-white/10 py-1 pr-1 overflow-hidden">
                     <span className="text-[10px] font-bold text-yellow-500/80 mb-0.5 leading-none shrink-0">回收牌</span>
                     <div className="flex-1 overflow-y-auto bg-black/40 border border-white/5 p-0.5 rounded-lg flex flex-wrap gap-[2px] content-start scrollbar-none">
                       {discardPile.map((c, idx) => (
@@ -1523,27 +1523,34 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* Center: 桌面牌 */}
-                  <div className="col-span-5 flex flex-col py-1 px-1">
-                    <span className="text-[10px] font-bold text-yellow-500/80 mb-0.5 leading-none shrink-0">桌面牌</span>
-                    <div className="flex-1 flex items-center justify-center">
+                  {/* Center: 桌面牌 — card left, label right */}
+                  <div className="col-span-5 flex py-1 px-1 gap-1.5 overflow-hidden">
+                    {/* Left: card display */}
+                    <div className="flex-1 flex items-center justify-center min-w-0">
                       {lastDrawnCard ? (
-                        <div className="flex items-center gap-1.5">
-                          <FourColorCard card={lastDrawnCard} size="sm" isRevealed={true} disabled={true} />
-                          <span className="text-xs font-black text-cyan-300 leading-none">
-                            {drawnFromDeck ? '自摸' : '電腦'}
-                          </span>
-                        </div>
+                        <FourColorCard card={lastDrawnCard} size="sm" isRevealed={true} disabled={true} />
                       ) : lastDiscardedCard ? (
-                        <div className="flex items-center gap-1.5">
-                          <FourColorCard card={lastDiscardedCard} size="sm" isRevealed={true} disabled={true} />
-                          <span className="text-xs font-black leading-none" style={{color: curPlayerId === 'computer' ? '#fca5a5' : '#86efac'}}>
-                            {curPlayerId === 'computer' ? '玩家' : '電腦'}
-                          </span>
-                        </div>
+                        <FourColorCard card={lastDiscardedCard} size="sm" isRevealed={true} disabled={true} />
                       ) : (
                         <span className="text-[10px] text-slate-500">—</span>
                       )}
+                    </div>
+                    {/* Right: 桌面牌 label at top, who-label below */}
+                    <div className="flex flex-col shrink-0 justify-between" style={{ minWidth: 26 }}>
+                      <span className="text-[10px] font-bold text-yellow-500/80 leading-none">桌面牌</span>
+                      <div>
+                        {lastDrawnCard && (
+                          <span className="text-[10px] font-black text-cyan-300 leading-none block">
+                            {drawnFromDeck ? '自摸' : '電腦'}
+                          </span>
+                        )}
+                        {!lastDrawnCard && lastDiscardedCard && (
+                          <span className="text-[10px] font-black leading-none block"
+                                style={{color: curPlayerId === 'computer' ? '#fca5a5' : '#86efac'}}>
+                            {curPlayerId === 'computer' ? '玩家' : '電腦'}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
 
