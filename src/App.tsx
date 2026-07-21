@@ -393,7 +393,7 @@ export default function App() {
     setCanDiscard(mode !== 'pairs');
     setHasDrawn(false);
     
-    setGuideMessage('發牌與洗牌完成！輪到您的回合。點選左方「紅疊牌庫」抽取一張牌。');
+    setGuideMessage('發牌完成，輪到您！點右邊摸牌。');
     addLog(`牌局正常開啟。洗牌分發完畢，牌席賸餘牌 ${remainingDeck.length} 張。`);
     
     playSound('action');
@@ -472,7 +472,7 @@ export default function App() {
           setTimeout(() => {
             setShowEatPairAnim(false);
             setCanDiscard(true);
-            setGuideMessage('自動配對成功！請選取一張散牌打出。');
+            setGuideMessage('配對成功！請選牌打出。');
           }, 3000);
         }, 3000);
       } else {
@@ -548,7 +548,7 @@ export default function App() {
     // Hand turn over to computer. Computer checks if it wants to react to player's discard
     setCurPlayerId('computer');
     setIsComputerThinking(true);
-    setGuideMessage('您已成功出手！電腦正在絞盡大腦思索對抗策略...');
+    setGuideMessage('等待電腦...');
 
     setTimeout(() => {
       runComputerTurn(cardToDiscard);
@@ -870,7 +870,7 @@ export default function App() {
       setCurPlayerId('player');
       setCanDiscard(false);
       setHasDrawn(false);
-      setGuideMessage('輪到您的回合！請點選右邊「牌庫摸牌」摸新牌。');
+      setGuideMessage('輪到您！請摸牌。');
     } else if (mode === 'pairs') {
       // 10-card: offer pair match if player has matching stray
       const pGroup = groupPairsMode(player.hand);
@@ -890,7 +890,7 @@ export default function App() {
         setCurPlayerId('player');
         setCanDiscard(false);
         setHasDrawn(false);
-        setGuideMessage('輪到您的回合！沒有可用配對。請點選右邊「牌庫摸牌」摸新牌。');
+        setGuideMessage('輪到您！請摸牌。');
       }
     } else {
       // Standard rule checks
@@ -902,7 +902,7 @@ export default function App() {
         setCurPlayerId('player');
         setCanDiscard(false);
         setHasDrawn(false);
-        setGuideMessage('輪到您的回合！無吃碰吃跑。請點選「紅疊牌庫」抽取下一張。');
+        setGuideMessage('輪到您！請摸牌。');
       }
     }
   };
@@ -964,7 +964,7 @@ export default function App() {
           setTimeout(() => {
             setShowEatPairAnim(false);
             setCanDiscard(true);
-            setGuideMessage('配對成功！請在手牌選取一張散牌打出。');
+            setGuideMessage('配對成功！請選牌打出。');
           }, 3000);
         } else {
           // Fallback to avoid deadlocks/hangs if mismatch occurs
@@ -1119,14 +1119,14 @@ export default function App() {
       setPlayer(prev => ({ ...prev, hand: appendedHand }));
       setLastDrawnCard(null);
       setCanDiscard(true);
-      setGuideMessage('已跳過。摸牌置入您的手牌。請選取一張牌打出。');
+      setGuideMessage('已跳過，請選牌打出。');
     } else {
       // Skipped reacting to opponent's discard card. Turn becomes computer's active draw turn
       setLastDiscardedCard(null);
       setCanDiscard(false);
       setCurPlayerId('computer');
       setIsComputerThinking(true);
-      setGuideMessage('電腦取得了摸牌先手權，摸牌中...');
+      setGuideMessage('電腦摸牌中...');
       
       setTimeout(() => {
         runComputerTurn(null);
@@ -1479,63 +1479,56 @@ export default function App() {
                 {/* THE PORTRAIT RIVER / TABLE (Middle) */}
                 <div className="p-2 bg-black/20 rounded-2xl border border-white/5 grid grid-cols-12 gap-1.5 items-center select-none">
 
-                  {/* Left: recycler grid (牌河) */}
-                  <div className="col-span-3 flex flex-col items-center justify-center border-r border-white/10 py-1 pr-1 max-h-[110px] overflow-hidden">
-                    <span className="text-[10px] font-bold text-yellow-500/80 mb-1 text-center leading-none">🗑️ 牌河回收</span>
-                    <div className="w-full flex-1 min-h-[75px] max-h-[85px] overflow-y-auto bg-black/40 border border-white/5 p-1 rounded-xl flex flex-wrap gap-0.5 justify-center scrollbar-none">
+                  {/* Left: recycler (回收牌) */}
+                  <div className="col-span-3 flex flex-col border-r border-white/10 py-1 pr-1 overflow-hidden" style={{maxHeight: 110}}>
+                    <span className="text-[10px] font-bold text-yellow-500/80 mb-0.5 leading-none shrink-0">回收牌</span>
+                    <div className="flex-1 overflow-y-auto bg-black/40 border border-white/5 p-0.5 rounded-lg flex flex-wrap gap-[2px] content-start scrollbar-none">
                       {discardPile.map((c, idx) => (
-                        <div key={`${c.id}-${idx}`} className="w-[16px] h-[36px] rounded flex items-center justify-center font-bold text-[9px] opacity-80" style={{
-                          backgroundColor: c.color === 'yellow' ? '#fef3c7' : c.color === 'green' ? '#047857' : c.color === 'red' ? '#ea580c' : '#f8fafc',
-                          color: c.color === 'yellow' ? '#b91c1c' : '#09090b',
-                          border: '1px solid #111111'
+                        <div key={`${c.id}-${idx}`} className="w-[13px] h-[13px] rounded-sm flex items-center justify-center font-black text-[7px]" style={{
+                          backgroundColor: c.color === 'yellow' ? '#fef3c7' : c.color === 'green' ? '#047857' : c.color === 'red' ? '#dc2626' : '#e2e8f0',
+                          color: c.color === 'yellow' ? '#92400e' : c.color === 'green' ? '#d1fae5' : '#ffffff',
                         }}>
                           {c.character}
                         </div>
                       ))}
                       {discardPile.length === 0 && (
-                        <span className="text-xs text-slate-500 my-auto text-center font-medium leading-none">空無一物</span>
+                        <span className="text-[9px] text-slate-500 m-auto">空</span>
                       )}
                     </div>
                   </div>
 
-                  {/* Center: Current Focus Table card */}
-                  <div className="col-span-5 flex flex-col items-center justify-center px-1">
-                    <span className="text-xs font-bold text-yellow-500/80 mb-1">🔥 桌上焦點牌</span>
-                    <div className="h-[95px] flex items-center justify-center relative">
+                  {/* Center: 桌面牌 */}
+                  <div className="col-span-5 flex flex-col py-1 px-1">
+                    <span className="text-[10px] font-bold text-yellow-500/80 mb-0.5 leading-none shrink-0">桌面牌</span>
+                    <div className="flex-1 flex items-center justify-center">
                       {lastDrawnCard ? (
-                        <div className="flex flex-col items-center gap-0.5 animate-bounce">
-                          <span className="text-[10px] bg-cyan-900/60 text-cyan-300 border border-cyan-700/50 py-0.5 px-1.5 rounded leading-none font-bold">
-                            {drawnFromDeck ? '自摸摸出 ➔' : '電腦打出 ➔'}
+                        <div className="flex items-center gap-1.5">
+                          <FourColorCard card={lastDrawnCard} size="sm" isRevealed={true} disabled={true} />
+                          <span className="text-xs font-black text-cyan-300 leading-none">
+                            {drawnFromDeck ? '自摸' : '電腦'}
                           </span>
-                          <div className="scale-75">
-                            <FourColorCard card={lastDrawnCard} size="sm" isRevealed={true} disabled={true} />
-                          </div>
                         </div>
                       ) : lastDiscardedCard ? (
-                        <div className="flex flex-col items-center gap-0.5 animate-pulse">
-                          <span className="text-[10px] bg-red-950/60 text-red-300 border border-red-900/50 py-0.5 px-1.5 rounded leading-none font-bold">
-                            {curPlayerId === 'computer' ? '您打出 ➔' : '電腦棄牌 ➔'}
+                        <div className="flex items-center gap-1.5">
+                          <FourColorCard card={lastDiscardedCard} size="sm" isRevealed={true} disabled={true} />
+                          <span className="text-xs font-black leading-none" style={{color: curPlayerId === 'computer' ? '#fca5a5' : '#86efac'}}>
+                            {curPlayerId === 'computer' ? '玩家' : '電腦'}
                           </span>
-                          <div className="scale-75">
-                            <FourColorCard card={lastDiscardedCard} size="sm" isRevealed={true} disabled={true} />
-                          </div>
                         </div>
                       ) : (
-                        <div className="w-14 h-21 border border-white/10 bg-white/5 rounded-xl flex flex-col items-center justify-center text-center text-slate-500 p-1 select-none whitespace-normal">
-                          <span className="text-[10px] leading-tight">等待摸牌或棄牌</span>
-                        </div>
+                        <span className="text-[10px] text-slate-500">—</span>
                       )}
                     </div>
                   </div>
 
-                  {/* Right: Deck stack (摸牌) */}
-                  <div className="col-span-4 flex flex-col items-center justify-center border-l border-white/10 py-1 pl-1">
-                    <span className="text-xs font-bold text-yellow-500/80 mb-1.5">🎴 牌庫摸牌</span>
+                  {/* Right: 摸牌 button */}
+                  <div className="col-span-4 flex flex-col border-l border-white/10 py-1 pl-1">
+                    <span className="text-[10px] font-bold text-yellow-500/80 mb-0.5 leading-none shrink-0">摸牌</span>
                     {deck.length > 0 ? (
                       <button
                         onClick={handlePlayerDraw}
                         disabled={gamePhase !== 'playing' || curPlayerId !== 'player' || lastDrawnCard !== null || hasDrawn}
-                        className={`w-14 h-21 rounded-xl transition-all flex flex-col items-center justify-center bg-red-600 border-2 border-red-400 text-white ${
+                        className={`flex-1 w-full rounded-xl transition-all flex flex-col items-center justify-center bg-red-600 border-2 border-red-400 text-white ${
                           gamePhase === 'playing' && curPlayerId === 'player' && lastDrawnCard === null && !hasDrawn
                             ? 'active:scale-95 ring-2 ring-red-300 cursor-pointer shadow-lg'
                             : 'opacity-50 cursor-not-allowed'
@@ -1546,20 +1539,14 @@ export default function App() {
                             : undefined
                         }
                       >
-                        <span className="text-[15px] font-black leading-none tracking-tight">摸牌</span>
-                        <span className="text-[8px] font-bold text-white/70 leading-none mt-0.5">剩餘</span>
-                        <span className="text-sm font-mono font-black text-yellow-200 leading-none">{deck.length}</span>
+                        <span className="text-xl font-black leading-none">摸牌</span>
+                        <span className="text-[10px] font-bold text-yellow-200 leading-none mt-1">{deck.length} 張</span>
                       </button>
                     ) : (
-                      <div className="w-14 h-21 border border-dashed border-white/20 bg-white/5 rounded-xl flex items-center justify-center text-center text-xs text-slate-500 leading-tight">
+                      <div className="flex-1 w-full border border-dashed border-white/20 bg-white/5 rounded-xl flex items-center justify-center text-xs text-slate-500">
                         牌庫空
                       </div>
                     )}
-                    <span className="text-[10px] text-slate-300 font-extrabold mt-1 text-center leading-tight">
-                      {gamePhase === 'playing' && curPlayerId === 'player' && lastDrawnCard === null && !hasDrawn
-                        ? '👆 點此摸牌'
-                        : '等待中…'}
-                    </span>
                   </div>
                 </div>
 
@@ -1656,29 +1643,9 @@ export default function App() {
                     )}
                   </div>
 
-                  {/* Pairs groupings row */}
-                  {mode === 'pairs' && (
-                    <div className="grid grid-cols-4 gap-1 px-2 py-1 shrink-0 text-[10px] font-mono border-b border-white/5">
-                      <div className="bg-emerald-950/40 p-1 rounded text-center">
-                        <span className="text-emerald-400 block font-bold leading-none">開車✕{playerGrouping.quads.length}</span>
-                      </div>
-                      <div className="bg-cyan-950/40 p-1 rounded text-center">
-                        <span className="text-cyan-400 block font-bold leading-none">暗坎✕{playerGrouping.triples.length}</span>
-                      </div>
-                      <div className="bg-purple-950/40 p-1 rounded text-center">
-                        <span className="text-purple-400 block font-bold leading-none">對子✕{playerGrouping.pairs.length}</span>
-                      </div>
-                      <div className="bg-red-950/40 p-1 rounded text-center">
-                        <span className="text-red-400 block font-bold leading-none">散牌✕{playerGrouping.strays.length}</span>
-                      </div>
-                    </div>
-                  )}
 
                   {/* PLAYER HAND — 2 rows, max card size via ResizeObserver */}
                   <div className="flex-1 min-h-0 flex flex-col px-1 pt-1 pb-0 overflow-hidden">
-                    <span className="text-xs font-black text-yellow-400/90 shrink-0 mb-1 px-1">
-                      👇 您的手牌 (輕敲選牌，再點打牌)：
-                    </span>
                     <div
                       ref={handContainerRef}
                       className="flex-1 min-h-0 grid justify-center content-start gap-x-[1px] gap-y-2.5 overflow-hidden py-1"
@@ -1730,13 +1697,11 @@ export default function App() {
 
                   {/* ACTION BAR */}
                   <div className="bg-black/30 px-3 py-2 flex items-center justify-between gap-2 border-t border-white/5 shrink-0">
-                    <div className="text-xs text-slate-300 font-bold max-w-[40%] text-left select-none">
+                    <div className="text-xs text-slate-300 font-bold max-w-[50%] text-left select-none leading-tight">
                       {selectedCardId ? (
-                        <p className="leading-tight">
-                          選中：<strong className="text-yellow-400 text-base">[{player.hand.find(c => c.id === selectedCardId)?.name}]</strong>
-                        </p>
+                        <p>您的手牌・已選：<strong className="text-yellow-300">{player.hand.find(c => c.id === selectedCardId)?.name}</strong></p>
                       ) : (
-                        <p className="text-slate-400 text-xs leading-tight font-semibold">👉 輕點一張牌</p>
+                        <p className="text-slate-300">您的手牌（點牌再點打牌）</p>
                       )}
                     </div>
 
@@ -1785,7 +1750,7 @@ export default function App() {
                        : mode === 'standard' && activeHuCheck.canHu ? '🏆'
                        : 'ℹ️'}
                     </span>
-                    <p className="text-xs font-semibold leading-snug">{guideMessage}</p>
+                    <p className="text-xs font-semibold leading-none truncate flex-1">{guideMessage}</p>
                   </div>
                 </div>
 
