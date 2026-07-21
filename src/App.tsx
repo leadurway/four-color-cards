@@ -1222,6 +1222,18 @@ export default function App() {
   const huCheckHand = lastDrawnCard && drawnFromDeck ? [...player.hand, lastDrawnCard] : player.hand;
   const activeHuCheck = solveHu(huCheckHand, player.revealed);
   const playerGrouping = groupPairsMode(player.hand);
+  const computerGrouping = groupPairsMode(computer.hand);
+  const playerRevealedCards = player.revealed.flatMap(m => m.cards);
+  const computerRevealedCards = computer.revealed.flatMap(m => m.cards);
+
+  const renderMiniCard = (c: Card, key: string) => (
+    <div key={key} className="w-[13px] h-[13px] rounded-sm flex items-center justify-center font-black text-[7px] shrink-0" style={{
+      backgroundColor: c.color === 'yellow' ? '#ffd300' : c.color === 'green' ? '#299c42' : c.color === 'red' ? '#ff5511' : '#ffffff',
+      color: c.color === 'yellow' ? '#ab1313' : '#111111',
+    }}>
+      {c.character}
+    </div>
+  );
 
   return (
     <div className="min-h-screen w-full bg-[#0a1628] text-slate-100 flex justify-center relative font-sans select-none">
@@ -1477,7 +1489,17 @@ export default function App() {
                   </div>
 
                   {/* Robot's revealed sets on screen */}
-                  {computer.revealed.length > 0 && (
+                  {mode === 'pairs' ? (
+                    <div className="flex items-center gap-2 text-xs font-bold">
+                      <span className="text-slate-400 shrink-0">對子：</span>
+                      <div className="flex flex-wrap gap-[2px] flex-1 min-w-0">
+                        {computerRevealedCards.length > 0
+                          ? computerRevealedCards.map((c, i) => renderMiniCard(c, `comp-pair-${c.id}-${i}`))
+                          : <span className="text-slate-500">無</span>}
+                      </div>
+                      <span className="text-red-300 shrink-0">散牌：<strong className="text-sm text-red-400 font-extrabold">{computerGrouping.strays.length}</strong> 張</span>
+                    </div>
+                  ) : computer.revealed.length > 0 && (
                     <div className="flex items-center gap-1 p-1 bg-black/40 rounded-xl border border-white/5 mt-0.5 overflow-x-auto whitespace-nowrap scrollbar-none">
                       <span className="text-xs text-slate-400 font-bold shrink-0">案前亮相：</span>
                       <div className="flex gap-1">
@@ -1665,22 +1687,31 @@ export default function App() {
                 <div className="flex-1 flex flex-col min-h-0 bg-black/35 rounded-2xl border border-white/10 select-none overflow-hidden">
 
                   {/* User profile banner */}
-                  <div className="flex justify-between items-center bg-[#0c2852] py-2 px-3 border-b border-white/5 shrink-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xl leading-none">{playerAvatar}</span>
-                      <span className="text-sm font-black text-yellow-300">{playerName}</span>
-                    </div>
-                    {mode === 'pairs' ? (
-                      <div className="text-xs font-bold text-red-300 leading-none">
-                        散牌：<strong className="text-sm text-red-400 font-extrabold">{playerGrouping.strays.length}</strong> 張
+                  <div className="flex flex-col gap-1 bg-[#0c2852] py-2 px-3 border-b border-white/5 shrink-0">
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xl leading-none">{playerAvatar}</span>
+                        <span className="text-sm font-black text-yellow-300">{playerName}</span>
                       </div>
-                    ) : (
-                      <div className="text-xs font-bold leading-none">
-                        {activeHuCheck.canHu ? (
-                          <span className="text-emerald-400 font-black">✔ 可胡牌！</span>
-                        ) : (
-                          <span>{activeHuCheck.totalHoo} / 10 胡</span>
-                        )}
+                      {mode !== 'pairs' && (
+                        <div className="text-xs font-bold leading-none">
+                          {activeHuCheck.canHu ? (
+                            <span className="text-emerald-400 font-black">✔ 可胡牌！</span>
+                          ) : (
+                            <span>{activeHuCheck.totalHoo} / 10 胡</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    {mode === 'pairs' && (
+                      <div className="flex items-center gap-2 text-xs font-bold">
+                        <span className="text-slate-400 shrink-0">對子：</span>
+                        <div className="flex flex-wrap gap-[2px] flex-1 min-w-0">
+                          {playerRevealedCards.length > 0
+                            ? playerRevealedCards.map((c, i) => renderMiniCard(c, `player-pair-${c.id}-${i}`))
+                            : <span className="text-slate-500">無</span>}
+                        </div>
+                        <span className="text-red-300 shrink-0">散牌：<strong className="text-sm text-red-400 font-extrabold">{playerGrouping.strays.length}</strong> 張</span>
                       </div>
                     )}
                   </div>
