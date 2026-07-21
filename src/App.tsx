@@ -1224,7 +1224,7 @@ export default function App() {
   const playerGrouping = groupPairsMode(player.hand);
 
   return (
-    <div className="bg-[#0a1628] text-slate-100 flex items-center justify-center relative overflow-hidden font-sans select-none" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
+    <div className="h-full w-full bg-[#0a1628] text-slate-100 flex items-center justify-center relative overflow-hidden font-sans select-none">
       
       {/* BACKGROUND GRADIENT */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_#0d2d6b_0%,_#071020_100%)] opacity-80 z-0 pointer-events-none" />
