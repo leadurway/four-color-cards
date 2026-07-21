@@ -1224,14 +1224,14 @@ export default function App() {
   const playerGrouping = groupPairsMode(player.hand);
 
   return (
-    <div className="h-full w-full bg-[#0a1628] text-slate-100 flex items-center justify-center relative overflow-hidden font-sans select-none">
+    <div className="h-full w-full bg-[#0a1628] text-slate-100 flex justify-center relative overflow-hidden font-sans select-none">
       
       {/* BACKGROUND GRADIENT */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_#0d2d6b_0%,_#071020_100%)] opacity-80 z-0 pointer-events-none" />
 
       {/* FULLSCREEN GAME BOARD CONSOLE */}
       <div
-        className="w-full h-full max-w-7xl bg-[#0f2d5c]/95 shadow-2xl flex flex-col overflow-hidden relative border-x border-blue-950/40 z-20 animate-fade-in"
+        className="w-full max-w-7xl bg-[#0f2d5c]/95 shadow-2xl flex flex-col overflow-hidden relative border-x border-blue-950/40 z-20 animate-fade-in"
       >
 
         {/* ========================================== */}
