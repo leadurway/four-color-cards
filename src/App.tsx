@@ -588,7 +588,7 @@ export default function App() {
           };
           setComputer(prev => ({ ...prev, hand: newHand, revealed: [...prev.revealed, newMeld] }));
           setLastDiscardedCard(null);
-          addLog(`🤖 電腦 AI 宣告【吃對子】，將剛才您打出的 [${playerDiscard.name}] 配成一對。`);
+          addLog(`🤖 電腦 AI 宣告【吃一隻】，將剛才您打出的 [${playerDiscard.name}] 配成一對。`);
           setEatPairAnimWho('computer');
           setEatPairAnimCards([playerDiscard, matchesStray]);
           setShowEatPairAnim(true);
@@ -909,7 +909,7 @@ export default function App() {
           eatSeqOptions: []
         });
         setGamePhase('waiting_player_action');
-        setGuideMessage(`電腦拋出 [${discarded.name}]！正好可以為您的單張配對。點選下方【吃對】按鈕以攤派對子，或按【過】。`);
+        setGuideMessage(`電腦拋出 [${discarded.name}]！正好可以為您的單張配對。點選下方【吃一隻】按鈕以攤派對子，或按【過】。`);
       } else {
         setCurPlayerId('player');
         setCanDiscard(false);
@@ -965,7 +965,7 @@ export default function App() {
             revealed: updatedRevealed
           }));
 
-          addLog(`【吃對子】您吃對了 [${trigger.name}]，配對擺在案前。`);
+          addLog(`【吃一隻】您吃到了 [${trigger.name}]，配對擺在案前。`);
           setLastDrawnCard(null);
           setLastDiscardedCard(null);
           setPendingMoves(null);
@@ -1625,14 +1625,14 @@ export default function App() {
                         <button
                           onClick={() => handlePlayerAction('pong')}
                           style={{
-                            width: handCardDims.w * 2,
+                            width: handCardDims.w * 3,
                             height: handCardDims.w,
                             fontSize: Math.min(handCardDims.w * 0.5, handCardDims.h * 0.34),
                             animation: 'bounceSmall 0.85s ease-in-out infinite',
                           }}
-                          className="rounded-xl bg-amber-400 hover:bg-amber-300 border-2 border-white shadow-md flex items-center justify-center font-black text-white hover:scale-105 active:scale-95 transition-transform"
+                          className="rounded-xl bg-amber-400 hover:bg-amber-300 border-2 border-white shadow-md flex items-center justify-center font-black text-white hover:scale-105 active:scale-95 transition-transform whitespace-nowrap"
                         >
-                          {mode === 'pairs' ? '吃對' : '碰'}
+                          {mode === 'pairs' ? '吃一隻' : '碰'}
                         </button>
                       )}
 
@@ -1663,15 +1663,13 @@ export default function App() {
                       <button
                         onClick={handlePlayerSkip}
                         style={{
-                          width: handCardDims.w * 2,
+                          width: handCardDims.w * 3,
                           height: handCardDims.w,
-                          fontSize: Math.min(handCardDims.w * 0.3, handCardDims.h * 0.2),
-                          lineHeight: 1.15,
+                          fontSize: Math.min(handCardDims.w * 0.5, handCardDims.h * 0.34),
                         }}
-                        className="rounded-xl bg-slate-600 hover:bg-slate-500 border border-slate-400 font-bold text-white active:scale-95 flex flex-col items-center justify-center"
+                        className="rounded-xl bg-slate-600 hover:bg-slate-500 border border-slate-400 font-bold text-white active:scale-95 flex items-center justify-center whitespace-nowrap"
                       >
-                        <span>過</span>
-                        <span>(放棄)</span>
+                        過 (放棄)
                       </button>
                     </div>
                   </div>
@@ -2008,7 +2006,7 @@ export default function App() {
                       <p className="font-extrabold text-yellow-400 text-sm">🃏 10張玩法「五對胡」</p>
                       <ul className="list-disc pl-4 space-y-1.5 text-slate-300 text-xs font-medium leading-snug">
                         <li><strong className="text-white">起手牌數：</strong>每人發 <strong className="text-yellow-300">9 張</strong>牌，其餘放在中央為牌疊。</li>
-                        <li><strong className="text-white">摸牌：</strong>輪到自己時從牌疊摸一張。若與手中某張單牌湊成對子，點【吃對】配對並打出一張不要的牌；若無法配對，可打出剛摸到的牌，或換入手中打出另一張。</li>
+                        <li><strong className="text-white">摸牌：</strong>輪到自己時從牌疊摸一張。若與手中某張單牌湊成對子，點【吃一隻】配對並打出一張不要的牌；若無法配對，可打出剛摸到的牌，或換入手中打出另一張。</li>
                         <li><strong className="text-white">碰牌：</strong>他人打出與你手中單牌完全相同的牌時，可喊「碰」湊成對子，再打出一張手牌。</li>
                         <li><strong className="text-white">聽牌：</strong>手中已有 4 個對子＋1 張單牌時，為「聽牌」狀態。</li>
                         <li><strong className="text-yellow-300">胡牌：</strong>自摸或他人打出與那張單牌配對的牌，完成 <strong>5 個對子（共 10 張）</strong>，喊「胡」勝出！</li>
@@ -2198,15 +2196,14 @@ export default function App() {
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: Math.min(handCardDims.w * 0.88, handCardDims.h * 0.38),
               fontWeight: 900,
               borderRadius: '0.6rem',
               lineHeight: 1.1,
               animation: 'eatPairPop 0.5s cubic-bezier(0.34,1.56,0.64,1) both, boxGlow 0.8s ease-in-out 0.5s infinite alternate',
             }}
           >
-            <span>{eatPairAnimWho === 'player' ? '玩家' : '電腦'}</span>
-            <span>吃對</span>
+            <span style={{ fontSize: Math.min(handCardDims.w * 0.88, handCardDims.h * 0.38) }}>{eatPairAnimWho === 'player' ? '玩家' : '電腦'}</span>
+            <span style={{ fontSize: Math.min(handCardDims.w * 0.58, handCardDims.h * 0.25) }}>吃一隻</span>
           </div>
         </div>
       )}
