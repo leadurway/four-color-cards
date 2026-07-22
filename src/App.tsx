@@ -1366,8 +1366,12 @@ export default function App() {
   const playerRevealedCards = player.revealed.flatMap(m => m.cards);
   const computerRevealedCards = computer.revealed.flatMap(m => m.cards);
 
-  // 15-card mode: visual-only "組" hint (all 3 valid trio types), does not lock/restrict discard
-  const player15TrioIds = mode === 'pairs' && pairsHandSize === 15 ? find15TrioHints(player.hand) : new Set<string>();
+  // 15-card mode: "組" hint (all 3 valid trio types) — locked from discard, seated together in display
+  const player15TrioGroups = mode === 'pairs' && pairsHandSize === 15 ? find15TrioHints(player.hand) : [];
+  const player15TrioIds = new Set(player15TrioGroups.flat().map(c => c.id));
+  const playerHandDisplay = player15TrioGroups.length > 0
+    ? [...player15TrioGroups.flat(), ...player.hand.filter(c => !player15TrioIds.has(c.id))]
+    : player.hand;
 
   // 桌面牌 discard/drawn card size: mirrors handCardDims's proportions but capped independently
   // of the (fixed-height) table row, so it never feeds back into the hand container's ResizeObserver.
@@ -1881,13 +1885,14 @@ export default function App() {
                       className="flex-1 min-h-0 grid justify-center content-start gap-x-[1px] gap-y-2.5 overflow-hidden py-1"
                       style={{ gridTemplateColumns: `repeat(${Math.ceil(player.hand.length / 2) || 1}, ${handCardDims.w}px)` }}
                     >
-                      {player.hand.map((card) => {
+                      {playerHandDisplay.map((card) => {
                         const is10 = mode === 'pairs' && pairsHandSize === 10;
                         const is15 = mode === 'pairs' && pairsHandSize === 15;
                         const isStray = !is10 || playerGrouping.strays.some(s => s.id === card.id);
                         const isPaired = is10 && !isStray;
                         const isTrioHint = is15 && player15TrioIds.has(card.id);
-                        const isSelected = card.id === selectedCardId && (isStray || is15);
+                        const isLocked = isPaired || isTrioHint;
+                        const isSelected = card.id === selectedCardId && (isStray || is15) && !isTrioHint;
                         const badgeStyle: React.CSSProperties = {
                           left: 2, right: 2,
                           top: '50%',
@@ -1899,21 +1904,21 @@ export default function App() {
                           borderRadius: 4,
                         };
                         return (
-                          <div key={card.id} className="relative flex flex-col items-center">
+                          <div key={card.id} className={`relative flex flex-col items-center ${isSelected ? 'z-30' : ''}`}>
                             <FourColorCard
                               card={card}
                               size="xs"
                               isRevealed={true}
                               isSelected={isSelected}
                               onClick={() => {
-                                if (isPaired) return;
+                                if (isLocked) return;
                                 playSound('click');
                                 setSelectedCardId(isSelected ? null : card.id);
                               }}
                               cardStyle={{
                                 width: handCardDims.w,
                                 height: handCardDims.h,
-                                cursor: isPaired ? 'default' : undefined,
+                                cursor: isLocked ? 'default' : undefined,
                               }}
                               charFontSize={handCardDims.fs}
                             />

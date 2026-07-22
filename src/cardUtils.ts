@@ -138,12 +138,13 @@ export function checkTriosWin(hand: Card[]): boolean {
   return hand.length > 0 && hand.length % 3 === 0 && partitionIntoTrios(hand);
 }
 
-// ── 15-card mode: visual-only "組" hint for hand display ──
-// Greedily finds non-overlapping trios among the 3 valid types (does not lock/restrict
-// discard — purely a hint so the player can spot groups already sitting in their hand).
-export function find15TrioHints(hand: Card[]): Set<string> {
+// ── 15-card mode: "組" hint for hand display ──
+// Greedily finds non-overlapping trios among the 3 valid types. Returns the actual
+// groups (not just a flat id set) so callers can both lock discard on these cards
+// and keep each group's 3 cards seated together in the display order.
+export function find15TrioHints(hand: Card[]): Card[][] {
   const used = new Set<string>();
-  const ids = new Set<string>();
+  const groups: Card[][] = [];
 
   // a. 同色同字三張
   const byKey: { [key: string]: Card[] } = {};
@@ -154,7 +155,9 @@ export function find15TrioHints(hand: Card[]): Set<string> {
   });
   Object.values(byKey).forEach(cards => {
     if (cards.length >= 3) {
-      cards.slice(0, 3).forEach(c => { ids.add(c.id); used.add(c.id); });
+      const group = cards.slice(0, 3);
+      group.forEach(c => used.add(c.id));
+      groups.push(group);
     }
   });
 
@@ -168,7 +171,8 @@ export function find15TrioHints(hand: Card[]): Set<string> {
         if (card) found.push(card);
       });
       if (found.length === 3) {
-        found.forEach(c => { ids.add(c.id); used.add(c.id); });
+        found.forEach(c => used.add(c.id));
+        groups.push(found);
       }
     });
   });
@@ -184,11 +188,13 @@ export function find15TrioHints(hand: Card[]): Set<string> {
     const colorMap = new Map<CardColor, Card>();
     cards.forEach(c => { if (!colorMap.has(c.color)) colorMap.set(c.color, c); });
     if (colorMap.size >= 3) {
-      Array.from(colorMap.values()).slice(0, 3).forEach(c => { ids.add(c.id); used.add(c.id); });
+      const group = Array.from(colorMap.values()).slice(0, 3);
+      group.forEach(c => used.add(c.id));
+      groups.push(group);
     }
   });
 
-  return ids;
+  return groups;
 }
 
 // ── 15-card mode: detect claimable trio completions (自摸 or claiming an opponent's discard) ──
