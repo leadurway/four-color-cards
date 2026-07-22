@@ -6,6 +6,7 @@ import {
   checkTriosWin,
   checkTrioClaims,
   TrioClaimOption,
+  find15TrioHints,
   sortHandForDisplay,
   solveHu,
   checkAvailableMoves,
@@ -648,7 +649,7 @@ export default function App() {
           setShowEatPairAnim(true);
           setIsComputerThinking(false);
 
-          if (newHand.length === 0) {
+          if (newHand.length === 0 || checkTriosWin(newHand)) {
             setTimeout(() => {
               setShowEatPairAnim(false);
               handleWin('computer', 'pairs', '電腦的15張牌湊成5組三張，電腦勝出！', option.resultCards);
@@ -768,7 +769,7 @@ export default function App() {
         setEatPairAnimCards(option.resultCards);
         setShowEatPairAnim(true);
 
-        if (newHand.length === 0) {
+        if (newHand.length === 0 || checkTriosWin(newHand)) {
           setTimeout(() => {
             setShowEatPairAnim(false);
             handleWin('computer', 'pairs', '電腦的15張牌湊成5組三張，電腦勝出！', option.resultCards);
@@ -1238,7 +1239,7 @@ export default function App() {
     setEatPairAnimCards(option.resultCards);
     setShowEatPairAnim(true);
 
-    if (nextHand.length === 0) {
+    if (nextHand.length === 0 || checkTriosWin(nextHand)) {
       setTimeout(() => {
         setShowEatPairAnim(false);
         handleWin('player', 'pairs', '恭喜！您的15張牌已湊成5組三張，宣告勝出！', option.resultCards);
@@ -1365,21 +1366,8 @@ export default function App() {
   const playerRevealedCards = player.revealed.flatMap(m => m.cards);
   const computerRevealedCards = computer.revealed.flatMap(m => m.cards);
 
-  // 15-card mode: visual-only hint for any 3 identical cards currently held (does not lock/restrict discard)
-  const compute15TrioIds = (hand: Card[]): Set<string> => {
-    const groups: { [key: string]: Card[] } = {};
-    hand.forEach(c => {
-      const key = `${c.color}-${c.character}`;
-      if (!groups[key]) groups[key] = [];
-      groups[key].push(c);
-    });
-    const ids = new Set<string>();
-    Object.values(groups).forEach(cards => {
-      if (cards.length >= 3) cards.slice(0, 3).forEach(c => ids.add(c.id));
-    });
-    return ids;
-  };
-  const player15TrioIds = mode === 'pairs' && pairsHandSize === 15 ? compute15TrioIds(player.hand) : new Set<string>();
+  // 15-card mode: visual-only "組" hint (all 3 valid trio types), does not lock/restrict discard
+  const player15TrioIds = mode === 'pairs' && pairsHandSize === 15 ? find15TrioHints(player.hand) : new Set<string>();
 
   // 桌面牌 discard/drawn card size: mirrors handCardDims's proportions but capped independently
   // of the (fixed-height) table row, so it never feeds back into the hand container's ResizeObserver.

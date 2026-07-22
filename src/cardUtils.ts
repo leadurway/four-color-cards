@@ -106,8 +106,12 @@ function isValidTrio(a: Card, b: Card, c: Card): boolean {
         (orders[0] === 4 && orders[1] === 5 && orders[2] === 6)) return true;
   }
 
-  // Type 3: same character, 3 different colors
-  if (a.character === b.character && b.character === c.character) {
+  // Type 3: same rank (order), 3 different colors.
+  // NOTE: `character` is the literal glyph, which only ever spans 2 colors —
+  // red/yellow share one glyph set (帥仕相俥傌炮兵), green/white share a different
+  // one (將士象車馬包卒). `order` (1-7) is the actual cross-color rank (e.g. 帥/將
+  // are both order 1), so cross-color matching must compare `order`, not `character`.
+  if (a.order === b.order && b.order === c.order) {
     const colors = new Set([a.color, b.color, c.color]);
     if (colors.size === 3) return true;
   }
@@ -132,6 +136,59 @@ function partitionIntoTrios(cards: Card[]): boolean {
 
 export function checkTriosWin(hand: Card[]): boolean {
   return hand.length > 0 && hand.length % 3 === 0 && partitionIntoTrios(hand);
+}
+
+// ── 15-card mode: visual-only "組" hint for hand display ──
+// Greedily finds non-overlapping trios among the 3 valid types (does not lock/restrict
+// discard — purely a hint so the player can spot groups already sitting in their hand).
+export function find15TrioHints(hand: Card[]): Set<string> {
+  const used = new Set<string>();
+  const ids = new Set<string>();
+
+  // a. 同色同字三張
+  const byKey: { [key: string]: Card[] } = {};
+  hand.forEach(c => {
+    const key = `${c.color}-${c.character}`;
+    if (!byKey[key]) byKey[key] = [];
+    byKey[key].push(c);
+  });
+  Object.values(byKey).forEach(cards => {
+    if (cards.length >= 3) {
+      cards.slice(0, 3).forEach(c => { ids.add(c.id); used.add(c.id); });
+    }
+  });
+
+  // b. 同色序列：將士象 (order 1-3) 或 車馬包 (order 4-6)
+  const colors: CardColor[] = ['red', 'yellow', 'green', 'white'];
+  colors.forEach(color => {
+    [[1, 2, 3], [4, 5, 6]].forEach(seq => {
+      const found: Card[] = [];
+      seq.forEach(o => {
+        const card = hand.find(c => c.color === color && c.order === o && !used.has(c.id) && !found.includes(c));
+        if (card) found.push(card);
+      });
+      if (found.length === 3) {
+        found.forEach(c => { ids.add(c.id); used.add(c.id); });
+      }
+    });
+  });
+
+  // c. 同階不同色三張 (比對 order，跨色系)
+  const byOrder: { [order: number]: Card[] } = {};
+  hand.forEach(c => {
+    if (used.has(c.id)) return;
+    if (!byOrder[c.order]) byOrder[c.order] = [];
+    byOrder[c.order].push(c);
+  });
+  Object.values(byOrder).forEach(cards => {
+    const colorMap = new Map<CardColor, Card>();
+    cards.forEach(c => { if (!colorMap.has(c.color)) colorMap.set(c.color, c); });
+    if (colorMap.size >= 3) {
+      Array.from(colorMap.values()).slice(0, 3).forEach(c => { ids.add(c.id); used.add(c.id); });
+    }
+  });
+
+  return ids;
 }
 
 // ── 15-card mode: detect claimable trio completions (自摸 or claiming an opponent's discard) ──
@@ -195,18 +252,19 @@ export function checkTrioClaims(hand: Card[], trigger: Card): TrioClaimOption[] 
     }
   }
 
-  // c. 同字不同色三張 (碰一隻)
-  const sameCharDiffColor = hand.filter(c => c.character === trigger.character && c.color !== trigger.color);
+  // c. 同階不同色三張 (碰一隻) — 比對 order（跨色階級），不是 character（同一色系才會共用的字形）
+  const sameRankDiffColor = hand.filter(c => c.order === trigger.order && c.color !== trigger.color);
   const colorMap = new Map<CardColor, Card>();
-  sameCharDiffColor.forEach(c => { if (!colorMap.has(c.color)) colorMap.set(c.color, c); });
+  sameRankDiffColor.forEach(c => { if (!colorMap.has(c.color)) colorMap.set(c.color, c); });
   if (colorMap.size >= 2) {
     const use = Array.from(colorMap.values()).slice(0, 2);
+    const resultCards = [trigger, ...use];
     options.push({
       kind: 'rainbow',
       actionLabel: '碰一隻',
       cardsToUse: use,
-      resultCards: [trigger, ...use],
-      meldName: `同字異色 ${trigger.character}`,
+      resultCards,
+      meldName: `同階異色 [${resultCards.map(c => c.name).join('')}]`,
       meldType: 'different_colors',
     });
   }
@@ -422,12 +480,16 @@ export function solveHu(handCards: Card[], revealedMelds: RevealedMeld[]): HuRes
       }
     }
 
-    // 6. Same Character, Different Colors (3 or 4 different colors of the same character)
-    // Find all colors of the same character
-    const charGroup = remainingCards.filter(c => c.character === first.character);
+    // 6. Same Rank, Different Colors (3 or 4 different colors of the same rank).
+    // NOTE: must compare `order` (the cross-color rank, e.g. 帥/將 are both order 1),
+    // not `character` (the literal glyph) — red/yellow share one glyph set
+    // (帥仕相俥傌炮兵) and green/white share a completely different one
+    // (將士象車馬包卒), so a `character` comparison can only ever match within the
+    // same 2-color glyph set and can never reach 3 or 4 distinct colors.
+    const rankGroup = remainingCards.filter(c => c.order === first.order);
     // Uniq colors
     const colorMap: { [key: string]: Card } = {};
-    charGroup.forEach(c => {
+    rankGroup.forEach(c => {
       if (!colorMap[c.color]) {
         colorMap[c.color] = c;
       }
@@ -441,7 +503,7 @@ export function solveHu(handCards: Card[], revealedMelds: RevealedMeld[]): HuRes
       // To keep it simple, find combinations of 3 including 'first'
       const firstColor = first.color;
       const otherColors = uniqueColorCards.filter(c => c.color !== firstColor);
-      
+
       if (otherColors.length >= 2) {
         // Try combinations of 2 from otherColors
         for (let i = 0; i < otherColors.length; i++) {
@@ -452,7 +514,7 @@ export function solveHu(handCards: Card[], revealedMelds: RevealedMeld[]): HuRes
               type: 'different_colors',
               cards: comb,
               hoo: 1,
-              name: `三異色 ${first.character} [${comb.map(c => c.name[0]).join('')}]`
+              name: `三異色 [${comb.map(c => c.name).join('')}]`
             };
             const subSolutions = search(nextRemaining);
             subSolutions.forEach(sol => {
@@ -471,7 +533,7 @@ export function solveHu(handCards: Card[], revealedMelds: RevealedMeld[]): HuRes
         type: 'different_colors',
         cards: comb,
         hoo: 4,
-        name: `四異色 ${first.character} [紅黃綠白]`
+        name: `四異色 [${comb.map(c => c.name).join('')}]`
       };
       const subSolutions = search(nextRemaining);
       subSolutions.forEach(sol => {
