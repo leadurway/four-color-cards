@@ -1592,7 +1592,7 @@ export default function App() {
 
               {/* GAME SPACE FLOW */}
               <div className="flex-1 min-h-0 flex overflow-hidden">
-              <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+              <div className="flex-1 flex flex-col min-h-0 overflow-hidden max-w-lg mx-auto">
 
                 {/* ① 遊戲頁面 — Game Display Panel */}
                 <div className="shrink-0 flex flex-col px-3 pt-2 pb-1.5 space-y-1.5 border-b-2 border-white/10">
@@ -2117,7 +2117,7 @@ export default function App() {
               </div>
 
               {/* Tab contents */}
-              <div className="flex-1 p-4 overflow-y-auto min-h-0 text-slate-200 text-left text-base space-y-4 font-sans leading-relaxed scrollbar-thin">
+              <div className="flex-1 p-4 overflow-y-auto min-h-0 text-slate-200 text-left text-base space-y-4 font-sans leading-relaxed scrollbar-thin max-w-2xl mx-auto w-full">
 
                 {activeTutorialTab === 'ranks' && (
                   <div className="space-y-4">
