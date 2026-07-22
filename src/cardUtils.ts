@@ -119,19 +119,39 @@ function isValidTrio(a: Card, b: Card, c: Card): boolean {
   return false;
 }
 
-function partitionIntoTrios(cards: Card[]): boolean {
+// `color`+`order` fully determines everything isValidTrio checks (character is a
+// pure function of color+order, so it adds no extra information) — two cards with
+// the same color+order are fully interchangeable for validity purposes. Memoizing
+// on this canonical multiset key collapses the many different id-selections that
+// lead to the same remaining set of cards, which matters a lot here: fixing Type 3
+// to compare `order` instead of `character` (see above) made it match far more
+// often than before (same-rank cards across colors are common), which without
+// memoization blows up the branching factor of this backtracking search enough to
+// noticeably stall on a 12-15 card hand.
+function cardMultisetKey(cards: Card[]): string {
+  return cards.map(c => `${c.color}${c.order}`).sort().join(',');
+}
+
+function partitionIntoTrios(cards: Card[], memo: Map<string, boolean> = new Map()): boolean {
   if (cards.length === 0) return true;
   if (cards.length % 3 !== 0) return false;
+
+  const key = cardMultisetKey(cards);
+  const cached = memo.get(key);
+  if (cached !== undefined) return cached;
+
   const [first, ...rest] = cards;
-  for (let i = 0; i < rest.length - 1; i++) {
-    for (let j = i + 1; j < rest.length; j++) {
+  let result = false;
+  for (let i = 0; i < rest.length - 1 && !result; i++) {
+    for (let j = i + 1; j < rest.length && !result; j++) {
       if (isValidTrio(first, rest[i], rest[j])) {
         const remaining = rest.filter((_, idx) => idx !== i && idx !== j);
-        if (partitionIntoTrios(remaining)) return true;
+        if (partitionIntoTrios(remaining, memo)) result = true;
       }
     }
   }
-  return false;
+  memo.set(key, result);
+  return result;
 }
 
 export function checkTriosWin(hand: Card[]): boolean {
@@ -195,6 +215,14 @@ export function find15TrioHints(hand: Card[]): Card[][] {
   });
 
   return groups;
+}
+
+// Cards already sitting in a complete "組" hint (find15TrioHints) are spoken for —
+// they shouldn't also be offered up to complete a *different* claim against an
+// incoming trigger card. Filter them out before scanning for claimable trios.
+export function excludeLockedTrioCards(hand: Card[]): Card[] {
+  const locked = new Set(find15TrioHints(hand).flat().map(c => c.id));
+  return hand.filter(c => !locked.has(c.id));
 }
 
 // ── 15-card mode: detect claimable trio completions (自摸 or claiming an opponent's discard) ──

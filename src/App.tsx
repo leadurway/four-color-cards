@@ -7,6 +7,7 @@ import {
   checkTrioClaims,
   TrioClaimOption,
   find15TrioHints,
+  excludeLockedTrioCards,
   sortHandForDisplay,
   solveHu,
   checkAvailableMoves,
@@ -435,7 +436,7 @@ export default function App() {
 
     if (mode === 'pairs' && pairsHandSize === 15) {
       // ── 15-card mode: check if the drawn card completes a claimable trio first ──
-      const trioOptions = checkTrioClaims(player.hand, drawn);
+      const trioOptions = checkTrioClaims(excludeLockedTrioCards(player.hand), drawn);
       if (trioOptions.length > 0) {
         setLastDiscardedCard(null);
         setPendingTrioOptions(trioOptions);
@@ -630,7 +631,7 @@ export default function App() {
         // No stray match → fall through to computer draw turn
       } else if (mode === 'pairs' && pairsHandSize === 15) {
         // 15-card: AI checks if player's discard completes a claimable trio (碰一隻/吃一隻)
-        const trioOptions = checkTrioClaims(computer.hand, playerDiscard);
+        const trioOptions = checkTrioClaims(excludeLockedTrioCards(computer.hand), playerDiscard);
         if (trioOptions.length > 0 && Math.random() < 0.75) {
           const option = trioOptions[Math.floor(Math.random() * trioOptions.length)];
           const newHand = computer.hand.filter(c => !option.cardsToUse.map(u => u.id).includes(c.id));
@@ -751,7 +752,7 @@ export default function App() {
 
     if (mode === 'pairs' && pairsHandSize === 15) {
       // 15-card: self-drawn card may complete a claimable trio (碰一隻/吃一隻) — claim it immediately
-      const trioOptions = checkTrioClaims(computer.hand, drawn);
+      const trioOptions = checkTrioClaims(excludeLockedTrioCards(computer.hand), drawn);
       if (trioOptions.length > 0) {
         const option = trioOptions[0];
         const newHand = computer.hand.filter(c => !option.cardsToUse.map(u => u.id).includes(c.id));
@@ -979,7 +980,7 @@ export default function App() {
 
     if (mode === 'pairs' && pairsHandSize === 15) {
       // 15-card: check if the discard completes a claimable trio (碰一隻/吃一隻)
-      const trioOptions = checkTrioClaims(player.hand, discarded);
+      const trioOptions = checkTrioClaims(excludeLockedTrioCards(player.hand), discarded);
       if (trioOptions.length > 0) {
         setPendingTrioOptions(trioOptions);
         setGamePhase('waiting_player_action');
@@ -1497,46 +1498,45 @@ export default function App() {
                       </div>
                     </button>
                   </div>
+
+                  {/* Extras: sound / computer-hand toggles + rules button */}
+                  <div className="flex items-center gap-2 pt-1 border-t border-white/10 mt-1">
+                    <button
+                      onClick={() => setSoundEnabled(!soundEnabled)}
+                      className="flex-1 flex items-center gap-1.5 justify-center py-2 rounded-lg bg-white/5 hover:bg-white/10 text-xs font-bold text-slate-300 hover:text-white"
+                    >
+                      {soundEnabled ? <Volume2 className="w-4 h-4 text-blue-400 shrink-0" /> : <VolumeX className="w-4 h-4 text-red-400 shrink-0" />}
+                      <span>語音：{soundEnabled ? '開' : '關'}</span>
+                    </button>
+
+                    <button
+                      onClick={() => setShowComputerHand(!showComputerHand)}
+                      className="flex-1 flex items-center gap-1.5 justify-center py-2 rounded-lg bg-white/5 hover:bg-white/10 text-xs font-bold text-slate-300 hover:text-white"
+                    >
+                      {showComputerHand ? <Eye className="w-4 h-4 text-blue-400 shrink-0" /> : <EyeOff className="w-4 h-4 text-slate-400 shrink-0" />}
+                      <span>電腦手牌：{showComputerHand ? '開' : '關'}</span>
+                    </button>
+
+                    <button
+                      onClick={handleOpenRules}
+                      className="flex-1 flex items-center gap-1.5 justify-center py-2 rounded-lg bg-white/5 hover:bg-white/10 text-xs font-bold text-slate-300 hover:text-white"
+                    >
+                      <BookOpen className="w-4 h-4 text-yellow-500 shrink-0" />
+                      <span>說明</span>
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              {/* Launcher & Extras Combined Dock */}
-              <div className="bg-black/20 p-3 rounded-2xl border border-white/5 space-y-3 shrink-0">
-                <div className="flex justify-between items-center gap-4 text-sm font-bold text-slate-300">
-                  <button
-                    onClick={() => setSoundEnabled(!soundEnabled)}
-                    className="flex items-center gap-2 hover:text-white"
-                  >
-                    {soundEnabled ? <Volume2 className="w-5 h-5 text-blue-400" /> : <VolumeX className="w-5 h-5 text-red-400" />}
-                    <span>語音配音：{soundEnabled ? '已開啟' : '靜音'}</span>
-                  </button>
-
-                  <button
-                    onClick={() => setShowComputerHand(!showComputerHand)}
-                    className="flex items-center gap-2 hover:text-white"
-                  >
-                    {showComputerHand ? <Eye className="w-5 h-5 text-blue-400" /> : <EyeOff className="w-5 h-5 text-slate-400" />}
-                    <span>電腦手牌顯示：{showComputerHand ? '開' : '關'}</span>
-                  </button>
-                </div>
-
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => { playSound('click'); initGame(); }}
-                    className="flex-1 py-5 bg-yellow-500 hover:brightness-105 active:scale-98 transition-all font-black text-slate-950 text-2xl rounded-xl border-4 border-red-500 flex items-center justify-center gap-2 select-none"
-                    style={{ animation: 'bounceSmall 1.4s ease-in-out infinite, huBoxGlow 1s ease-in-out infinite alternate' }}
-                  >
-                    開始遊戲 🀄
-                  </button>
-
-                  <button
-                    onClick={handleOpenRules}
-                    className="py-4 px-4 bg-white/10 hover:bg-white/15 text-slate-300 hover:text-white rounded-xl text-sm font-black flex items-center justify-center gap-1.5 shrink-0"
-                  >
-                    <BookOpen className="w-4 h-4 text-yellow-500" />
-                    <span>說明</span>
-                  </button>
-                </div>
+              {/* Launcher */}
+              <div className="shrink-0">
+                <button
+                  onClick={() => { playSound('click'); initGame(); }}
+                  className="w-full py-5 bg-yellow-500 hover:brightness-105 active:scale-98 transition-all font-black text-slate-950 text-2xl rounded-xl border-4 border-red-500 flex items-center justify-center gap-2 select-none"
+                  style={{ animation: 'bounceSmall 1.4s ease-in-out infinite, huBoxGlow 1s ease-in-out infinite alternate' }}
+                >
+                  開始遊戲 🀄
+                </button>
               </div>
 
             </div>
