@@ -79,6 +79,11 @@ export default function App() {
   const [lastDrawnCard, setLastDrawnCard] = useState<Card | null>(null);
   const [lastDiscardedCard, setLastDiscardedCard] = useState<Card | null>(null);
   const [drawnFromDeck, setDrawnFromDeck] = useState(false);
+  // Set atomically alongside setLastDiscardedCard so the 桌面牌 "誰出牌" label can
+  // never desync from the card shown — inferring "who" from curPlayerId is fragile
+  // since curPlayerId may not flip until well after the discard is displayed
+  // (e.g. during the delayed reaction-check window).
+  const [discardedBy, setDiscardedBy] = useState<'player' | 'computer' | null>(null);
   const [isComputerThinking, setIsComputerThinking] = useState(false);
   const [showComputerHand, setShowComputerHand] = useState(false);
   
@@ -554,6 +559,7 @@ export default function App() {
 
     setDiscardPile(prev => [cardToDiscard, ...prev]);
     setLastDiscardedCard(cardToDiscard);
+    setDiscardedBy('player');
     setLastDrawnCard(null);
     setSelectedCardId(null);
     setCanDiscard(false); // Finished play privilege
@@ -966,6 +972,7 @@ export default function App() {
 
     setDiscardPile(prev => [discarded, ...prev]);
     setLastDiscardedCard(discarded);
+    setDiscardedBy('computer');
     addLog(`🤖 電腦 AI 思考後打出了拋牌：[${discarded.name}]`);
     setGuideMessage(`電腦打出了 [${discarded.name}]，正在判斷您是否能配對...`);
 
@@ -1437,7 +1444,7 @@ export default function App() {
           
           {/* 1. Lobby/Setup Page (遊戲開始設定頁面) */}
           {activePage === 'lobby' && (
-            <div className="flex-1 px-5 lg:px-16 xl:px-32 flex flex-col justify-between select-none text-white overflow-y-auto min-h-0" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)', paddingBottom: '1rem' }}>
+            <div className="flex-1 px-5 lg:px-16 xl:px-32 flex flex-col gap-3 select-none text-white overflow-y-auto min-h-0" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)', paddingBottom: '1rem' }}>
               
               {/* Grand compact title */}
               <div className="text-center space-y-1.5 py-2 shrink-0">
@@ -1454,7 +1461,7 @@ export default function App() {
               </div>
 
               {/* Steps in a beautiful compact grid to avoid scrolling */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-2 select-none min-h-0 flex-1 overflow-y-auto md:overflow-visible items-start">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 select-none min-h-0 shrink-0 items-start">
                 
                 {/* Step 1: Avatar Selector and username setup */}
                 <div className="bg-black/35 p-4 rounded-2xl border border-white/10 flex flex-col justify-center space-y-4">
@@ -1697,12 +1704,12 @@ export default function App() {
                       <div>
                         {lastDrawnCard && (
                           <span className="font-black text-cyan-300 leading-none block" style={{ fontSize: 14 }}>
-                            {drawnFromDeck ? '自摸' : '電腦'}
+                            {drawnFromDeck ? '玩家摸牌' : '電腦摸牌'}
                           </span>
                         )}
-                        {!lastDrawnCard && lastDiscardedCard && (
-                          <span className="font-black leading-none block" style={{ fontSize: 14, color: curPlayerId === 'computer' ? '#fca5a5' : '#86efac' }}>
-                            {curPlayerId === 'computer' ? '玩家' : '電腦'}
+                        {!lastDrawnCard && lastDiscardedCard && discardedBy && (
+                          <span className="font-black leading-none block" style={{ fontSize: 14, color: discardedBy === 'computer' ? '#fca5a5' : '#86efac' }}>
+                            {discardedBy === 'computer' ? '電腦出牌' : '玩家出牌'}
                           </span>
                         )}
                       </div>
