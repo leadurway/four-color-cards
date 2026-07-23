@@ -608,6 +608,7 @@ export default function App() {
           };
           setComputer(prev => ({ ...prev, hand: newHand, revealed: [...prev.revealed, newMeld] }));
           setLastDiscardedCard(null);
+          setDiscardPile(prev => prev.filter(c => c.id !== playerDiscard.id));
           addLog(`🤖 電腦 AI 宣告【吃一隻】，將剛才您打出的 [${playerDiscard.name}] 配成一對。`);
           setEatPairAnimWho('computer');
           setEatPairAnimCards([playerDiscard, matchesStray]);
@@ -644,6 +645,7 @@ export default function App() {
           };
           setComputer(prev => ({ ...prev, hand: newHand, revealed: [...prev.revealed, newMeld] }));
           setLastDiscardedCard(null);
+          setDiscardPile(prev => prev.filter(c => c.id !== playerDiscard.id));
           addLog(`🤖 電腦 AI 宣告【${option.actionLabel}】，用您打出的 [${playerDiscard.name}] 湊成${option.meldName}。`);
           setEatPairAnimWho('computer');
           setEatPairAnimCards(option.resultCards);
@@ -692,6 +694,7 @@ export default function App() {
           }
           addLog(`🤖 電腦 AI 吃牌宣告【明開車/槓】，霸氣槓出您的 [${playerDiscard.name}]！`);
           setLastDiscardedCard(null);
+          setDiscardPile(prev => prev.filter(c => c.id !== playerDiscard.id));
 
           // Replacement draw after quad (rule requirement)
           if (deck.length > 0) {
@@ -726,6 +729,7 @@ export default function App() {
           setComputer(prev => ({ ...prev, hand: newHand, revealed: [...prev.revealed, newMeld] }));
           addLog(`🤖 電腦 AI 碰牌成功！亮明碰出了您的 [${playerDiscard.name}]。`);
           setLastDiscardedCard(null);
+          setDiscardPile(prev => prev.filter(c => c.id !== playerDiscard.id));
           setTimeout(() => { executeComputerDiscard(newHand); }, 900);
           return;
         }
@@ -963,6 +967,7 @@ export default function App() {
     setDiscardPile(prev => [discarded, ...prev]);
     setLastDiscardedCard(discarded);
     addLog(`🤖 電腦 AI 思考後打出了拋牌：[${discarded.name}]`);
+    setGuideMessage(`電腦打出了 [${discarded.name}]，正在判斷您是否能配對...`);
 
     // Pairs mode: check if computer's hand is all-paired after discarding (10-card only)
     if (mode === 'pairs' && pairsHandSize === 10) {
@@ -974,63 +979,78 @@ export default function App() {
       }
     }
 
-    // Let the player react to computer's discard!
-    const playerMoves = checkAvailableMoves(player.hand, player.revealed, discarded, false);
     setIsComputerThinking(false);
 
-    if (mode === 'pairs' && pairsHandSize === 15) {
-      // 15-card: check if the discard completes a claimable trio (碰一隻/吃一隻)
-      const trioOptions = checkTrioClaims(excludeLockedTrioCards(player.hand), discarded);
-      if (trioOptions.length > 0) {
-        setPendingTrioOptions(trioOptions);
-        setGamePhase('waiting_player_action');
-        setGuideMessage(`電腦拋出 [${discarded.name}]！可湊成一組三張，請選擇動作或按【過】。`);
-      } else {
-        setCurPlayerId('player');
-        setCanDiscard(false);
-        setHasDrawn(false);
-        setGuideMessage('輪到您！請摸牌。');
-      }
-    } else if (mode === 'pairs') {
-      // 10-card: offer pair match if player has matching stray
-      const pGroup = groupPairsMode(player.hand);
-      const canPair = pGroup.strays.some(c => c.color === discarded.color && c.character === discarded.character);
+    // Let the discarded card sit visibly on the table for a beat before evaluating
+    // (and possibly popping up) the player's reaction options — keeps the
+    // discard → table display → reaction-check → radar sequence readable instead
+    // of everything landing in the same instant.
+    setTimeout(() => {
+      // Let the player react to computer's discard!
+      const playerMoves = checkAvailableMoves(player.hand, player.revealed, discarded, false);
 
-      if (canPair) {
-        setPendingMoves({
-          canHu: false,
-          canQuad: false,
-          canPong: true,
-          canEatSeq: false,
-          eatSeqOptions: []
-        });
-        setGamePhase('waiting_player_action');
-        setGuideMessage(`電腦拋出 [${discarded.name}]！正好可以為您的單張配對。點選下方【吃一隻】按鈕以攤派對子，或按【過】。`);
+      if (mode === 'pairs' && pairsHandSize === 15) {
+        // 15-card: check if the discard completes a claimable trio (碰一隻/吃一隻)
+        const trioOptions = checkTrioClaims(excludeLockedTrioCards(player.hand), discarded);
+        if (trioOptions.length > 0) {
+          setPendingTrioOptions(trioOptions);
+          setGamePhase('waiting_player_action');
+          setGuideMessage(`電腦拋出 [${discarded.name}]！可湊成一組三張，請選擇動作或按【過】。`);
+        } else {
+          setCurPlayerId('player');
+          setCanDiscard(false);
+          setHasDrawn(false);
+          setGuideMessage('輪到您！請摸牌。');
+        }
+      } else if (mode === 'pairs') {
+        // 10-card: offer pair match if player has matching stray
+        const pGroup = groupPairsMode(player.hand);
+        const canPair = pGroup.strays.some(c => c.color === discarded.color && c.character === discarded.character);
+
+        if (canPair) {
+          setPendingMoves({
+            canHu: false,
+            canQuad: false,
+            canPong: true,
+            canEatSeq: false,
+            eatSeqOptions: []
+          });
+          setGamePhase('waiting_player_action');
+          setGuideMessage(`電腦拋出 [${discarded.name}]！正好可以為您的單張配對。點選下方【吃一隻】按鈕以攤派對子，或按【過】。`);
+        } else {
+          setCurPlayerId('player');
+          setCanDiscard(false);
+          setHasDrawn(false);
+          setGuideMessage('輪到您！請摸牌。');
+        }
       } else {
-        setCurPlayerId('player');
-        setCanDiscard(false);
-        setHasDrawn(false);
-        setGuideMessage('輪到您！請摸牌。');
+        // Standard rule checks
+        if (playerMoves.canHu || playerMoves.canPong || playerMoves.canQuad || playerMoves.canEatSeq) {
+          setPendingMoves(playerMoves);
+          setGamePhase('waiting_player_action');
+          setGuideMessage(`電腦大意拋出 [${discarded.name}]！您有可用吃碰胡牌機會。請點選下方亮明或吃跑按鈕。`);
+        } else {
+          setCurPlayerId('player');
+          setCanDiscard(false);
+          setHasDrawn(false);
+          setGuideMessage('輪到您！請摸牌。');
+        }
       }
-    } else {
-      // Standard rule checks
-      if (playerMoves.canHu || playerMoves.canPong || playerMoves.canQuad || playerMoves.canEatSeq) {
-        setPendingMoves(playerMoves);
-        setGamePhase('waiting_player_action');
-        setGuideMessage(`電腦大意拋出 [${discarded.name}]！您有可用吃碰胡牌機會。請點選下方亮明或吃跑按鈕。`);
-      } else {
-        setCurPlayerId('player');
-        setCanDiscard(false);
-        setHasDrawn(false);
-        setGuideMessage('輪到您！請摸牌。');
-      }
-    }
+    }, 1000);
   };
 
   // Player clicks one of matching active decision choices (Eat, Pong, Quad, Hu)
   const handlePlayerAction = (actionType: 'eat' | 'pong' | 'quad' | 'hu', eatOption?: any) => {
     const trigger = lastDrawnCard || lastDiscardedCard;
     if (!trigger) return;
+
+    // Claiming a card straight out of the discard pile (as opposed to a self-drawn
+    // trigger) must remove it from discardPile — otherwise it stays double-booked:
+    // visible both in 回收牌 and in the newly revealed meld.
+    const claimedFromDiscard = !lastDrawnCard && !!lastDiscardedCard;
+    if (claimedFromDiscard) {
+      setDiscardPile(prev => prev.filter(c => c.id !== trigger.id));
+    }
 
     playSound('action');
 
@@ -1218,6 +1238,13 @@ export default function App() {
   const handlePlayerTrioAction = (option: TrioClaimOption) => {
     const trigger = lastDrawnCard || lastDiscardedCard;
     if (!trigger) return;
+
+    // Claiming straight out of the discard pile must remove the card from
+    // discardPile — otherwise it stays double-booked (still shown in 回收牌
+    // while also now part of the newly revealed 組).
+    if (!lastDrawnCard && lastDiscardedCard) {
+      setDiscardPile(prev => prev.filter(c => c.id !== trigger.id));
+    }
 
     playSound('action');
 
@@ -1427,7 +1454,7 @@ export default function App() {
               </div>
 
               {/* Steps in a beautiful compact grid to avoid scrolling */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-2 select-none min-h-0 flex-1 overflow-y-auto md:overflow-visible items-stretch">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-2 select-none min-h-0 flex-1 overflow-y-auto md:overflow-visible items-start">
                 
                 {/* Step 1: Avatar Selector and username setup */}
                 <div className="bg-black/35 p-4 rounded-2xl border border-white/10 flex flex-col justify-center space-y-4">
