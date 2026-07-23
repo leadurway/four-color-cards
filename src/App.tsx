@@ -113,6 +113,10 @@ export default function App() {
   const [showEatPairAnim, setShowEatPairAnim] = useState(false);
   const [eatPairAnimWho, setEatPairAnimWho] = useState<'player' | 'computer'>('player');
   const [eatPairAnimCards, setEatPairAnimCards] = useState<Card[]>([]);
+  // Captured at the moment of claiming (lastDrawnCard/lastDiscardedCard get
+  // cleared in the same synchronous action that starts the animation, so this
+  // can't be derived at render time the way the radar panel's label is).
+  const [eatPairAnimSource, setEatPairAnimSource] = useState('');
   const [drawnCardPreview, setDrawnCardPreview] = useState<import('./types').Card | null>(null);
   const [showHuCelebration, setShowHuCelebration] = useState(false);
   const [huCelebShowContinue, setHuCelebShowContinue] = useState(false);
@@ -488,6 +492,7 @@ export default function App() {
           setPlayer(prev => ({ ...prev, hand: nextHand, revealed: [...prev.revealed, autoPairMeld] }));
           setEatPairAnimWho('player');
           setEatPairAnimCards([drawn, matchedCard]);
+          setEatPairAnimSource('玩家摸牌');
           setShowEatPairAnim(true);
 
           const autoCheck = groupPairsMode(nextHand);
@@ -618,6 +623,7 @@ export default function App() {
           addLog(`🤖 電腦 AI 宣告【吃一隻】，將剛才您打出的 [${playerDiscard.name}] 配成一對。`);
           setEatPairAnimWho('computer');
           setEatPairAnimCards([playerDiscard, matchesStray]);
+          setEatPairAnimSource('玩家出牌');
           setShowEatPairAnim(true);
           setIsComputerThinking(false);
 
@@ -655,6 +661,7 @@ export default function App() {
           addLog(`🤖 電腦 AI 宣告【${option.actionLabel}】，用您打出的 [${playerDiscard.name}] 湊成${option.meldName}。`);
           setEatPairAnimWho('computer');
           setEatPairAnimCards(option.resultCards);
+          setEatPairAnimSource('玩家出牌');
           setShowEatPairAnim(true);
           setIsComputerThinking(false);
 
@@ -778,6 +785,7 @@ export default function App() {
         addLog(`🤖 電腦 AI 自摸【${option.actionLabel}】，湊成${option.meldName}。`);
         setEatPairAnimWho('computer');
         setEatPairAnimCards(option.resultCards);
+        setEatPairAnimSource('電腦摸牌');
         setShowEatPairAnim(true);
 
         if (newHand.length === 0 || checkTriosWin(newHand)) {
@@ -826,6 +834,7 @@ export default function App() {
         addLog(`🤖 電腦 AI 自我配對成功！亮出明對：[${drawn.name}]。`);
         setEatPairAnimWho('computer');
         setEatPairAnimCards([drawn, matched]);
+        setEatPairAnimSource('電腦摸牌');
         setShowEatPairAnim(true);
 
         const nextGroup = groupPairsMode(newHand);
@@ -1095,6 +1104,7 @@ export default function App() {
           setGamePhase('playing');
           setEatPairAnimWho('player');
           setEatPairAnimCards([trigger, matchCard]);
+          setEatPairAnimSource('電腦出牌');
           setShowEatPairAnim(true);
 
           const checkGroup = groupPairsMode(nextHand);
@@ -1272,6 +1282,7 @@ export default function App() {
     setGamePhase('playing');
     setEatPairAnimWho('player');
     setEatPairAnimCards(option.resultCards);
+    setEatPairAnimSource(lastDrawnCard ? '玩家摸牌' : '電腦出牌');
     setShowEatPairAnim(true);
 
     if (nextHand.length === 0 || checkTriosWin(nextHand)) {
@@ -1416,6 +1427,15 @@ export default function App() {
     const aspect = handCardDims.h > 0 ? handCardDims.w / handCardDims.h : 32 / 84;
     return { w: Math.round(h * aspect), h, fs: Math.round(handCardDims.fs * (h / (handCardDims.h || h))) };
   })();
+
+  // Where the current claimable trigger card came from — used to annotate the
+  // radar panel and the 吃一隻/碰一隻 animation so it's clear whether the
+  // opportunity came from a self-draw or an opponent's discard.
+  const triggerSourceLabel = lastDrawnCard
+    ? (drawnFromDeck ? '玩家摸牌' : '電腦摸牌')
+    : lastDiscardedCard
+      ? (discardedBy === 'computer' ? '電腦出牌' : '玩家出牌')
+      : '';
 
   const renderMiniCard = (c: Card, key: string) => (
     <div key={key} className="w-[13px] h-[13px] rounded-sm flex items-center justify-center font-black text-[7px] shrink-0" style={{
@@ -1784,7 +1804,7 @@ export default function App() {
                 {(pendingMoves || pendingTrioOptions.length > 0) && gamePhase === 'waiting_player_action' && (
                   <div className="bg-black/95 border-2 border-yellow-500 p-2.5 rounded-2xl flex flex-col items-center gap-2 animate-pulse shadow-2xl shrink-0 z-40">
                     <div className="text-[11px] font-black text-yellow-400 border-b border-white/10 w-full text-center pb-1">
-                      🚨 雷達鎖定配對信號！請選擇：
+                      🚨 雷達鎖定配對信號{triggerSourceLabel ? `（${triggerSourceLabel}）` : ''}！請選擇：
                     </div>
                     
                     <div className="flex flex-wrap items-center justify-center gap-2">
@@ -2348,18 +2368,6 @@ export default function App() {
         <div className="fixed inset-0 z-[145] flex flex-col items-center justify-center pointer-events-none select-none" style={{ background: 'rgba(6,14,30,0.78)' }}>
           <div style={{ animation: 'cardReveal 0.5s cubic-bezier(0.34,1.56,0.64,1) both' }}>
             <div className="flex flex-col items-center gap-4">
-              <div
-                className="font-bold tracking-widest"
-                style={{
-                  fontSize: 'clamp(1rem, 4vw, 1.5rem)',
-                  color: '#f5c218',
-                  letterSpacing: '0.25em',
-                  animation: 'fadeInUp 0.4s ease 0.3s both',
-                  textShadow: '0 0 16px rgba(245,194,24,0.85)',
-                }}
-              >
-                自 摸
-              </div>
               <FourColorCard card={drawnCardPreview} size="lg" isRevealed={true} />
             </div>
           </div>
@@ -2369,6 +2377,21 @@ export default function App() {
       {/* 吃對 ANIMATION OVERLAY — 3 seconds, pointer-events-none */}
       {showEatPairAnim && (
         <div className="fixed inset-0 z-[150] flex flex-col items-center justify-center pointer-events-none select-none" style={{ background: 'rgba(6,14,30,0.72)', gap: 10 }}>
+          {/* Trigger source (self-draw vs opponent's discard) — above everything else */}
+          {eatPairAnimSource && (
+            <div
+              className="font-black tracking-widest"
+              style={{
+                fontSize: 'clamp(0.9rem, 4vw, 1.3rem)',
+                color: '#f5c218',
+                letterSpacing: '0.15em',
+                textShadow: '0 0 16px rgba(245,194,24,0.85)',
+                animation: 'fadeInUp 0.4s ease both',
+              }}
+            >
+              {eatPairAnimSource}
+            </div>
+          )}
           {/* Paired / trio cards above badge */}
           {eatPairAnimCards.length > 0 && (
             <div className="flex items-end" style={{ gap: 3, animation: 'cardReveal 0.4s cubic-bezier(0.34,1.56,0.64,1) both' }}>
