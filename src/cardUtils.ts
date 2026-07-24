@@ -94,29 +94,40 @@ export function groupPairsMode(hand: Card[]): PairsGrouping {
 
 // ── 15-card mode: check if hand can be partitioned into valid trios ──
 
-function isValidTrio(a: Card, b: Card, c: Card): boolean {
-  // Type 1: same color, same character (3 identical)
-  if (a.color === b.color && b.color === c.color &&
-      a.character === b.character && b.character === c.character) return true;
+export type TrioType = 'sameChar' | 'sequence' | 'rainbow';
 
-  // Type 2: same color, consecutive sequence (orders 1-2-3 or 4-5-6)
+// Classifies a 3-card group against the 3 valid 15-card trio shapes, or returns
+// null if it doesn't form a valid group at all. `isValidTrio` and the 台數 scoring
+// engine (`scorePairsWin`) both build on this single source of truth so the
+// win-condition check and the scoring breakdown can never disagree on what counts
+// as a valid/typed trio.
+function classifyTrio(a: Card, b: Card, c: Card): TrioType | null {
+  // Type 1 (sameChar): same color, same character (3 identical)
+  if (a.color === b.color && b.color === c.color &&
+      a.character === b.character && b.character === c.character) return 'sameChar';
+
+  // Type 2 (sequence): same color, consecutive sequence (orders 1-2-3 or 4-5-6)
   if (a.color === b.color && b.color === c.color) {
     const orders = [a.order, b.order, c.order].sort((x, y) => x - y);
     if ((orders[0] === 1 && orders[1] === 2 && orders[2] === 3) ||
-        (orders[0] === 4 && orders[1] === 5 && orders[2] === 6)) return true;
+        (orders[0] === 4 && orders[1] === 5 && orders[2] === 6)) return 'sequence';
   }
 
-  // Type 3: same rank (order), 3 different colors.
+  // Type 3 (rainbow): same rank (order), 3 different colors.
   // NOTE: `character` is the literal glyph, which only ever spans 2 colors —
   // red/yellow share one glyph set (帥仕相俥傌炮兵), green/white share a different
   // one (將士象車馬包卒). `order` (1-7) is the actual cross-color rank (e.g. 帥/將
   // are both order 1), so cross-color matching must compare `order`, not `character`.
   if (a.order === b.order && b.order === c.order) {
     const colors = new Set([a.color, b.color, c.color]);
-    if (colors.size === 3) return true;
+    if (colors.size === 3) return 'rainbow';
   }
 
-  return false;
+  return null;
+}
+
+function isValidTrio(a: Card, b: Card, c: Card): boolean {
+  return classifyTrio(a, b, c) !== null;
 }
 
 // `color`+`order` fully determines everything isValidTrio checks (character is a
@@ -156,6 +167,32 @@ function partitionIntoTrios(cards: Card[], memo: Map<string, boolean> = new Map(
 
 export function checkTriosWin(hand: Card[]): boolean {
   return hand.length > 0 && hand.length % 3 === 0 && partitionIntoTrios(hand);
+}
+
+// Like `checkTriosWin`, but returns the actual partition (which 3 cards make up
+// each of the 5 groups) instead of just a boolean. Used by the 台數 scoring engine
+// (`scorePairsWin`) to classify each group's type and tally per-category bonuses —
+// `checkTriosWin` itself doesn't need this and stays a cheap boolean check for the
+// hot draw/claim path. Not memoized: unlike `partitionIntoTrios`, this only ever
+// runs once, at the moment of an actual win, where a valid partition is already
+// known to exist, so the search settles quickly without needing the memo table.
+export function partitionTriosWithGroups(cards: Card[]): Card[][] | null {
+  if (cards.length === 0) return [];
+  if (cards.length % 3 !== 0) return null;
+
+  const [first, ...rest] = cards;
+  for (let i = 0; i < rest.length - 1; i++) {
+    for (let j = i + 1; j < rest.length; j++) {
+      if (isValidTrio(first, rest[i], rest[j])) {
+        const remaining = rest.filter((_, idx) => idx !== i && idx !== j);
+        const restPartition = partitionTriosWithGroups(remaining);
+        if (restPartition !== null) {
+          return [[first, rest[i], rest[j]], ...restPartition];
+        }
+      }
+    }
+  }
+  return null;
 }
 
 // ── 15-card mode: "組" hint for hand display ──
@@ -707,4 +744,121 @@ export function checkAvailableMoves(
     canEatSeq: !isOwnTurn && eatSeqOptions.length > 0,
     eatSeqOptions: isOwnTurn ? [] : eatSeqOptions
   };
+}
+
+// ── 台數計分 (tai scoring) for pairs mode ──
+// Reference: 《四色牌的 台數計分法》— separate 10-card (五對胡) and 15-card
+// (五組三張) tai tables. 「莊家/連莊」加台目前固定為 0 台：這個遊戲還沒有跨局
+// 莊家輪替的 session 概念（每次「開始遊戲」都是全新的一局），等之後加入該
+// 功能，只需要把 DEALER_BONUS_TAI 換成真實的莊家/連莊狀態即可，不需要更動
+// 這裡其餘的計分邏輯。
+const BASE_PAYOUT = 200; // 底
+const TAI_VALUE = 100;   // 每台
+
+export interface ScoreItem {
+  label: string;
+  tai: number;
+}
+
+export interface ScoreBreakdown {
+  items: ScoreItem[];
+  totalTai: number;
+  payout: number; // 底 + 總台數 × 台金額
+}
+
+function finalizeScore(items: ScoreItem[]): ScoreBreakdown {
+  const totalTai = items.reduce((sum, item) => sum + item.tai, 0);
+  return { items, totalTai, payout: BASE_PAYOUT + totalTai * TAI_VALUE };
+}
+
+/**
+ * 計算「抓對子」玩法（10 張或 15 張）胡牌當下的台數明細。
+ *
+ * @param remainingHand 胡牌當下仍在手上的牌，含剛自摸/吃碰進來、尚未鎖入
+ *                       revealedMelds 的那些牌（例如 15 張模式裡自然湊成、
+ *                       從未經過碰一隻/吃一隻明鎖的組別）。
+ * @param revealedMelds 這局遊戲過程中已經吃碰鎖定亮出的對子/組，牌不會同時
+ *                       出現在 remainingHand 裡。
+ * @param pairsHandSize 10（五對胡）或 15（五組三張）張玩法。
+ * @param wasSelfDraw   這把胡牌是自摸（true）還是吃碰對方棄牌胡的（false）。
+ * @param wasMenqing    這整局從頭到尾是否都沒有吃碰過對方的棄牌（純自己摸牌
+ *                       湊對/組）；由呼叫端在每次碰一隻/吃一隻等「吃對方棄牌」
+ *                       的動作發生當下即時翻成 false 並持續追蹤。
+ */
+export function scorePairsWin(
+  remainingHand: Card[],
+  revealedMelds: RevealedMeld[],
+  pairsHandSize: 10 | 15,
+  wasSelfDraw: boolean,
+  wasMenqing: boolean,
+): ScoreBreakdown {
+  const items: ScoreItem[] = [{ label: '底台', tai: 1 }];
+  if (wasSelfDraw) items.push({ label: '自摸', tai: 1 });
+  if (wasMenqing) items.push({ label: '門清', tai: 1 });
+
+  // 莊家/連莊：見檔案頂部註解，尚未建置跨局莊家輪替，固定 0 台。
+  const dealerBonusTai = 0;
+  if (dealerBonusTai > 0) items.push({ label: '莊家', tai: dealerBonusTai });
+
+  const allCards = [...remainingHand, ...revealedMelds.flatMap(m => m.cards)];
+
+  if (pairsHandSize === 10) {
+    const revealedPairs = revealedMelds.map(m => m.cards);
+    const remainingPairs = groupPairsMode(remainingHand).pairs;
+    const allPairs = [...revealedPairs, ...remainingPairs];
+
+    // 將/帥對：每對 +1 台。帥/將固定是 order 1，四色皆同階，跨色比對用 order。
+    const generalPairCount = allPairs.filter(pair => pair[0] && pair[0].order === 1).length;
+    if (generalPairCount > 0) items.push({ label: '將/帥對', tai: generalPairCount });
+
+    // 三隻(刻子)／四隻(開槓)：目前 10 張配對引擎（groupPairsMode）一律把 3 張
+    // 同字拆成「1 對＋1 張散牌」、4 張拆成「2 對」，牌局中永遠不會把 3、4 張
+    // 同字鎖成一個獨立單位，這兩項台數在目前規則下結構上恆為 0，不列入計算。
+
+    // 清一色：10 張全同色 +3 台。
+    if (new Set(allCards.map(c => c.color)).size === 1) items.push({ label: '清一色', tai: 3 });
+
+    // 無將／全將：手牌完全沒有將/帥（+1），或 5 對全部都是將/帥（+1）。
+    const hasGeneral = allCards.some(c => c.order === 1);
+    if (!hasGeneral) {
+      items.push({ label: '無將', tai: 1 });
+    } else if (generalPairCount === 5) {
+      items.push({ label: '全將', tai: 1 });
+    }
+  } else {
+    const revealedGroups = revealedMelds.map(m => m.cards);
+    const remainingGroups = partitionTriosWithGroups(remainingHand) ?? [];
+    const allGroups = [...revealedGroups, ...remainingGroups];
+
+    let sameCharCount = 0; // 三張同色同字（崁）每組 +1
+    let sequenceCount = 0; // 同色將士象/車馬包 每組 +1
+    allGroups.forEach(group => {
+      if (group.length !== 3) return;
+      const type = classifyTrio(group[0], group[1], group[2]);
+      if (type === 'sameChar') sameCharCount++;
+      else if (type === 'sequence') sequenceCount++;
+      // 'rainbow'型（同階不同色）不逐組計台，由下面「四色兵/卒」與「四大將/
+      // 四大帥」的整手牌檢查涵蓋，避免重複計分。
+    });
+    if (sameCharCount > 0) items.push({ label: '三張同色同字(崁)', tai: sameCharCount });
+    if (sequenceCount > 0) items.push({ label: '同色將士象/車馬包', tai: sequenceCount });
+
+    // 四張同色同字（槓）：目前 15 張引擎每組固定湊 3 張，結構上不會出現 4 張
+    // 鎖在同一組的情況，這項台數在目前規則下結構上恆為 0，不列入計算。
+
+    // 四色兵/卒：紅黃綠白四色的 order=7 牌（兵/卒）各恰好集滿 1 張。
+    if (new Set(allCards.filter(c => c.order === 7).map(c => c.color)).size === 4) {
+      items.push({ label: '四色兵/卒', tai: 1 });
+    }
+
+    // 清一色：15 張全同色 +4 台。
+    if (new Set(allCards.map(c => c.color)).size === 1) items.push({ label: '清一色', tai: 4 });
+
+    // 四大將/四大帥：紅黃綠白四色的 order=1 牌（將/帥）各恰好集滿 1 張。
+    if (new Set(allCards.filter(c => c.order === 1).map(c => c.color)).size === 4) {
+      items.push({ label: '四大將/四大帥', tai: 2 });
+    }
+  }
+
+  return finalizeScore(items);
 }

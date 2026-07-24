@@ -12,10 +12,13 @@ import {
   solveHu,
   checkAvailableMoves,
   isGeneral,
+  scorePairsWin,
+  ScoreBreakdown,
   PairsGrouping,
   HuResult
 } from './cardUtils';
 import { Card, GameMode, GameState, Player, RevealedMeld } from './types';
+import { loadPlayerScore, savePlayerScore } from './scoreStorage';
 import { FourColorCard } from './components/FourColorCard';
 import { 
   Sparkles, 
@@ -75,6 +78,7 @@ export default function App() {
   const [winnerId, setWinnerId] = useState<GameState['winnerId']>(null);
   const [winType, setWinType] = useState<GameState['winType']>(null);
   const [winExplanation, setWinExplanation] = useState('');
+  const [winScore, setWinScore] = useState<ScoreBreakdown | null>(null);
   
   const [lastDrawnCard, setLastDrawnCard] = useState<Card | null>(null);
   const [lastDiscardedCard, setLastDiscardedCard] = useState<Card | null>(null);
@@ -84,6 +88,11 @@ export default function App() {
   // since curPlayerId may not flip until well after the discard is displayed
   // (e.g. during the delayed reaction-check window).
   const [discardedBy, setDiscardedBy] = useState<'player' | 'computer' | null>(null);
+  // 門清 tracking for 台數計分: true until the very first time that side claims a
+  // trio/pair straight out of the opponent's discard pile (碰一隻/吃一隻/etc.).
+  // Reset to true at the start of every round in initGame.
+  const [playerMenqing, setPlayerMenqing] = useState(true);
+  const [computerMenqing, setComputerMenqing] = useState(true);
   const [isComputerThinking, setIsComputerThinking] = useState(false);
   const [showComputerHand, setShowComputerHand] = useState(false);
   
@@ -293,8 +302,13 @@ export default function App() {
     setLogs(prev => [...prev, `[${new Date().toLocaleTimeString('zh-TW', { hour12: false })}] ${msg}`]);
   };
 
-  // Setup/Initialize core gaming deck & distribute hands
-  const initGame = () => {
+  // Setup/Initialize core gaming deck & distribute hands.
+  // `isNewSession` distinguishes the lobby's "開始遊戲" (a brand-new session) from
+  // "重新發牌，再開一局"/"繼續下局" (continuing the current session): only a new
+  // session reloads the player's persisted score from localStorage and resets the
+  // computer's score back to the default — within one session both scores carry
+  // over round to round so the running tally stays meaningful.
+  const initGame = (isNewSession: boolean = true) => {
     const fullDeck = createDeck();
     const shuffled = shuffle(fullDeck);
     
@@ -385,20 +399,23 @@ export default function App() {
       computerHand = filteredCHand;
     }
 
+    const newPlayerScore = isNewSession ? loadPlayerScore(playerName) : player.score;
+    const newComputerScore = isNewSession ? 10000 : computer.score;
+
     setDeck(remainingDeck);
     setPlayer({
       id: 'player',
       name: `${playerAvatar} ${playerName}`,
       hand: sortHandForDisplay(playerHand),
       revealed: playerRevealed,
-      score: 0
+      score: newPlayerScore
     });
     setComputer({
       id: 'computer',
       name: '🤖 電腦AI',
       hand: sortHandForDisplay(computerHand),
       revealed: computerRevealed,
-      score: 0
+      score: newComputerScore
     });
 
     setDiscardPile([]);
@@ -407,11 +424,14 @@ export default function App() {
     setWinnerId(null);
     setWinType(null);
     setWinExplanation('');
+    setWinScore(null);
     setLastDrawnCard(null);
     setLastDiscardedCard(null);
     setDrawnFromDeck(false);
     setSelectedCardId(null);
     setPendingMoves(null);
+    setPlayerMenqing(true);
+    setComputerMenqing(true);
     // In pairs mode player must draw first; in standard mode initial discard is allowed
     setCanDiscard(mode !== 'pairs');
     setHasDrawn(false);
@@ -460,7 +480,7 @@ export default function App() {
       setLastDiscardedCard(null);
       if (checkTriosWin(newHand15)) {
         setPlayer(prev => ({ ...prev, hand: newHand15 }));
-        handleWin('player', 'pairs', '恭喜！您的15張牌已湊成5組三張，宣告勝出！');
+        handleWin('player', 'pairs', '恭喜！您的15張牌已湊成5組三張，宣告勝出！', [], { hand: newHand15, revealed: player.revealed, wasSelfDraw: true });
         return;
       }
       setPlayer(prev => ({ ...prev, hand: newHand15 }));
@@ -489,7 +509,8 @@ export default function App() {
             hoo: isGeneral(drawn) ? 2 : 0,
             name: `對子 [${drawn.name}]`
           };
-          setPlayer(prev => ({ ...prev, hand: nextHand, revealed: [...prev.revealed, autoPairMeld] }));
+          const newRevealed = [...player.revealed, autoPairMeld];
+          setPlayer(prev => ({ ...prev, hand: nextHand, revealed: newRevealed }));
           setEatPairAnimWho('player');
           setEatPairAnimCards([drawn, matchedCard]);
           setEatPairAnimSource('玩家摸牌');
@@ -499,7 +520,7 @@ export default function App() {
           if (autoCheck.strays.length === 0) {
             setTimeout(() => {
               setShowEatPairAnim(false);
-              handleWin('player', 'pairs', '恭喜！自摸配對完成所有散牌，宣告勝出！', [drawn, matchedCard]);
+              handleWin('player', 'pairs', '恭喜！自摸配對完成所有散牌，宣告勝出！', [drawn, matchedCard], { hand: nextHand, revealed: newRevealed, wasSelfDraw: true });
             }, 3000);
             return;
           }
@@ -576,7 +597,7 @@ export default function App() {
     if (mode === 'pairs' && pairsHandSize === 10) {
       const afterGroup = groupPairsMode(updatedHand);
       if (afterGroup.strays.length === 0 && updatedHand.length > 0) {
-        handleWin('player', 'pairs', '恭喜！您打出多餘單張後，手中所有散牌均已配對完畢，宣告勝出！');
+        handleWin('player', 'pairs', '恭喜！您打出多餘單張後，手中所有散牌均已配對完畢，宣告勝出！', [], { hand: updatedHand, revealed: player.revealed, wasSelfDraw: true });
         return;
       }
     }
@@ -617,9 +638,11 @@ export default function App() {
             hoo: isGeneral(playerDiscard) ? 2 : 0,
             name: `對子 [${playerDiscard.name}]`
           };
-          setComputer(prev => ({ ...prev, hand: newHand, revealed: [...prev.revealed, newMeld] }));
+          const newRevealed = [...computer.revealed, newMeld];
+          setComputer(prev => ({ ...prev, hand: newHand, revealed: newRevealed }));
           setLastDiscardedCard(null);
           setDiscardPile(prev => prev.filter(c => c.id !== playerDiscard.id));
+          setComputerMenqing(false);
           addLog(`🤖 電腦 AI 宣告【吃一隻】，將剛才您打出的 [${playerDiscard.name}] 配成一對。`);
           setEatPairAnimWho('computer');
           setEatPairAnimCards([playerDiscard, matchesStray]);
@@ -631,7 +654,7 @@ export default function App() {
           if (nextGroup.strays.length === 0) {
             setTimeout(() => {
               setShowEatPairAnim(false);
-              handleWin('computer', 'pairs', '電腦配對抓完手牌散牌徹底歸零，取得勝利！', [playerDiscard, matchesStray]);
+              handleWin('computer', 'pairs', '電腦配對抓完手牌散牌徹底歸零，取得勝利！', [playerDiscard, matchesStray], { hand: newHand, revealed: newRevealed, wasSelfDraw: false });
             }, 3000);
             return;
           }
@@ -655,9 +678,11 @@ export default function App() {
             hoo: 0,
             name: option.meldName
           };
-          setComputer(prev => ({ ...prev, hand: newHand, revealed: [...prev.revealed, newMeld] }));
+          const newRevealed = [...computer.revealed, newMeld];
+          setComputer(prev => ({ ...prev, hand: newHand, revealed: newRevealed }));
           setLastDiscardedCard(null);
           setDiscardPile(prev => prev.filter(c => c.id !== playerDiscard.id));
+          setComputerMenqing(false);
           addLog(`🤖 電腦 AI 宣告【${option.actionLabel}】，用您打出的 [${playerDiscard.name}] 湊成${option.meldName}。`);
           setEatPairAnimWho('computer');
           setEatPairAnimCards(option.resultCards);
@@ -668,7 +693,7 @@ export default function App() {
           if (newHand.length === 0 || checkTriosWin(newHand)) {
             setTimeout(() => {
               setShowEatPairAnim(false);
-              handleWin('computer', 'pairs', '電腦的15張牌湊成5組三張，電腦勝出！', option.resultCards);
+              handleWin('computer', 'pairs', '電腦的15張牌湊成5組三張，電腦勝出！', option.resultCards, { hand: newHand, revealed: newRevealed, wasSelfDraw: false });
             }, 3000);
             return;
           }
@@ -708,6 +733,7 @@ export default function App() {
           addLog(`🤖 電腦 AI 吃牌宣告【明開車/槓】，霸氣槓出您的 [${playerDiscard.name}]！`);
           setLastDiscardedCard(null);
           setDiscardPile(prev => prev.filter(c => c.id !== playerDiscard.id));
+          setComputerMenqing(false);
 
           // Replacement draw after quad (rule requirement)
           if (deck.length > 0) {
@@ -743,6 +769,7 @@ export default function App() {
           addLog(`🤖 電腦 AI 碰牌成功！亮明碰出了您的 [${playerDiscard.name}]。`);
           setLastDiscardedCard(null);
           setDiscardPile(prev => prev.filter(c => c.id !== playerDiscard.id));
+          setComputerMenqing(false);
           setTimeout(() => { executeComputerDiscard(newHand); }, 900);
           return;
         }
@@ -780,7 +807,8 @@ export default function App() {
           hoo: 0,
           name: option.meldName
         };
-        setComputer(prev => ({ ...prev, hand: newHand, revealed: [...prev.revealed, newMeld] }));
+        const newRevealed = [...computer.revealed, newMeld];
+        setComputer(prev => ({ ...prev, hand: newHand, revealed: newRevealed }));
         setLastDrawnCard(null);
         addLog(`🤖 電腦 AI 自摸【${option.actionLabel}】，湊成${option.meldName}。`);
         setEatPairAnimWho('computer');
@@ -791,7 +819,7 @@ export default function App() {
         if (newHand.length === 0 || checkTriosWin(newHand)) {
           setTimeout(() => {
             setShowEatPairAnim(false);
-            handleWin('computer', 'pairs', '電腦的15張牌湊成5組三張，電腦勝出！', option.resultCards);
+            handleWin('computer', 'pairs', '電腦的15張牌湊成5組三張，電腦勝出！', option.resultCards, { hand: newHand, revealed: newRevealed, wasSelfDraw: true });
           }, 3000);
           setIsComputerThinking(false);
           return;
@@ -808,7 +836,7 @@ export default function App() {
       setLastDrawnCard(null);
       if (checkTriosWin(newHand15)) {
         setComputer(prev => ({ ...prev, hand: newHand15 }));
-        handleWin('computer', 'pairs', '電腦的15張牌湊成5組三張，電腦勝出！');
+        handleWin('computer', 'pairs', '電腦的15張牌湊成5組三張，電腦勝出！', [], { hand: newHand15, revealed: computer.revealed, wasSelfDraw: true });
         setIsComputerThinking(false);
         return;
       }
@@ -829,7 +857,8 @@ export default function App() {
           hoo: isGeneral(drawn) ? 2 : 0,
           name: `對子 [${drawn.name}]`
         };
-        setComputer(prev => ({ ...prev, hand: newHand, revealed: [...prev.revealed, newMeld] }));
+        const newRevealed = [...computer.revealed, newMeld];
+        setComputer(prev => ({ ...prev, hand: newHand, revealed: newRevealed }));
         setLastDrawnCard(null);
         addLog(`🤖 電腦 AI 自我配對成功！亮出明對：[${drawn.name}]。`);
         setEatPairAnimWho('computer');
@@ -841,7 +870,7 @@ export default function App() {
         if (nextGroup.strays.length === 0) {
           setTimeout(() => {
             setShowEatPairAnim(false);
-            handleWin('computer', 'pairs', '電腦自摸對子成功，手中散牌宣告配對歸零，斬獲勝利！', [drawn, matched]);
+            handleWin('computer', 'pairs', '電腦自摸對子成功，手中散牌宣告配對歸零，斬獲勝利！', [drawn, matched], { hand: newHand, revealed: newRevealed, wasSelfDraw: true });
           }, 3000);
           setIsComputerThinking(false);
           return;
@@ -989,7 +1018,7 @@ export default function App() {
     if (mode === 'pairs' && pairsHandSize === 10) {
       const compAfterGroup = groupPairsMode(finalHand);
       if (compAfterGroup.strays.length === 0 && finalHand.length > 0) {
-        handleWin('computer', 'pairs', '電腦打出多餘單張後，手中散牌全部配對完畢，電腦勝出！');
+        handleWin('computer', 'pairs', '電腦打出多餘單張後，手中散牌全部配對完畢，電腦勝出！', [], { hand: finalHand, revealed: computer.revealed, wasSelfDraw: true });
         setIsComputerThinking(false);
         return;
       }
@@ -1066,6 +1095,7 @@ export default function App() {
     const claimedFromDiscard = !lastDrawnCard && !!lastDiscardedCard;
     if (claimedFromDiscard) {
       setDiscardPile(prev => prev.filter(c => c.id !== trigger.id));
+      setPlayerMenqing(false);
     }
 
     playSound('action');
@@ -1111,7 +1141,7 @@ export default function App() {
           if (checkGroup.strays.length === 0) {
             setTimeout(() => {
               setShowEatPairAnim(false);
-              handleWin('player', 'pairs', '恭喜！您成功配對了手中所有單張散牌，解鎖大勝！', [trigger, matchCard]);
+              handleWin('player', 'pairs', '恭喜！您成功配對了手中所有單張散牌，解鎖大勝！', [trigger, matchCard], { hand: nextHand, revealed: updatedRevealed, wasSelfDraw: !claimedFromDiscard });
             }, 3000);
             return;
           }
@@ -1261,10 +1291,12 @@ export default function App() {
     // while also now part of the newly revealed 組).
     if (!lastDrawnCard && lastDiscardedCard) {
       setDiscardPile(prev => prev.filter(c => c.id !== trigger.id));
+      setPlayerMenqing(false);
     }
 
     playSound('action');
 
+    const wasSelfDraw = !!lastDrawnCard;
     const nextHand = player.hand.filter(c => !option.cardsToUse.map(u => u.id).includes(c.id));
     const newMeld: RevealedMeld = {
       id: `player-trio-${Date.now()}`,
@@ -1273,7 +1305,8 @@ export default function App() {
       hoo: 0,
       name: option.meldName
     };
-    setPlayer(prev => ({ ...prev, hand: nextHand, revealed: [...prev.revealed, newMeld] }));
+    const newRevealed = [...player.revealed, newMeld];
+    setPlayer(prev => ({ ...prev, hand: nextHand, revealed: newRevealed }));
     addLog(`【${option.actionLabel}】您用 [${trigger.name}] 湊成${option.meldName}，鎖定亮出。`);
     setLastDrawnCard(null);
     setLastDiscardedCard(null);
@@ -1282,13 +1315,13 @@ export default function App() {
     setGamePhase('playing');
     setEatPairAnimWho('player');
     setEatPairAnimCards(option.resultCards);
-    setEatPairAnimSource(lastDrawnCard ? '玩家摸牌' : '電腦出牌');
+    setEatPairAnimSource(wasSelfDraw ? '玩家摸牌' : '電腦出牌');
     setShowEatPairAnim(true);
 
     if (nextHand.length === 0 || checkTriosWin(nextHand)) {
       setTimeout(() => {
         setShowEatPairAnim(false);
-        handleWin('player', 'pairs', '恭喜！您的15張牌已湊成5組三張，宣告勝出！', option.resultCards);
+        handleWin('player', 'pairs', '恭喜！您的15張牌已湊成5組三張，宣告勝出！', option.resultCards, { hand: nextHand, revealed: newRevealed, wasSelfDraw });
       }, 3000);
       return;
     }
@@ -1347,13 +1380,48 @@ export default function App() {
   };
 
   // Triggers game-over winner scene
-  const handleWin = (winner: 'player' | 'computer', type: 'pairs' | 'hu', explanation: string, winCards: Card[] = []) => {
+  // `scoring` is only meaningful for type==='pairs' wins (10/15-card 抓對子 modes —
+  // the only modes actually reachable via the lobby). It must carry the winner's
+  // FINAL hand/revealed explicitly rather than have handleWin read `player`/
+  // `computer` off its own closure: most callers fire this synchronously right
+  // after (or inside a setTimeout following) their own `setPlayer`/`setComputer`
+  // call in the same turn, and React state updates aren't visible in the closure
+  // that issued them — reading `player.hand` here would often be one render stale.
+  const handleWin = (
+    winner: 'player' | 'computer',
+    type: 'pairs' | 'hu',
+    explanation: string,
+    winCards: Card[] = [],
+    scoring?: { hand: Card[]; revealed: RevealedMeld[]; wasSelfDraw: boolean }
+  ) => {
     playSound(winner === 'player' ? 'win' : 'lose');
     setGamePhase('game_over');
     setWinnerId(winner);
     setWinType(type);
-    setWinExplanation(explanation);
-    addLog(`📢 牌局終止！【${winner === 'player' ? '玩家' : '電腦 AI'}】宣佈贏得本盤勝利！理由：${explanation}`);
+
+    let finalExplanation = explanation;
+    let breakdown: ScoreBreakdown | null = null;
+    if (type === 'pairs' && scoring) {
+      const wasMenqing = winner === 'player' ? playerMenqing : computerMenqing;
+      breakdown = scorePairsWin(scoring.hand, scoring.revealed, pairsHandSize, scoring.wasSelfDraw, wasMenqing);
+      const itemsText = breakdown.items.map(it => `${it.label} +${it.tai}`).join('、');
+      finalExplanation = `${explanation}\n台數：${itemsText}（共 ${breakdown.totalTai} 台）`;
+    }
+    setWinExplanation(finalExplanation);
+    setWinScore(breakdown);
+
+    // 贏家得分、輸家扣分；玩家分數同時寫回 localStorage 做跨 session 持久化
+    // （電腦分數只在記憶體中，於 initGame(isNewSession=true) 時重設）。
+    if (breakdown) {
+      const payout = breakdown.payout;
+      const newPlayerScore = player.score + (winner === 'player' ? payout : -payout);
+      const newComputerScore = computer.score + (winner === 'computer' ? payout : -payout);
+      setPlayer(prev => ({ ...prev, score: newPlayerScore }));
+      setComputer(prev => ({ ...prev, score: newComputerScore }));
+      savePlayerScore(playerName, newPlayerScore);
+    }
+
+    addLog(`📢 牌局終止！【${winner === 'player' ? '玩家' : '電腦 AI'}】宣佈贏得本盤勝利！理由：${finalExplanation}`);
     setHuAnimWho(winner);
     setHuAnimCards(winCards);
     setShowHuCelebration(true);
@@ -1413,9 +1481,21 @@ export default function App() {
   // 15-card mode: "組" hint (all 3 valid trio types) — locked from discard, seated together in display
   const player15TrioGroups = mode === 'pairs' && pairsHandSize === 15 ? find15TrioHints(player.hand) : [];
   const player15TrioIds = new Set(player15TrioGroups.flat().map(c => c.id));
-  const playerHandDisplay = player15TrioGroups.length > 0
-    ? [...player15TrioGroups.flat(), ...player.hand.filter(c => !player15TrioIds.has(c.id))]
-    : player.hand;
+  // Already-locked melds (claimed 對/組) used to live in a separate "對子:/組子:" mini-card row;
+  // they now render inline in the hand grid instead, grouped together and badge-marked, so the
+  // player sees their whole hand — including what's already locked in — in one place.
+  const playerRevealedCards = player.revealed.flatMap(m => m.cards);
+  const playerRevealedIds = new Set(playerRevealedCards.map(c => c.id));
+  const playerRevealedBadge = new Map<string, string>();
+  player.revealed.forEach(meld => {
+    const label = meld.type === 'pair' ? '對' : '組';
+    meld.cards.forEach(c => playerRevealedBadge.set(c.id, label));
+  });
+  const playerHandDisplay = [
+    ...playerRevealedCards,
+    ...player15TrioGroups.flat(),
+    ...player.hand.filter(c => !player15TrioIds.has(c.id)),
+  ];
 
   // 桌面牌 discard/drawn card size: mirrors handCardDims's proportions but capped independently
   // of the (fixed-height) table row, so it never feeds back into the hand container's ResizeObserver.
@@ -1655,6 +1735,7 @@ export default function App() {
                     <div className="flex items-center gap-1.5 text-cyan-400 font-black">
                       <Cpu className="w-4 h-4 animate-pulse text-cyan-400" />
                       <span>{computer.name}</span>
+                      <span className="text-[11px] font-bold bg-cyan-400/10 border border-cyan-400/30 rounded-full px-2 py-0.5 tabular-nums">{computer.score.toLocaleString()}</span>
                     </div>
 
                     {mode === 'pairs' ? (
@@ -1672,19 +1753,13 @@ export default function App() {
                     )}
                   </div>
 
-                  {/* Robot's revealed sets on screen */}
+                  {/* Robot's revealed sets — cards now render inline in the hand area below
+                      (or in the 透視 fan when cheat mode is on); this just keeps a quick count. */}
                   {mode === 'pairs' ? (
-                    <div className="flex items-center gap-2 text-xs font-bold">
-                      <span className="text-cyan-400 shrink-0">{pairsHandSize === 15 ? '組子：' : '對子：'}</span>
-                      <div className="flex flex-wrap gap-[3px] flex-1 min-w-0">
-                        {computer.revealed.length > 0
-                          ? computer.revealed.map((meld) => (
-                              <div key={meld.id} className="flex gap-[1px]">
-                                {meld.cards.map((c, i) => renderMiniCard(c, `comp-pair-${meld.id}-${c.id}-${i}`))}
-                              </div>
-                            ))
-                          : <span className="text-cyan-400/60">無</span>}
-                      </div>
+                    <div className="flex items-center gap-1 text-xs font-bold text-cyan-400">
+                      <span>{pairsHandSize === 15 ? '組子：' : '對子：'}</span>
+                      <strong className="text-sm">{computer.revealed.length}</strong>
+                      <span>組</span>
                     </div>
                   ) : computer.revealed.length > 0 && (
                     <div className="flex items-center gap-1 p-1 bg-black/40 rounded-xl border border-white/5 mt-0.5 overflow-x-auto whitespace-nowrap scrollbar-none">
@@ -1699,9 +1774,21 @@ export default function App() {
                     </div>
                   )}
 
-                  {/* Fan of AI cards — only shown in cheat/透視 mode */}
+                  {/* Fan of AI cards — only shown in cheat/透視 mode. Locked melds render inline
+                      with the rest of the hand (same as the player's own hand) instead of a
+                      separate row, each tagged with its 對/組 badge. */}
                   {showComputerHand && (
                     <div className="flex flex-wrap justify-center items-center gap-0.5 pt-1.5 border-t border-white/5 max-h-[110px] overflow-hidden">
+                      {computer.revealed.flatMap(meld =>
+                        meld.cards.map((card, i) => (
+                          <div key={`comp-revealed-${meld.id}-${card.id}-${i}`} className="opacity-75 filter scale-75 relative">
+                            <FourColorCard card={card} size="sm" isRevealed={true} disabled={true} />
+                            <span className="absolute inset-x-0 top-1/2 -translate-y-1/2 text-center text-[10px] font-black leading-none py-0.5" style={{ background: '#1d4ed8', color: '#ffffff' }}>
+                              {meld.type === 'pair' ? '對' : '組'}
+                            </span>
+                          </div>
+                        ))
+                      )}
                       {computer.hand.map((card) => (
                         <div key={card.id} className="opacity-75 filter scale-75">
                           <FourColorCard card={card} size="sm" isRevealed={true} disabled={true} />
@@ -1775,6 +1862,7 @@ export default function App() {
                       <div className="flex items-center gap-2">
                         <span className="text-xl leading-none">{playerAvatar}</span>
                         <span className="text-sm font-black text-yellow-300">{playerName}</span>
+                        <span className="text-[11px] font-bold bg-yellow-300/10 border border-yellow-300/30 rounded-full px-2 py-0.5 tabular-nums">{player.score.toLocaleString()}</span>
                       </div>
                       {mode === 'pairs' ? (
                         <div className="flex items-center gap-1 text-xs text-yellow-300 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full font-bold">
@@ -1793,17 +1881,10 @@ export default function App() {
                       )}
                     </div>
                     {mode === 'pairs' && (
-                      <div className="flex items-center gap-2 text-xs font-bold">
-                        <span className="text-yellow-300 shrink-0">{pairsHandSize === 15 ? '組子：' : '對子：'}</span>
-                        <div className="flex flex-wrap gap-[3px] flex-1 min-w-0">
-                          {player.revealed.length > 0
-                            ? player.revealed.map((meld) => (
-                                <div key={meld.id} className="flex gap-[1px]">
-                                  {meld.cards.map((c, i) => renderMiniCard(c, `player-pair-${meld.id}-${c.id}-${i}`))}
-                                </div>
-                              ))
-                            : <span className="text-yellow-300/60">無</span>}
-                        </div>
+                      <div className="flex items-center gap-1 text-xs font-bold text-yellow-300">
+                        <span>{pairsHandSize === 15 ? '組子：' : '對子：'}</span>
+                        <strong className="text-sm">{player.revealed.length}</strong>
+                        <span>組</span>
                       </div>
                     )}
                   </div>
@@ -1814,15 +1895,16 @@ export default function App() {
                     <div
                       ref={handContainerRef}
                       className="flex-1 min-h-0 grid justify-center content-start gap-x-[1px] gap-y-2.5 overflow-hidden py-1"
-                      style={{ gridTemplateColumns: `repeat(${Math.ceil(player.hand.length / 2) || 1}, ${handCardDims.w}px)` }}
+                      style={{ gridTemplateColumns: `repeat(${Math.ceil(playerHandDisplay.length / 2) || 1}, ${handCardDims.w}px)` }}
                     >
                       {playerHandDisplay.map((card) => {
                         const is10 = mode === 'pairs' && pairsHandSize === 10;
                         const is15 = mode === 'pairs' && pairsHandSize === 15;
+                        const isRevealedLocked = playerRevealedIds.has(card.id);
                         const isStray = !is10 || playerGrouping.strays.some(s => s.id === card.id);
-                        const isPaired = is10 && !isStray;
-                        const isTrioHint = is15 && player15TrioIds.has(card.id);
-                        const isLocked = isPaired || isTrioHint;
+                        const isPaired = (is10 && !isStray) || (isRevealedLocked && playerRevealedBadge.get(card.id) === '對');
+                        const isTrioHint = (is15 && player15TrioIds.has(card.id)) || (isRevealedLocked && playerRevealedBadge.get(card.id) === '組');
+                        const isLocked = isPaired || isTrioHint || isRevealedLocked;
                         const isSelected = card.id === selectedCardId && (isStray || is15) && !isTrioHint;
                         const badgeStyle: React.CSSProperties = {
                           left: 2, right: 2,
@@ -2243,6 +2325,47 @@ export default function App() {
                         💡 <strong className="text-slate-200">系統自動處理：</strong>開局時系統會自動偵測手牌中的「暗坎（三張）」與「暗開車（四張）」並直接放桌上。牌疊摸完無人胡牌則判定為<strong className="text-orange-300">流局（平手）</strong>。
                       </p>
                     </div>
+
+                    {/* 台數計分 */}
+                    <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3 space-y-2">
+                      <p className="font-extrabold text-emerald-300 text-sm">💰 胡牌怎麼算分？台數計分法</p>
+                      <p className="text-slate-300 text-xs font-medium leading-snug">
+                        每次胡牌，系統會依牌型自動列出「台數明細」，總台數換算成輸贏分數：
+                        底 <strong className="text-emerald-300">200</strong> 分 ＋ 總台數 × 每台 <strong className="text-emerald-300">100</strong> 分。
+                      </p>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="bg-black/25 rounded-lg p-2">
+                          <p className="text-yellow-300 font-bold text-xs mb-1">🃏 10張「五對胡」加台</p>
+                          <ul className="text-slate-300 text-[11px] font-medium leading-relaxed space-y-0.5">
+                            <li>底台：<strong className="text-white">1台</strong></li>
+                            <li>自摸：<strong className="text-white">+1台</strong></li>
+                            <li>門清（全程沒吃碰對方棄牌）：<strong className="text-white">+1台</strong></li>
+                            <li>每組將/帥對：<strong className="text-white">+1台</strong></li>
+                            <li>無將（沒有半張將/帥）：<strong className="text-white">+1台</strong></li>
+                            <li>全將（5對都是將/帥）：<strong className="text-white">+1台</strong></li>
+                            <li>清一色（10張同色）：<strong className="text-white">+3台</strong></li>
+                          </ul>
+                        </div>
+                        <div className="bg-black/25 rounded-lg p-2">
+                          <p className="text-blue-300 font-bold text-xs mb-1">🀄 15張「五組三張」加台</p>
+                          <ul className="text-slate-300 text-[11px] font-medium leading-relaxed space-y-0.5">
+                            <li>底台：<strong className="text-white">1台</strong></li>
+                            <li>自摸：<strong className="text-white">+1台</strong></li>
+                            <li>門清（全程沒吃碰對方棄牌）：<strong className="text-white">+1台</strong></li>
+                            <li>每組三張同色同字（崁）：<strong className="text-white">+1台</strong></li>
+                            <li>每組同色將士象/車馬包：<strong className="text-white">+1台</strong></li>
+                            <li>四色兵/卒（四色各一張）：<strong className="text-white">+1台</strong></li>
+                            <li>四大將/四大帥（四色各一張）：<strong className="text-white">+2台</strong></li>
+                            <li>清一色（15張同色）：<strong className="text-white">+4台</strong></li>
+                          </ul>
+                        </div>
+                      </div>
+
+                      <p className="text-slate-500 text-[11px] font-medium leading-snug">
+                        ※ 莊家/連莊加台目前尚未開放（固定 0 台）；三隻／四隻／開槓等「刻子、槓」相關台數在本遊戲配對規則下不會出現，故未列入計算。
+                      </p>
+                    </div>
                   </div>
                 )}
 
@@ -2282,12 +2405,24 @@ export default function App() {
               {mode === 'pairs' ? '👦 抓對對子簡單對局' : '🀄 傳統吃碰標準對戰'}
             </p>
 
-            <div className="bg-black/45 p-4 rounded-2xl border border-blue-800 text-slate-100 text-sm font-serif font-medium leading-relaxed mb-5 max-h-[140px] overflow-y-auto">
+            <div className="bg-black/45 p-4 rounded-2xl border border-blue-800 text-slate-100 text-sm font-serif font-medium leading-relaxed whitespace-pre-line mb-3 max-h-[140px] overflow-y-auto">
               {winExplanation}
             </div>
 
+            {winScore && (
+              <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-3 mb-5 text-sm">
+                <p className="text-emerald-300 font-black mb-1">
+                  本局輸贏：{winnerId === 'player' ? '+' : '-'}{winScore.payout.toLocaleString()} 分
+                </p>
+                <div className="flex justify-between text-xs font-bold text-slate-300 tabular-nums">
+                  <span>{playerAvatar} {playerName}：{player.score.toLocaleString()}</span>
+                  <span>🤖 電腦AI：{computer.score.toLocaleString()}</span>
+                </div>
+              </div>
+            )}
+
             <button
-              onClick={() => { playSound('click'); initGame(); }}
+              onClick={() => { playSound('click'); initGame(false); }}
               className="w-full py-3.5 bg-yellow-500 hover:bg-yellow-400 text-slate-950 tracking-wider text-base font-black rounded-2xl shadow-xl transition-all active:scale-95"
             >
               重新發牌，再開一局 🀄
@@ -2435,6 +2570,22 @@ export default function App() {
               {huAnimWho === 'player' ? '恭喜大獲全勝！' : '電腦勝出'}
             </div>
 
+            {/* 本局輸贏 + 雙方最新總分 */}
+            {winScore && (
+              <div
+                className="bg-black/50 border border-white/20 rounded-xl px-4 py-2 text-center"
+                style={{ animation: 'fadeInUp 0.5s ease 0.7s both' }}
+              >
+                <p className="text-emerald-300 font-black text-sm">
+                  本局輸贏：{huAnimWho === 'player' ? '+' : '-'}{winScore.payout.toLocaleString()} 分
+                </p>
+                <div className="flex gap-3 text-xs font-bold text-slate-300 tabular-nums mt-0.5">
+                  <span>{playerAvatar} {playerName}：{player.score.toLocaleString()}</span>
+                  <span>🤖 電腦AI：{computer.score.toLocaleString()}</span>
+                </div>
+              </div>
+            )}
+
             {/* 繼續下局 button — appears after 5s, styled like 吃對 badge */}
             {huCelebShowContinue && (
               <button
@@ -2442,7 +2593,7 @@ export default function App() {
                   setShowHuCelebration(false);
                   setHuCelebShowContinue(false);
                   playSound('click');
-                  initGame();
+                  initGame(false);
                 }}
                 style={{
                   width: handCardDims.h,
