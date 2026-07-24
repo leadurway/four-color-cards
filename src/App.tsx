@@ -1438,7 +1438,7 @@ export default function App() {
       : '';
 
   const renderMiniCard = (c: Card, key: string) => (
-    <div key={key} className="w-[13px] h-[13px] rounded-sm flex items-center justify-center font-black text-[7px] shrink-0" style={{
+    <div key={key} className="w-5 h-5 rounded-sm flex items-center justify-center font-black text-[11px] shrink-0" style={{
       backgroundColor: c.color === 'yellow' ? '#ffd300' : c.color === 'green' ? '#299c42' : c.color === 'red' ? '#ff5511' : '#ffffff',
       color: c.color === 'yellow' ? '#ab1313' : '#111111',
     }}>
@@ -1709,7 +1709,7 @@ export default function App() {
                   )}
                 </div>
 
-                {/* THE PORTRAIT RIVER / TABLE (Middle) — 桌面牌(左半) | 回收牌/摸牌(右半，上下疊放) */}
+                {/* THE PORTRAIT RIVER / TABLE (Middle) — 桌面牌(左半) | 回收牌(右半)。摸牌按鈕已移至下方 ACTION BAR，跟打出這張牌並排 */}
                 {/* Fixed row height — must NOT derive from handCardDims: this row is a shrink-0 sibling of
                     the flex-1 hand container below, so a handCardDims-derived height here would create a
                     layout feedback loop (row height <-> hand container's measured available height),
@@ -1747,49 +1747,13 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* Right half: 回收區 (top) + 摸牌按鈕 (bottom) */}
-                  <div className="flex-1 basis-1/2 min-w-0 flex flex-col gap-1.5">
-                    {/* 回收區 */}
-                    <div className="flex-1 min-h-0 flex flex-col py-0.5 px-1 overflow-hidden">
-                      <span className="text-[10px] font-bold text-yellow-500/80 mb-0.5 leading-none shrink-0">回收牌</span>
-                      <div className="flex-1 min-h-0 overflow-y-auto bg-black/40 border border-white/5 p-0.5 rounded-lg flex flex-wrap gap-[2px] content-start scrollbar-none">
-                        {discardPile.map((c, idx) => (
-                          <div key={`${c.id}-${idx}`} className="w-[13px] h-[13px] rounded-sm flex items-center justify-center font-black text-[7px]" style={{
-                            backgroundColor: c.color === 'yellow' ? '#ffd300' : c.color === 'green' ? '#299c42' : c.color === 'red' ? '#ff5511' : '#ffffff',
-                            color: c.color === 'yellow' ? '#ab1313' : '#111111',
-                          }}>
-                            {c.character}
-                          </div>
-                        ))}
-                        {discardPile.length === 0 && (
-                          <span className="text-[9px] text-slate-500 m-auto">空</span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* 摸牌按鈕 */}
-                    <div className="flex-1 min-h-0 px-1">
-                      {deck.length > 0 ? (
-                        <button
-                          onClick={handlePlayerDraw}
-                          disabled={gamePhase !== 'playing' || curPlayerId !== 'player' || lastDrawnCard !== null || hasDrawn}
-                          className={`h-full w-full rounded-xl transition-all flex items-center justify-center bg-red-600 border-2 border-red-400 text-white ${
-                            gamePhase === 'playing' && curPlayerId === 'player' && lastDrawnCard === null && !hasDrawn
-                              ? 'active:scale-95 ring-2 ring-red-300 cursor-pointer shadow-lg'
-                              : 'opacity-50 cursor-not-allowed'
-                          }`}
-                          style={
-                            gamePhase === 'playing' && curPlayerId === 'player' && lastDrawnCard === null && !hasDrawn
-                              ? { animation: 'bounceSmall 1s ease-in-out infinite', fontSize: 'clamp(1.1rem, 6vw, 1.8rem)' }
-                              : { fontSize: 'clamp(1.1rem, 6vw, 1.8rem)' }
-                          }
-                        >
-                          <span className="font-black leading-none whitespace-nowrap">摸牌 {deck.length}張</span>
-                        </button>
-                      ) : (
-                        <div className="h-full w-full border border-dashed border-white/20 bg-white/5 rounded-xl flex items-center justify-center text-xs text-slate-500">
-                          牌庫空
-                        </div>
+                  {/* Right half: 回收區 */}
+                  <div className="flex-1 basis-1/2 min-w-0 flex flex-col py-0.5 px-1 overflow-hidden">
+                    <span className="text-[10px] font-bold text-yellow-500/80 mb-0.5 leading-none shrink-0">回收牌</span>
+                    <div className="flex-1 min-h-0 overflow-y-auto bg-black/40 border border-white/5 p-0.5 rounded-lg flex flex-wrap gap-[3px] content-start scrollbar-none">
+                      {discardPile.map((c, idx) => renderMiniCard(c, `${c.id}-${idx}`))}
+                      {discardPile.length === 0 && (
+                        <span className="text-[9px] text-slate-500 m-auto">空</span>
                       )}
                     </div>
                   </div>
@@ -1998,46 +1962,64 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* ACTION BAR */}
-                  <div className="bg-black/30 px-3 py-2 flex items-center justify-between gap-2 border-t border-white/5 shrink-0">
-                    <div className="text-xs text-slate-300 font-bold max-w-[50%] text-left select-none leading-tight">
-                      {selectedCardId ? (
-                        <p>您的手牌・已選：<strong className="text-yellow-300">{player.hand.find(c => c.id === selectedCardId)?.name}</strong></p>
-                      ) : (
-                        <p className="text-yellow-300">您的手牌（點牌再點打牌）</p>
-                      )}
-                    </div>
-
-                    <div className="flex gap-2">
-                      {mode === 'standard' && (
-                        <button
-                          onClick={handleDeclareHuSelf}
-                          disabled={gamePhase !== 'playing'}
-                          className={`px-4 py-2.5 text-sm text-white font-extrabold rounded-xl shadow border transition-all disabled:opacity-40 ${
-                            activeHuCheck.canHu && gamePhase === 'playing'
-                              ? 'bg-gradient-to-r from-red-500 to-yellow-500 border-yellow-300 animate-pulse scale-105'
-                              : 'bg-gradient-to-r from-red-900 to-yellow-900 border-yellow-800'
-                          }`}
-                        >
-                          👑 宣告胡牌
-                        </button>
-                      )}
-
+                  {/* ACTION BAR — 摸牌 and 打出這張牌 share the same size/color scheme */}
+                  <div className="bg-black/30 px-3 py-2 flex items-center gap-2 border-t border-white/5 shrink-0">
+                    {mode === 'standard' && (
                       <button
-                        onClick={() => handlePlayerDiscard(selectedCardId!)}
-                        disabled={!selectedCardId || !canDiscard || gamePhase !== 'playing' || curPlayerId !== 'player'}
-                        className={`px-5 py-2.5 font-black rounded-xl text-sm transition-all flex items-center gap-1 ${
-                          selectedCardId && canDiscard && gamePhase === 'playing' && curPlayerId === 'player'
-                            ? 'bg-red-600 hover:bg-red-500 text-white border border-red-400 shadow-lg'
-                            : 'bg-white/5 border border-white/10 text-slate-500 cursor-not-allowed'
+                        onClick={handleDeclareHuSelf}
+                        disabled={gamePhase !== 'playing'}
+                        className={`shrink-0 px-3 py-3 text-xs text-white font-extrabold rounded-xl shadow border transition-all disabled:opacity-40 ${
+                          activeHuCheck.canHu && gamePhase === 'playing'
+                            ? 'bg-gradient-to-r from-red-500 to-yellow-500 border-yellow-300 animate-pulse scale-105'
+                            : 'bg-gradient-to-r from-red-900 to-yellow-900 border-yellow-800'
                         }`}
                       >
-                        打出這張牌
+                        👑 宣告胡牌
                       </button>
-                    </div>
+                    )}
+
+                    <button
+                      onClick={handlePlayerDraw}
+                      disabled={gamePhase !== 'playing' || curPlayerId !== 'player' || lastDrawnCard !== null || hasDrawn || deck.length === 0}
+                      className={`flex-1 py-3 rounded-xl transition-all flex items-center justify-center bg-red-600 border-2 border-red-400 text-white ${
+                        gamePhase === 'playing' && curPlayerId === 'player' && lastDrawnCard === null && !hasDrawn && deck.length > 0
+                          ? 'active:scale-95 ring-2 ring-red-300 cursor-pointer shadow-lg'
+                          : 'opacity-50 cursor-not-allowed'
+                      }`}
+                      style={
+                        gamePhase === 'playing' && curPlayerId === 'player' && lastDrawnCard === null && !hasDrawn && deck.length > 0
+                          ? { animation: 'bounceSmall 1s ease-in-out infinite' }
+                          : undefined
+                      }
+                    >
+                      <span className="font-black leading-none whitespace-nowrap" style={{ fontSize: 'clamp(1rem, 5vw, 1.5rem)' }}>
+                        {deck.length > 0 ? `摸牌 ${deck.length}張` : '牌庫空'}
+                      </span>
+                    </button>
+
+                    <button
+                      onClick={() => handlePlayerDiscard(selectedCardId!)}
+                      disabled={!selectedCardId || !canDiscard || gamePhase !== 'playing' || curPlayerId !== 'player'}
+                      className={`flex-1 py-3 rounded-xl transition-all flex items-center justify-center ${
+                        selectedCardId && canDiscard && gamePhase === 'playing' && curPlayerId === 'player'
+                          ? 'bg-red-600 border-2 border-red-400 text-white active:scale-95 ring-2 ring-red-300 shadow-lg'
+                          : 'bg-white/5 border-2 border-white/10 text-slate-500 cursor-not-allowed'
+                      }`}
+                      style={
+                        selectedCardId && canDiscard && gamePhase === 'playing' && curPlayerId === 'player'
+                          ? { animation: 'bounceSmall 1s ease-in-out infinite' }
+                          : undefined
+                      }
+                    >
+                      <span className="font-black leading-none whitespace-nowrap" style={{ fontSize: 'clamp(1rem, 5vw, 1.5rem)' }}>
+                        打出這張牌
+                      </span>
+                    </button>
                   </div>
 
-                  {/* GUIDE BAR — very bottom of screen, above home indicator */}
+                  {/* GUIDE BAR — very bottom of screen, above home indicator. Also carries the
+                      "您的手牌" selection reminder that used to live in a separate action-bar label,
+                      so this one bar always reflects the real-time next action to take. */}
                   <div
                     className={`lg:hidden flex items-center gap-2 px-3 py-2 shrink-0 border-t transition-colors ${
                       (pendingMoves || pendingTrioOptions.length > 0) && gamePhase === 'waiting_player_action'
@@ -2051,9 +2033,16 @@ export default function App() {
                     <span className="text-lg shrink-0 leading-none">
                       {(pendingMoves || pendingTrioOptions.length > 0) && gamePhase === 'waiting_player_action' ? '🚨'
                        : mode === 'standard' && activeHuCheck.canHu ? '🏆'
+                       : selectedCardId ? '👉'
                        : 'ℹ️'}
                     </span>
-                    <p className="text-base font-black leading-tight truncate flex-1 text-cyan-400">{guideMessage}</p>
+                    <p className="text-base font-black leading-tight truncate flex-1 text-cyan-400">
+                      {gamePhase === 'playing' && curPlayerId === 'player' && canDiscard
+                        ? (selectedCardId
+                            ? `已選擇 [${player.hand.find(c => c.id === selectedCardId)?.name}]，請點擊「打出這張牌」`
+                            : '您的手牌：請點一張牌，再點擊「打出這張牌」')
+                        : guideMessage}
+                    </p>
                   </div>
                 </div>
 
