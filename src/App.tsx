@@ -1409,8 +1409,6 @@ export default function App() {
   const activeHuCheck = solveHu(huCheckHand, player.revealed);
   const playerGrouping = groupPairsMode(player.hand);
   const computerGrouping = groupPairsMode(computer.hand);
-  const playerRevealedCards = player.revealed.flatMap(m => m.cards);
-  const computerRevealedCards = computer.revealed.flatMap(m => m.cards);
 
   // 15-card mode: "組" hint (all 3 valid trio types) — locked from discard, seated together in display
   const player15TrioGroups = mode === 'pairs' && pairsHandSize === 15 ? find15TrioHints(player.hand) : [];
@@ -1678,9 +1676,13 @@ export default function App() {
                   {mode === 'pairs' ? (
                     <div className="flex items-center gap-2 text-xs font-bold">
                       <span className="text-cyan-400 shrink-0">{pairsHandSize === 15 ? '組子：' : '對子：'}</span>
-                      <div className="flex flex-wrap gap-[2px] flex-1 min-w-0">
-                        {computerRevealedCards.length > 0
-                          ? computerRevealedCards.map((c, i) => renderMiniCard(c, `comp-pair-${c.id}-${i}`))
+                      <div className="flex flex-wrap gap-[3px] flex-1 min-w-0">
+                        {computer.revealed.length > 0
+                          ? computer.revealed.map((meld) => (
+                              <div key={meld.id} className="flex gap-[1px]">
+                                {meld.cards.map((c, i) => renderMiniCard(c, `comp-pair-${meld.id}-${c.id}-${i}`))}
+                              </div>
+                            ))
                           : <span className="text-cyan-400/60">無</span>}
                       </div>
                     </div>
@@ -1793,9 +1795,13 @@ export default function App() {
                     {mode === 'pairs' && (
                       <div className="flex items-center gap-2 text-xs font-bold">
                         <span className="text-yellow-300 shrink-0">{pairsHandSize === 15 ? '組子：' : '對子：'}</span>
-                        <div className="flex flex-wrap gap-[2px] flex-1 min-w-0">
-                          {playerRevealedCards.length > 0
-                            ? playerRevealedCards.map((c, i) => renderMiniCard(c, `player-pair-${c.id}-${i}`))
+                        <div className="flex flex-wrap gap-[3px] flex-1 min-w-0">
+                          {player.revealed.length > 0
+                            ? player.revealed.map((meld) => (
+                                <div key={meld.id} className="flex gap-[1px]">
+                                  {meld.cards.map((c, i) => renderMiniCard(c, `player-pair-${meld.id}-${c.id}-${i}`))}
+                                </div>
+                              ))
                             : <span className="text-yellow-300/60">無</span>}
                         </div>
                       </div>
