@@ -26,10 +26,9 @@ import {
   Volume2, 
   VolumeX, 
   RotateCcw, 
-  Eye, 
-  EyeOff, 
-  Info, 
-  Award, 
+  Eye,
+  EyeOff,
+  Award,
   ChevronRight, 
   User, 
   Cpu, 
@@ -114,12 +113,12 @@ export default function App() {
   const [handCardDims, setHandCardDims] = useState({ w: 32, h: 84, fs: 19 });
   // Device/orientation classification driving hand-layout behavior:
   // - iPhone portrait (isPhoneSized && !isLandscape): untouched, exactly the
-  //   original single-row-of-melds/2-row-hand layout — no changes here at all.
-  // - iPhone landscape, iPad landscape, and PC web (all !isPhoneSized||isLandscape,
-  //   i.e. anything landscape, or anything not phone-sized) show the hand in a
-  //   single scrollable row and get the optimized info-box layout.
-  // - iPad portrait keeps the 2-row hand but still gets the optimized info-box
-  //   layout (it's !isPhoneSized, so it's not the excluded iPhone-portrait case).
+  //   original 2-row hand layout and page layout — no changes here at all.
+  // - Every other case (iPhone landscape, iPad portrait, iPad landscape, PC
+  //   web) shows the hand as a single scrollable row and gets the optimized
+  //   info-box layout, differing only in how many card-widths the row is
+  //   sized to reference: 12 for iPhone landscape and iPad portrait, 15 for
+  //   iPad landscape / PC web (the widest, most spacious case).
   // "Phone-sized" is judged by the SHORTER of the two viewport dimensions (the
   // phone's portrait-width even while it's held sideways), so a rotated iPhone
   // doesn't get misclassified as tablet-sized.
@@ -140,8 +139,10 @@ export default function App() {
     };
   }, []);
   const isIphonePortrait = isPhoneSized && !isLandscape;
-  const showSingleRowHand = isLandscape; // iPhone-landscape, iPad-landscape, PC web
+  const isTabletLandscape = !isPhoneSized && isLandscape; // iPad landscape / PC web
+  const showSingleRowHand = !isIphonePortrait;
   const useOptimizedInfoBoxLayout = !isIphonePortrait;
+  const handReferenceCols = isIphonePortrait ? 6 : (isTabletLandscape ? 15 : 12);
 
   // Animation overlays
   const [showEatPairAnim, setShowEatPairAnim] = useState(false);
@@ -164,21 +165,17 @@ export default function App() {
   }, [logs]);
 
   // Card size is fixed, independent of how many cards are actually in hand:
-  // width is set to exactly fit HAND_ROW_REFERENCE_COLS (6) cards across the
-  // row, height to exactly fit the hand's row count (2 for iPhone/iPad
-  // portrait, 1 for anything landscape or PC web — see showSingleRowHand)
-  // — whichever of those two constraints is tighter wins, and the OTHER
-  // dimension is derived from it via the same card aspect ratio the iPhone
-  // layout naturally lands on (narrow width is always the binding constraint
-  // there). Without this, a wide-but-not-tall container (iPad landscape,
-  // desktop web — capped to max-w-lg horizontally but with plenty of
-  // vertical room) would size height independently off a generous
-  // containerH, producing cards far taller/narrower than iPhone's.
-  // The *logical* row-1 capacity (how many cards sit in row 1 before wrapping
-  // to row 2, when 2-row) is mode-specific and can exceed 6 (see
-  // handRowCapacity below) — those extra columns simply overflow past the
-  // visible width and the hand scrolls horizontally to reach them.
-  const HAND_ROW_REFERENCE_COLS = 6;
+  // width is set to exactly fit handReferenceCols cards across the row (6 for
+  // iPhone portrait's 2-row layout, 12 for iPhone-landscape/iPad-portrait's
+  // single row, 15 for iPad-landscape/PC-web's single row — see the
+  // classification above), height to exactly fit the hand's row count (2 for
+  // iPhone portrait only, 1 everywhere else) — whichever of those two
+  // constraints is tighter wins, and the OTHER dimension is derived from it
+  // via the same card aspect ratio the iPhone layout naturally lands on
+  // (narrow width is always the binding constraint there). Without this, a
+  // wide-but-not-tall container (iPad landscape, desktop web) would size
+  // height independently off a generous containerH, producing cards far
+  // taller/narrower than iPhone's.
   const HAND_CARD_ASPECT = 32 / 84; // iPhone's natural xs card W/H ratio
   useEffect(() => {
     const el = handContainerRef.current;
@@ -203,7 +200,7 @@ export default function App() {
       if (containerW < 10 || containerH < 10) return;
       const colGap = 1;
       const rowGap = 10; // gap-y-2.5
-      const maxCardW = (containerW - colGap * (HAND_ROW_REFERENCE_COLS - 1)) / HAND_ROW_REFERENCE_COLS;
+      const maxCardW = (containerW - colGap * (handReferenceCols - 1)) / handReferenceCols;
       const maxCardH = (containerH - rowGap * (rows - 1)) / rows;
       let w: number, h: number;
       if (maxCardW / HAND_CARD_ASPECT <= maxCardH) {
@@ -220,7 +217,7 @@ export default function App() {
     });
     obs.observe(wrapperEl);
     return () => obs.disconnect();
-  }, [activePage, showSingleRowHand]);
+  }, [activePage, showSingleRowHand, handReferenceCols]);
 
   // Fireworks canvas animation
   useEffect(() => {
@@ -1792,7 +1789,7 @@ export default function App() {
                     </button>
                     <button
                       onClick={() => setShowLogDrawer(!showLogDrawer)}
-                      className="p-2 bg-white/5 border border-white/10 text-slate-300 hover:text-white rounded-full transition-colors lg:hidden"
+                      className="p-2 bg-white/5 border border-white/10 text-slate-300 hover:text-white rounded-full transition-colors"
                     >
                       <History className="w-5 h-5 text-slate-400" />
                     </button>
@@ -2123,7 +2120,7 @@ export default function App() {
                       "您的手牌" selection reminder that used to live in a separate action-bar label,
                       so this one bar always reflects the real-time next action to take. */}
                   <div
-                    className={`lg:hidden flex items-center gap-2 px-3 py-2 shrink-0 border-t transition-colors ${
+                    className={`flex items-center gap-2 px-3 py-2 shrink-0 border-t transition-colors ${
                       (pendingMoves || pendingTrioOptions.length > 0) && gamePhase === 'waiting_player_action'
                         ? 'bg-orange-900/60 border-orange-500/40 text-orange-100'
                         : 'bg-black/50 border-white/5 text-slate-300'
@@ -2149,34 +2146,6 @@ export default function App() {
                 </div>{/* end 控制頁面 */}
 
               </div>{/* end main column */}
-
-              {/* SIDEBAR — Desktop lg+ only */}
-              <aside className="hidden lg:flex flex-col w-72 xl:w-80 border-l border-white/10 bg-black/20 p-4 gap-3 overflow-hidden shrink-0">
-                {/* Guide */}
-                <div className="bg-yellow-500/10 border-l-2 border-yellow-500 p-3 rounded-r-xl flex items-start gap-2 shrink-0">
-                  <Info className="w-4 h-4 text-yellow-400 shrink-0 mt-0.5" />
-                  <p className="text-slate-100 text-xs leading-relaxed font-bold">{guideMessage}</p>
-                </div>
-                {/* Logs */}
-                <div className="flex-1 flex flex-col min-h-0 bg-[#071838] border border-blue-800/30 rounded-xl overflow-hidden">
-                  <div className="px-3 py-2 border-b border-white/10 text-[11px] font-extrabold text-yellow-500 flex items-center gap-1.5 shrink-0">
-                    <History className="w-3.5 h-3.5" />
-                    牌局記錄
-                  </div>
-                  <div className="flex-1 overflow-y-auto p-2 space-y-0.5 text-[10px] font-mono">
-                    {logs.length === 0 ? (
-                      <p className="text-slate-500 text-center mt-4">尚無記錄</p>
-                    ) : (
-                      [...logs].reverse().map((log, idx) => (
-                        <div key={idx} className="py-0.5 border-b border-white/5 last:border-0 flex items-start gap-1 leading-snug text-slate-300">
-                          <span className="text-yellow-500 shrink-0">▸</span>
-                          <span>{log}</span>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              </aside>
 
               </div>{/* closes flex-1 min-h-0 flex overflow-hidden */}
 
@@ -2298,7 +2267,7 @@ export default function App() {
 
               {/* RETRO DIALOG HISTORY ON DEMAND OVERLAY */}
               {showLogDrawer && (
-                <div className="lg:hidden absolute inset-x-0 bottom-0 top-[52px] bg-[#0a1628]/98 border-t border-blue-500/30 z-30 p-4 flex flex-col justify-between select-none">
+                <div className="absolute inset-x-0 bottom-0 top-[52px] bg-[#0a1628]/98 border-t border-blue-500/30 z-30 p-4 flex flex-col justify-between select-none">
                   <div className="text-sm font-extrabold text-yellow-500 border-b border-white/10 pb-2 mb-3 flex items-center justify-between">
                     <span>📋 牌局歷程回顧：</span>
                     <button 
