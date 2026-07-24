@@ -117,8 +117,9 @@ export default function App() {
   // - Every other case (iPhone landscape, iPad portrait, iPad landscape, PC
   //   web) shows the hand as a single scrollable row and gets the optimized
   //   info-box layout, differing only in how many card-widths the row is
-  //   sized to reference: 12 for iPhone landscape and iPad portrait, 15 for
-  //   iPad landscape / PC web (the widest, most spacious case).
+  //   sized to reference: 12 for iPhone landscape (the one remaining
+  //   phone-sized case), 15 for anything not phone-sized — iPad portrait,
+  //   iPad landscape, and PC web all share the more spacious reference.
   // "Phone-sized" is judged by the SHORTER of the two viewport dimensions (the
   // phone's portrait-width even while it's held sideways), so a rotated iPhone
   // doesn't get misclassified as tablet-sized.
@@ -139,10 +140,10 @@ export default function App() {
     };
   }, []);
   const isIphonePortrait = isPhoneSized && !isLandscape;
-  const isTabletLandscape = !isPhoneSized && isLandscape; // iPad landscape / PC web
+  const isPhoneLandscape = isPhoneSized && isLandscape;
   const showSingleRowHand = !isIphonePortrait;
   const useOptimizedInfoBoxLayout = !isIphonePortrait;
-  const handReferenceCols = isIphonePortrait ? 6 : (isTabletLandscape ? 15 : 12);
+  const handReferenceCols = isIphonePortrait ? 6 : (isPhoneLandscape ? 12 : 15);
 
   // Animation overlays
   const [showEatPairAnim, setShowEatPairAnim] = useState(false);
