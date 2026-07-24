@@ -97,7 +97,7 @@ export default function App() {
   const [hasDrawn, setHasDrawn] = useState(false);
   
   // Quick tutorial navigation tabs
-  const [activeTutorialTab, setActiveTutorialTab] = useState<'ranks' | 'pairs' | 'standard' | 'point'>('ranks');
+  const [activeTutorialTab, setActiveTutorialTab] = useState<'ranks' | 'pairs'>('ranks');
   
   // Mini logs expanded drawer state for portrait space optimization
   const [showLogDrawer, setShowLogDrawer] = useState(false);
@@ -1720,15 +1720,15 @@ export default function App() {
                   {/* Left half: 桌面牌 — text left (enlarged), card right (matches hand card size, capped) */}
                   <div className="flex-1 basis-1/2 min-w-0 flex gap-2 py-1 px-1 border-r border-white/10 overflow-hidden">
                     <div className="flex flex-col justify-between shrink-0">
-                      <span className="font-bold text-yellow-500/80 leading-none" style={{ fontSize: 14 }}>桌面牌</span>
+                      <span className="font-bold text-yellow-300 leading-none" style={{ fontSize: 14 }}>桌面牌</span>
                       <div>
                         {lastDrawnCard && (
-                          <span className="font-black text-cyan-300 leading-none block" style={{ fontSize: 14 }}>
+                          <span className="font-black leading-none block" style={{ fontSize: 14, color: drawnFromDeck ? '#fde047' : '#22d3ee' }}>
                             {drawnFromDeck ? '玩家摸牌' : '電腦摸牌'}
                           </span>
                         )}
                         {!lastDrawnCard && lastDiscardedCard && discardedBy && (
-                          <span className="font-black leading-none block" style={{ fontSize: 14, color: discardedBy === 'computer' ? '#fca5a5' : '#86efac' }}>
+                          <span className="font-black leading-none block" style={{ fontSize: 14, color: discardedBy === 'computer' ? '#22d3ee' : '#fde047' }}>
                             {discardedBy === 'computer' ? '電腦出牌' : '玩家出牌'}
                           </span>
                         )}
@@ -1749,8 +1749,8 @@ export default function App() {
 
                   {/* Right half: 回收區 */}
                   <div className="flex-1 basis-1/2 min-w-0 flex flex-col py-0.5 px-1 overflow-hidden">
-                    <span className="text-[10px] font-bold text-yellow-500/80 mb-0.5 leading-none shrink-0">回收牌</span>
-                    <div className="flex-1 min-h-0 overflow-y-auto bg-black/40 border border-white/5 p-0.5 rounded-lg flex flex-wrap gap-[3px] content-start scrollbar-none">
+                    <span className="text-[10px] font-bold text-yellow-300 mb-0.5 leading-none shrink-0">回收牌</span>
+                    <div className="flex-1 min-h-0 overflow-y-auto bg-black/40 border border-white/5 p-0.5 rounded-lg flex flex-wrap gap-[1px] content-start scrollbar-none">
                       {discardPile.map((c, idx) => renderMiniCard(c, `${c.id}-${idx}`))}
                       {discardPile.length === 0 && (
                         <span className="text-[9px] text-slate-500 m-auto">空</span>
@@ -1871,33 +1871,20 @@ export default function App() {
 
                   {/* ACTION BAR — 摸牌 and 打出這張牌 share the same size/color scheme */}
                   <div className="bg-black/30 px-3 py-2 flex items-center gap-2 border-t border-white/5 shrink-0">
-                    {mode === 'standard' && (
-                      <button
-                        onClick={handleDeclareHuSelf}
-                        disabled={gamePhase !== 'playing'}
-                        className={`shrink-0 px-3 py-3 text-xs text-white font-extrabold rounded-xl shadow border transition-all disabled:opacity-40 ${
-                          activeHuCheck.canHu && gamePhase === 'playing'
-                            ? 'bg-gradient-to-r from-red-500 to-yellow-500 border-yellow-300 animate-pulse scale-105'
-                            : 'bg-gradient-to-r from-red-900 to-yellow-900 border-yellow-800'
-                        }`}
-                      >
-                        👑 宣告胡牌
-                      </button>
-                    )}
-
                     <button
                       onClick={handlePlayerDraw}
                       disabled={gamePhase !== 'playing' || curPlayerId !== 'player' || lastDrawnCard !== null || hasDrawn || deck.length === 0}
-                      className={`flex-1 py-3 rounded-xl transition-all flex items-center justify-center bg-red-600 border-2 border-red-400 text-white ${
-                        gamePhase === 'playing' && curPlayerId === 'player' && lastDrawnCard === null && !hasDrawn && deck.length > 0
-                          ? 'active:scale-95 ring-2 ring-red-300 cursor-pointer shadow-lg'
-                          : 'opacity-50 cursor-not-allowed'
-                      }`}
-                      style={
-                        gamePhase === 'playing' && curPlayerId === 'player' && lastDrawnCard === null && !hasDrawn && deck.length > 0
+                      style={{
+                        height: handCardDims.w,
+                        ...(gamePhase === 'playing' && curPlayerId === 'player' && lastDrawnCard === null && !hasDrawn && deck.length > 0
                           ? { animation: 'bounceSmall 1s ease-in-out infinite' }
-                          : undefined
-                      }
+                          : {}),
+                      }}
+                      className={`flex-1 rounded-xl transition-all flex items-center justify-center ${
+                        gamePhase === 'playing' && curPlayerId === 'player' && lastDrawnCard === null && !hasDrawn && deck.length > 0
+                          ? 'bg-red-600 border-2 border-red-400 text-white active:scale-95 ring-2 ring-red-300 shadow-lg'
+                          : 'bg-white/5 border-2 border-white/10 text-slate-500 cursor-not-allowed'
+                      }`}
                     >
                       <span className="font-black leading-none whitespace-nowrap" style={{ fontSize: 'clamp(1rem, 5vw, 1.5rem)' }}>
                         {deck.length > 0 ? `摸牌 ${deck.length}張` : '牌庫空'}
@@ -1907,16 +1894,17 @@ export default function App() {
                     <button
                       onClick={() => handlePlayerDiscard(selectedCardId!)}
                       disabled={!selectedCardId || !canDiscard || gamePhase !== 'playing' || curPlayerId !== 'player'}
-                      className={`flex-1 py-3 rounded-xl transition-all flex items-center justify-center ${
+                      style={{
+                        height: handCardDims.w,
+                        ...(selectedCardId && canDiscard && gamePhase === 'playing' && curPlayerId === 'player'
+                          ? { animation: 'bounceSmall 1s ease-in-out infinite' }
+                          : {}),
+                      }}
+                      className={`flex-1 rounded-xl transition-all flex items-center justify-center ${
                         selectedCardId && canDiscard && gamePhase === 'playing' && curPlayerId === 'player'
                           ? 'bg-red-600 border-2 border-red-400 text-white active:scale-95 ring-2 ring-red-300 shadow-lg'
                           : 'bg-white/5 border-2 border-white/10 text-slate-500 cursor-not-allowed'
                       }`}
-                      style={
-                        selectedCardId && canDiscard && gamePhase === 'playing' && curPlayerId === 'player'
-                          ? { animation: 'bounceSmall 1s ease-in-out infinite' }
-                          : undefined
-                      }
                     >
                       <span className="font-black leading-none whitespace-nowrap" style={{ fontSize: 'clamp(1rem, 5vw, 1.5rem)' }}>
                         打出這張牌
@@ -1931,15 +1919,12 @@ export default function App() {
                     className={`lg:hidden flex items-center gap-2 px-3 py-2 shrink-0 border-t transition-colors ${
                       (pendingMoves || pendingTrioOptions.length > 0) && gamePhase === 'waiting_player_action'
                         ? 'bg-orange-900/60 border-orange-500/40 text-orange-100'
-                        : mode === 'standard' && activeHuCheck.canHu
-                          ? 'bg-emerald-900/70 border-emerald-500/40 text-emerald-100'
-                          : 'bg-black/50 border-white/5 text-slate-300'
+                        : 'bg-black/50 border-white/5 text-slate-300'
                     }`}
                     style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 0.375rem)' }}
                   >
                     <span className="text-lg shrink-0 leading-none">
                       {(pendingMoves || pendingTrioOptions.length > 0) && gamePhase === 'waiting_player_action' ? '🚨'
-                       : mode === 'standard' && activeHuCheck.canHu ? '🏆'
                        : selectedCardId ? '👉'
                        : 'ℹ️'}
                     </span>
@@ -1993,12 +1978,12 @@ export default function App() {
                   whenever it appeared) */}
               {(pendingMoves || pendingTrioOptions.length > 0) && gamePhase === 'waiting_player_action' && (
                 <div className="absolute inset-x-0 bottom-0 top-[52px] z-40 flex items-center justify-center pointer-events-none px-3">
-                  <div className="pointer-events-auto bg-black/95 border-2 border-yellow-500 p-2.5 rounded-2xl flex flex-col items-center gap-2 animate-pulse shadow-2xl max-w-full">
+                  <div className="pointer-events-auto bg-black/95 border-2 border-yellow-500 p-2.5 rounded-2xl flex flex-col items-center gap-2 shadow-2xl max-w-full">
                     <div className="text-[11px] font-black text-yellow-400 border-b border-white/10 w-full text-center pb-1">
                       🚨 雷達配對組信號{triggerSourceLabel ? `（${triggerSourceLabel}）` : ''}！請選擇：
                     </div>
 
-                    <div className="flex flex-wrap items-center justify-center gap-2">
+                    <div className="grid grid-cols-2 gap-2">
                       {/* Declare HU (Winning) */}
                       {pendingMoves?.canHu && (
                         <button
@@ -2009,7 +1994,7 @@ export default function App() {
                             fontSize: Math.min(handCardDims.w * 0.55, handCardDims.h * 0.38),
                             animation: 'bounceSmall 0.7s ease-in-out infinite',
                           }}
-                          className="rounded-xl bg-red-500 hover:bg-red-400 border-2 border-yellow-300 shadow-lg flex items-center justify-center font-black text-white hover:scale-105 active:scale-95 transition-transform whitespace-nowrap"
+                          className="rounded-xl bg-yellow-400 hover:bg-yellow-300 border-2 border-white shadow-lg flex items-center justify-center font-black text-black hover:scale-105 active:scale-95 transition-transform whitespace-nowrap"
                         >
                           胡！
                         </button>
@@ -2025,7 +2010,7 @@ export default function App() {
                             fontSize: Math.min(handCardDims.w * 0.5, handCardDims.h * 0.34),
                             animation: 'bounceSmall 0.85s ease-in-out infinite',
                           }}
-                          className="rounded-xl bg-amber-400 hover:bg-amber-300 border-2 border-white shadow-md flex items-center justify-center font-black text-white hover:scale-105 active:scale-95 transition-transform whitespace-nowrap"
+                          className="rounded-xl bg-yellow-400 hover:bg-yellow-300 border-2 border-white shadow-md flex items-center justify-center font-black text-black hover:scale-105 active:scale-95 transition-transform whitespace-nowrap"
                         >
                           {mode === 'pairs' ? '吃一隻' : '碰'}
                         </button>
@@ -2058,7 +2043,7 @@ export default function App() {
                             fontSize: Math.min(handCardDims.w * 0.5, handCardDims.h * 0.34),
                             animation: `bounceSmall 0.85s ease-in-out infinite ${i * 0.1}s`,
                           }}
-                          className="rounded-xl bg-lime-400 hover:bg-lime-300 border-2 border-white shadow-md flex items-center justify-center font-black text-black active:scale-95 transition-transform whitespace-nowrap"
+                          className="rounded-xl bg-yellow-400 hover:bg-yellow-300 border-2 border-white shadow-md flex items-center justify-center font-black text-black active:scale-95 transition-transform whitespace-nowrap"
                         >
                           吃:{opt.resultCards.map(c=>c.character).join('')}
                         </button>
@@ -2074,7 +2059,7 @@ export default function App() {
                             height: handCardDims.w,
                             animation: `bounceSmall 0.85s ease-in-out infinite ${i * 0.1}s`,
                           }}
-                          className="rounded-xl bg-amber-400 hover:bg-amber-300 border-2 border-white shadow-md flex flex-col items-center justify-center font-black text-white hover:scale-105 active:scale-95 transition-transform"
+                          className="rounded-xl bg-yellow-400 hover:bg-yellow-300 border-2 border-white shadow-md flex flex-col items-center justify-center font-black text-black hover:scale-105 active:scale-95 transition-transform"
                         >
                           <span style={{ fontSize: Math.min(handCardDims.w * 0.42, handCardDims.h * 0.28) }}>{opt.actionLabel}</span>
                           <span className="opacity-90" style={{ fontSize: Math.min(handCardDims.w * 0.22, handCardDims.h * 0.15) }}>
@@ -2165,18 +2150,6 @@ export default function App() {
                 >
                   👦 簡單對子
                 </button>
-                <button
-                  onClick={() => handleSwitchTab('standard')}
-                  className={`flex-1 py-3 px-0.5 rounded-lg text-center transition-colors ${activeTutorialTab === 'standard' ? 'bg-yellow-500 text-black font-extrabold' : 'hover:bg-white/5 text-slate-300 font-medium'}`}
-                >
-                  🀄 傳統吃碰
-                </button>
-                <button
-                  onClick={() => handleSwitchTab('point')}
-                  className={`flex-1 py-3 px-0.5 rounded-lg text-center transition-colors ${activeTutorialTab === 'point' ? 'bg-yellow-500 text-black font-extrabold' : 'hover:bg-white/5 text-slate-300 font-medium'}`}
-                >
-                  📊 胡數計分
-                </button>
               </div>
 
               {/* Tab contents */}
@@ -2263,61 +2236,6 @@ export default function App() {
                       <p className="text-slate-400 text-xs font-semibold leading-snug">
                         💡 <strong className="text-slate-200">系統自動處理：</strong>開局時系統會自動偵測手牌中的「暗坎（三張）」與「暗開車（四張）」並直接放桌上。牌疊摸完無人胡牌則判定為<strong className="text-orange-300">流局（平手）</strong>。
                       </p>
-                    </div>
-                  </div>
-                )}
-
-                {activeTutorialTab === 'standard' && (
-                  <div className="space-y-4 select-none">
-                    <h3 className="text-lg font-black text-yellow-500 border-b border-white/10 pb-2">🀄 玩法二：傳統吃碰標準玩法</h3>
-                    <p className="text-slate-300 font-semibold leading-relaxed text-base">
-                      老祖宗正宗四色牌！重在組牌戰術、思索吃碰抉擇：
-                    </p>
-                    <ul className="list-decimal pl-5 space-y-3 text-slate-300 font-bold leading-relaxed text-sm">
-                      <li><strong>發牌張數：</strong> 每人分配 20 張手牌起點。</li>
-                      <li><strong>合法牌組組合 (Meld)：</strong>
-                        <ul className="list-disc pl-4 mt-2 space-y-1.5 text-slate-300 font-medium">
-                          <li><span className="text-yellow-400">同色帥仕相 / 將士象</span>（3張各1）</li>
-                          <li><span className="text-yellow-400">同色俥傌炮 / 車馬包</span>（3張各1）</li>
-                          <li><span className="text-yellow-400">同色同字三張（明碰 / 暗坎）</span></li>
-                          <li><span className="text-yellow-400">同色同字四張（明槓 / 暗槓，俗稱開車）</span></li>
-                          <li><span className="text-yellow-400">同字異色組</span>（3家不同色 1胡，4色全齊 4胡）</li>
-                        </ul>
-                      </li>
-                      <li><strong>獲勝條件：</strong>
-                        <p className="mt-1 font-medium">
-                          除了成組合法牌搭外，最後可自摸胡牌、或引誘敵手棄牌，且<strong>累積亮明與暗坎之「胡數 (Hoo)」大於或等於 10 胡</strong>，點宣告胡牌胡取勝利。
-                        </p>
-                      </li>
-                    </ul>
-                  </div>
-                )}
-
-                {activeTutorialTab === 'point' && (
-                  <div className="space-y-4 select-none">
-                    <h3 className="text-lg font-black text-yellow-500 border-b border-white/10 pb-2">📊 牌組胡數對抗速查：</h3>
-
-                    <div className="bg-black/35 p-4 rounded-xl border border-white/10 space-y-3">
-                      <p className="font-extrabold text-emerald-400 text-base">🎖️ 帥／將 單獨算分：</p>
-                      <ul className="list-disc pl-5 space-y-2 text-slate-300 font-medium text-sm">
-                        <li>單張在手或亮相：<strong className="text-yellow-400">1 胡</strong></li>
-                        <li>對子（將眼）：<strong className="text-yellow-400">2 胡</strong></li>
-                        <li>暗坎 (三張相同在手)：<strong className="text-yellow-400">3 胡</strong></li>
-                        <li>四張全集（開車）：<strong className="text-yellow-400">8 胡</strong></li>
-                      </ul>
-                    </div>
-
-                    <div className="bg-black/35 p-4 rounded-xl border border-white/10 space-y-3">
-                      <p className="font-extrabold text-emerald-400 text-base">🎎 一般同色牌組算分：</p>
-                      <ul className="list-disc pl-5 space-y-2 text-slate-300 font-medium text-sm">
-                        <li>同色帥仕相 (將士象)：<strong className="text-yellow-400">2 胡</strong></li>
-                        <li>同色俥傌炮 (車馬包)：<strong className="text-yellow-400">2 胡</strong></li>
-                        <li>明碰 (碰出去的三張)：<strong className="text-yellow-400">1 胡</strong></li>
-                        <li>暗坎 (手牌三張)：<strong className="text-yellow-400">3 胡</strong></li>
-                        <li>明開車 / 明槓：<strong className="text-yellow-400">6 胡</strong></li>
-                        <li>暗開車 / 暗槓：<strong className="text-yellow-400">8 胡</strong></li>
-                        <li>三異色 / 四異色組：<strong className="text-yellow-400">1 胡 / 4 胡</strong></li>
-                      </ul>
                     </div>
                   </div>
                 )}
@@ -2419,7 +2337,7 @@ export default function App() {
           {/* Badge: 長=一個手牌的高度, 高=兩個手牌的寬度 */}
           <div
             style={{
-              width: Math.max(handCardDims.h, eatPairAnimCards.length * (handCardDims.w + 3) - 3),
+              width: handCardDims.h,
               height: handCardDims.w * 2,
               background: '#f5c218',
               color: '#0a1628',
@@ -2476,7 +2394,7 @@ export default function App() {
             {/* 胡牌 badge: 長=一個手牌的高度, 高=兩個手牌的寬度, 紅底白字 */}
             <div
               style={{
-                width: Math.max(handCardDims.h, huAnimCards.length > 0 ? huAnimCards.length * (handCardDims.w + 3) - 3 : 0),
+                width: handCardDims.h,
                 height: handCardDims.w * 2,
                 background: '#dc2626',
                 color: '#ffffff',
