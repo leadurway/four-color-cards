@@ -1438,7 +1438,7 @@ export default function App() {
       : '';
 
   const renderMiniCard = (c: Card, key: string) => (
-    <div key={key} className="w-5 h-5 rounded-sm flex items-center justify-center font-black text-[11px] shrink-0" style={{
+    <div key={key} className="w-7 h-7 rounded-sm flex items-center justify-center font-black text-base shrink-0" style={{
       backgroundColor: c.color === 'yellow' ? '#ffd300' : c.color === 'green' ? '#299c42' : c.color === 'red' ? '#ff5511' : '#ffffff',
       color: c.color === 'yellow' ? '#ab1313' : '#111111',
     }}>
