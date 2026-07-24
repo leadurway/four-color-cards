@@ -142,12 +142,23 @@ export default function App() {
   const HAND_ROW_REFERENCE_COLS = 6;
   useEffect(() => {
     const el = handContainerRef.current;
-    if (!el || player.hand.length === 0) return;
+    if (!el) return;
+
+    // Measure against the OUTER (non-scrolling) wrapper, not the grid element
+    // itself. The grid has an explicit gridTemplateRows height and its own
+    // overflow-x-auto; measuring it directly can create a feedback loop on
+    // some WebKit layouts (notably iPad landscape) where each recompute reads
+    // a slightly inflated size, making hand cards visibly grow taller with
+    // every card drawn. The wrapper's size is fixed by the surrounding flex
+    // layout and never depends on the grid's own content, so it's a stable
+    // reference — combined with only recomputing once per page visit (deps
+    // below) rather than on every hand change, this keeps the size locked.
+    const wrapperEl = el.parentElement ?? el;
 
     const calc = (containerW: number, containerH: number) => {
       // Guard against measuring before layout has settled (e.g. mid page-transition):
       // an invalid 0/near-0 reading would otherwise collapse cards to ~0px wide
-      // until something else (like drawing a card) forces a fresh measurement.
+      // until something else forces a fresh measurement.
       if (containerW < 10 || containerH < 10) return;
       const colGap = 1;
       const rowGap = 10; // gap-y-2.5
@@ -156,13 +167,13 @@ export default function App() {
       setHandCardDims({ w: Math.floor(w), h: Math.floor(h), fs: Math.round(w * 19 / 32) });
     };
 
-    calc(el.getBoundingClientRect().width, el.getBoundingClientRect().height);
+    calc(wrapperEl.getBoundingClientRect().width, wrapperEl.getBoundingClientRect().height);
     const obs = new ResizeObserver(([entry]) => {
       calc(entry.contentRect.width, entry.contentRect.height);
     });
-    obs.observe(el);
+    obs.observe(wrapperEl);
     return () => obs.disconnect();
-  }, [player.hand.length]);
+  }, [activePage]);
 
   // Fireworks canvas animation
   useEffect(() => {
@@ -2112,12 +2123,11 @@ export default function App() {
                   block inside the control panel, which pushed the hand/action area down
                   whenever it appeared) */}
               {(pendingMoves || pendingTrioOptions.length > 0) && gamePhase === 'waiting_player_action' && (
-                <div className="absolute inset-x-0 bottom-0 top-[52px] z-40 flex items-center justify-center pointer-events-none px-3">
+                <div
+                  className="absolute inset-x-0 bottom-0 top-[52px] z-40 flex items-end justify-center pointer-events-none px-3"
+                  style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 0.75rem)' }}
+                >
                   <div className="pointer-events-auto bg-black/95 border-2 border-yellow-500 p-2.5 rounded-2xl flex flex-col items-center gap-2 shadow-2xl max-w-full">
-                    <div className="text-[11px] font-black text-yellow-400 border-b border-white/10 w-full text-center pb-1">
-                      🚨 雷達配對組信號{triggerSourceLabel ? `（${triggerSourceLabel}）` : ''}！請選擇：
-                    </div>
-
                     <div className="grid grid-cols-2 gap-2">
                       {/* Declare HU (Winning) */}
                       {pendingMoves?.canHu && (
@@ -2215,6 +2225,10 @@ export default function App() {
                       >
                         過 (放棄)
                       </button>
+                    </div>
+
+                    <div className="text-base font-black text-yellow-400 border-t border-white/10 w-full text-center pt-1.5">
+                      🚨 雷達配對組信號{triggerSourceLabel ? `（${triggerSourceLabel}）` : ''}！請選擇：
                     </div>
                   </div>
                 </div>
