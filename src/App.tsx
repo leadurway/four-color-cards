@@ -1962,11 +1962,21 @@ export default function App() {
                       see effect above). Row 1 fills first, up to handRowCapacity (6 or 9
                       depending on mode) before wrapping to row 2; once that capacity
                       exceeds the visible 6-wide reference width, the extra columns overflow
-                      past the viewport and the hand scrolls horizontally to reach them. */}
+                      past the viewport and the hand scrolls horizontally to reach them.
+                      This outer wrapper stays flex-1 — it's the stable ResizeObserver
+                      measurement target the effect above reads from (its own size is
+                      dictated purely by the surrounding flex layout, never by its
+                      content, so measuring it can't create a feedback loop). The grid,
+                      ACTION BAR and GUIDE BAR below are all shrink-0/content-sized and
+                      now live INSIDE it (rather than as separate siblings), so on a
+                      screen with lots of spare vertical room (iPad, desktop web) they
+                      stack snugly right below each other; only the truly leftover space
+                      (if any) collects at the very bottom of this box, instead of
+                      appearing as a gap between the cards and the action buttons. */}
                   <div className="flex-1 min-h-0 flex flex-col px-1 pt-1 pb-0 overflow-hidden">
                     <div
                       ref={handContainerRef}
-                      className="flex-1 min-h-0 grid justify-start content-start gap-x-[1px] gap-y-2.5 overflow-x-auto overflow-y-hidden py-1"
+                      className="shrink-0 grid justify-start content-start gap-x-[1px] gap-y-2.5 overflow-x-auto overflow-y-hidden py-1"
                       style={{ gridAutoFlow: 'row', gridTemplateRows: `repeat(2, ${handCardDims.h}px)`, gridTemplateColumns: `repeat(${handRowCapacity}, ${handCardDims.w}px)` }}
                     >
                       {playerHandDisplay.map((card) => {
@@ -2027,7 +2037,6 @@ export default function App() {
                         );
                       })}
                     </div>
-                  </div>
 
                   {/* ACTION BAR — 摸牌 and 打出這張牌 share the same size/color scheme */}
                   <div className="bg-black/30 px-3 py-2 flex items-center gap-2 border-t border-white/5 shrink-0">
@@ -2096,6 +2105,7 @@ export default function App() {
                         : guideMessage}
                     </p>
                   </div>
+                  </div>{/* end hand+action-bar+guide-bar group */}
                 </div>
 
                 </div>{/* end 控制頁面 */}
