@@ -110,6 +110,7 @@ export default function App() {
   
   const logsEndRef = useRef<HTMLDivElement>(null);
   const handContainerRef = useRef<HTMLDivElement>(null);
+  const guideBarRef = useRef<HTMLDivElement>(null);
   const [handCardDims, setHandCardDims] = useState({ w: 32, h: 84, fs: 19 });
   // Device/orientation classification driving hand-layout behavior:
   // - iPhone portrait (isPhoneSized && !isLandscape): untouched, exactly the
@@ -202,7 +203,21 @@ export default function App() {
       const colGap = 1;
       const rowGap = 10; // gap-y-2.5
       const maxCardW = (containerW - colGap * (handReferenceCols - 1)) / handReferenceCols;
-      const maxCardH = (containerH - rowGap * (rows - 1)) / rows;
+
+      // The wrapper's box holds the grid AND the action bar AND the guide bar
+      // together (they live inside it so controls sit snugly under the cards
+      // instead of stretching the whole panel). The action bar's own height
+      // is set equal to the card width by design; the guide bar's height is
+      // measured directly (plain text/icon content, independent of card
+      // size, so reading it here is safe — no circular dependency). Both
+      // need to be subtracted before dividing what's left by the row count,
+      // or the grid would be sized as if it alone owned the whole wrapper —
+      // overflowing past what's actually available and clipping the result,
+      // which is what made single-row cards on iPad/PC look off-ratio: the
+      // box itself was still 32:84, just partly cut off by overflow-hidden.
+      const guideBarH = guideBarRef.current?.getBoundingClientRect().height ?? 0;
+      const chromeH = maxCardW + guideBarH;
+      const maxCardH = Math.max(10, containerH - chromeH - rowGap * (rows - 1)) / rows;
       let w: number, h: number;
       if (maxCardW / HAND_CARD_ASPECT <= maxCardH) {
         w = maxCardW; h = maxCardW / HAND_CARD_ASPECT;
@@ -2121,6 +2136,7 @@ export default function App() {
                       "您的手牌" selection reminder that used to live in a separate action-bar label,
                       so this one bar always reflects the real-time next action to take. */}
                   <div
+                    ref={guideBarRef}
                     className={`flex items-center gap-2 px-3 py-2 shrink-0 border-t transition-colors ${
                       (pendingMoves || pendingTrioOptions.length > 0) && gamePhase === 'waiting_player_action'
                         ? 'bg-orange-900/60 border-orange-500/40 text-orange-100'
