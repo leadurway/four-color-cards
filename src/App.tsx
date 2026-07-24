@@ -133,55 +133,26 @@ export default function App() {
     logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [logs]);
 
-  // Recalculate hand card size whenever the *displayed* card count (hand +
-  // self-formed/draw-origin locked melds, which render inline — see
-  // playerHandDisplay) or container size changes.
-  const playerDrawMeldCardCount = player.revealed.reduce((sum, m) => sum + (m.origin === 'draw' ? m.cards.length : 0), 0);
+  // Card size is fixed, independent of how many cards are actually in hand:
+  // width is set to exactly fit HAND_ROW_REFERENCE_COLS (6) cards across the
+  // row, height to exactly fit 2 rows. The *logical* row-1 capacity (how many
+  // cards sit in row 1 before wrapping to row 2) is mode-specific and can
+  // exceed 6 (see handRowCapacity below) — those extra columns simply overflow
+  // past the visible width and the hand scrolls horizontally to reach them.
+  const HAND_ROW_REFERENCE_COLS = 6;
   useEffect(() => {
     const el = handContainerRef.current;
-    const displayCount = player.hand.length + playerDrawMeldCardCount;
-    if (!el || displayCount === 0) return;
+    if (!el || player.hand.length === 0) return;
 
     const calc = (containerW: number, containerH: number) => {
       // Guard against measuring before layout has settled (e.g. mid page-transition):
-      // an invalid 0/near-0 reading would otherwise collapse the grid into effectively
-      // 0px-wide columns, briefly showing a single vertical column until something else
-      // (like drawing a card) forces a fresh, valid measurement.
+      // an invalid 0/near-0 reading would otherwise collapse cards to ~0px wide
+      // until something else (like drawing a card) forces a fresh measurement.
       if (containerW < 10 || containerH < 10) return;
       const colGap = 1;
       const rowGap = 10; // gap-y-2.5
-      const aspect = 32 / 84; // xs card W/H ratio
-
-      // Baseline size: never shrink cards smaller than what this mode's normal
-      // steady-state hand would compute — 5 columns for 10-card mode's 9-10
-      // cards, 7 columns for 15-card mode's usual 14 — so legibility stays
-      // constant for seniors. It's only the OCCASIONAL 15th card (right after
-      // claiming a trio, before the first discard) that needs one column more
-      // than that baseline provides — instead of shrinking every card to fit,
-      // that extra column overflows horizontally and the hand scrolls (JSX below).
-      const baselineCols = mode === 'pairs' && pairsHandSize === 15 ? 7 : 5;
-      const baseMaxCardW = (containerW - colGap * (baselineCols - 1)) / baselineCols;
-      const baseMaxCardH = (containerH - rowGap) / 2;
-      let baseW: number, baseH: number;
-      if (baseMaxCardW / aspect <= baseMaxCardH) {
-        baseW = baseMaxCardW; baseH = baseMaxCardW / aspect;
-      } else {
-        baseH = baseMaxCardH; baseW = baseMaxCardH * aspect;
-      }
-
-      const cols = Math.ceil(displayCount / 2) || 1;
-      const maxCardW = (containerW - colGap * (cols - 1)) / cols;
-      const maxCardH = (containerH - rowGap) / 2; // 2 rows
-      let w: number, h: number;
-      if (maxCardW / aspect <= maxCardH) {
-        w = maxCardW; h = maxCardW / aspect;
-      } else {
-        h = maxCardH; w = maxCardH * aspect;
-      }
-
-      // Clamp to the baseline floor — never shrink below it.
-      if (w < baseW) { w = baseW; h = baseH; }
-
+      const w = (containerW - colGap * (HAND_ROW_REFERENCE_COLS - 1)) / HAND_ROW_REFERENCE_COLS;
+      const h = (containerH - rowGap) / 2; // exactly 2 rows
       setHandCardDims({ w: Math.floor(w), h: Math.floor(h), fs: Math.round(w * 19 / 32) });
     };
 
@@ -191,7 +162,7 @@ export default function App() {
     });
     obs.observe(el);
     return () => obs.disconnect();
-  }, [player.hand.length, playerDrawMeldCardCount, mode, pairsHandSize]);
+  }, [player.hand.length]);
 
   // Fireworks canvas animation
   useEffect(() => {
@@ -496,8 +467,11 @@ export default function App() {
         return;
       }
 
-      // No auto-pair; check trio win on full 15-card hand
-      const newHand15 = sortHandForDisplay([...player.hand, drawn]);
+      // No auto-pair; check trio win on full 15-card hand. The drawn card is
+      // appended unsorted (lands at the far right of row 2) so the player can
+      // clearly see what they just drew; the hand gets sorted once, after the
+      // discard decision (see handlePlayerDiscard).
+      const newHand15 = [...player.hand, drawn];
       setLastDrawnCard(null);
       setLastDiscardedCard(null);
       if (checkTriosWin(newHand15)) {
@@ -556,8 +530,10 @@ export default function App() {
           }, 3000);
         }, 3000);
       } else {
-        // No match — add to hand, player chooses which stray to discard
-        const nextHand = sortHandForDisplay([...player.hand, drawn]);
+        // No match — append unsorted (lands at the far right of row 2) so the
+        // player can clearly see what they just drew; the hand gets sorted
+        // once, after the discard decision (see handlePlayerDiscard).
+        const nextHand = [...player.hand, drawn];
         setPlayer(prev => ({ ...prev, hand: nextHand }));
         setLastDrawnCard(null);
         setCanDiscard(true);
@@ -599,8 +575,11 @@ export default function App() {
     }
 
     playSound('discard');
-    const updatedHand = player.hand.filter(c => c.id !== cardId);
-    
+    // Re-sort once the discard decision is made — until now the just-drawn
+    // card (if any) was left unsorted at the far right of row 2 so the player
+    // could clearly see what they'd just drawn.
+    const updatedHand = sortHandForDisplay(player.hand.filter(c => c.id !== cardId));
+
     setPlayer(prev => ({
       ...prev,
       hand: updatedHand
@@ -1534,6 +1513,13 @@ export default function App() {
     ...player15TrioGroups.flat(),
     ...player.hand.filter(c => !player15TrioIds.has(c.id)),
   ];
+  // Row-1 capacity (columns before wrapping to row 2): 10-card mode's normal
+  // hand fills row 1 with 6 cards exactly (matching the fixed card width
+  // above, so 10-card mode never needs to scroll); 15-card mode's larger hand
+  // prioritizes filling row 1 with 9 before wrapping to row 2 — since card
+  // width stays fixed for 6, those extra 3 columns overflow past the visible
+  // width and the hand scrolls horizontally to reach them.
+  const handRowCapacity = mode === 'pairs' && pairsHandSize === 15 ? 9 : 6;
 
   // 桌面牌 discard/drawn card size: mirrors handCardDims's proportions but capped independently
   // of the (fixed-height) table row, so it never feeds back into the hand container's ResizeObserver.
@@ -1947,17 +1933,16 @@ export default function App() {
                   </div>
 
 
-                  {/* PLAYER HAND — 2 rows, max card size via ResizeObserver. Cards never
-                      shrink below the baseline legible size (see effect above); once a
-                      hand (e.g. 15 cards right after claiming, before the first discard)
-                      needs more columns than fit at that size, this scrolls horizontally
-                      instead — the 2-row shape and priority ordering (locked melds, then
-                      trio hints, then strays) stay intact, just wider than the viewport. */}
+                  {/* PLAYER HAND — fixed card size (width fits 6/row, height fits 2 rows;
+                      see effect above). Row 1 fills first, up to handRowCapacity (6 or 9
+                      depending on mode) before wrapping to row 2; once that capacity
+                      exceeds the visible 6-wide reference width, the extra columns overflow
+                      past the viewport and the hand scrolls horizontally to reach them. */}
                   <div className="flex-1 min-h-0 flex flex-col px-1 pt-1 pb-0 overflow-hidden">
                     <div
                       ref={handContainerRef}
                       className="flex-1 min-h-0 grid justify-start content-start gap-x-[1px] gap-y-2.5 overflow-x-auto overflow-y-hidden py-1"
-                      style={{ gridAutoFlow: 'row', gridTemplateRows: `repeat(2, ${handCardDims.h}px)`, gridTemplateColumns: `repeat(${Math.ceil(playerHandDisplay.length / 2) || 1}, ${handCardDims.w}px)` }}
+                      style={{ gridAutoFlow: 'row', gridTemplateRows: `repeat(2, ${handCardDims.h}px)`, gridTemplateColumns: `repeat(${handRowCapacity}, ${handCardDims.w}px)` }}
                     >
                       {playerHandDisplay.map((card) => {
                         const is10 = mode === 'pairs' && pairsHandSize === 10;
