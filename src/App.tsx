@@ -1776,8 +1776,13 @@ export default function App() {
                       {pendingMoves?.canHu && (
                         <button
                           onClick={() => handlePlayerAction('hu')}
-                          style={{ animation: 'bounceSmall 0.7s ease-in-out infinite' }}
-                          className="w-18 h-18 rounded-full bg-red-500 hover:bg-red-400 border-4 border-yellow-300 shadow-lg flex items-center justify-center text-2xl font-black text-white hover:scale-105 active:scale-95 transition-transform"
+                          style={{
+                            width: handCardDims.w * 3,
+                            height: handCardDims.w,
+                            fontSize: Math.min(handCardDims.w * 0.55, handCardDims.h * 0.38),
+                            animation: 'bounceSmall 0.7s ease-in-out infinite',
+                          }}
+                          className="rounded-xl bg-red-500 hover:bg-red-400 border-2 border-yellow-300 shadow-lg flex items-center justify-center font-black text-white hover:scale-105 active:scale-95 transition-transform whitespace-nowrap"
                         >
                           胡！
                         </button>
@@ -1803,8 +1808,13 @@ export default function App() {
                       {pendingMoves?.canQuad && (
                         <button
                           onClick={() => handlePlayerAction('quad')}
-                          style={{ animation: 'bounceSmall 0.85s ease-in-out infinite 0.1s' }}
-                          className="w-16 h-16 rounded-full bg-yellow-400 hover:bg-yellow-300 border-2 border-white shadow-md flex items-center justify-center text-base font-black text-black hover:scale-105 active:scale-95 transition-transform"
+                          style={{
+                            width: handCardDims.w * 3,
+                            height: handCardDims.w,
+                            fontSize: Math.min(handCardDims.w * 0.5, handCardDims.h * 0.34),
+                            animation: 'bounceSmall 0.85s ease-in-out infinite 0.1s',
+                          }}
+                          className="rounded-xl bg-yellow-400 hover:bg-yellow-300 border-2 border-white shadow-md flex items-center justify-center font-black text-black hover:scale-105 active:scale-95 transition-transform whitespace-nowrap"
                         >
                           槓
                         </button>
@@ -1815,8 +1825,13 @@ export default function App() {
                         <button
                           key={i}
                           onClick={() => handlePlayerAction('eat', opt)}
-                          style={{ animation: `bounceSmall 0.85s ease-in-out infinite ${i * 0.1}s` }}
-                          className="px-4 py-3 rounded-xl bg-lime-400 hover:bg-lime-300 border border-lime-200 text-sm font-black text-black active:scale-95 transition-transform"
+                          style={{
+                            width: handCardDims.w * 3,
+                            height: handCardDims.w,
+                            fontSize: Math.min(handCardDims.w * 0.5, handCardDims.h * 0.34),
+                            animation: `bounceSmall 0.85s ease-in-out infinite ${i * 0.1}s`,
+                          }}
+                          className="rounded-xl bg-lime-400 hover:bg-lime-300 border-2 border-white shadow-md flex items-center justify-center font-black text-black active:scale-95 transition-transform whitespace-nowrap"
                         >
                           吃:{opt.resultCards.map(c=>c.character).join('')}
                         </button>
