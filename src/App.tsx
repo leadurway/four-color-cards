@@ -167,19 +167,22 @@ export default function App() {
   }, [logs]);
 
   // Card size is fixed, independent of how many cards are actually in hand:
-  // width is set to exactly fit HAND_REFERENCE_COLS (6) cards across the row,
-  // height to exactly fit 2 rows — the SAME formula for every device. On
-  // iPad/PC (useWideLayout) the page's max-width cap is loosened (see the
-  // page layout below) so containerW is simply bigger, which scales w/h up
-  // proportionally through this same math — that's the whole mechanism for
-  // "enlarge to fill the wider screen while keeping iPhone's exact card
-  // ratio". Whichever of the width/height constraints is tighter wins, and
-  // the OTHER dimension is derived from it via the same card aspect ratio
-  // the iPhone layout naturally lands on (narrow width is always the binding
-  // constraint there). Without deriving one from the other via a fixed
-  // ratio, a wide-but-not-tall container would size height independently
-  // off a generous containerH, producing cards far taller/narrower than
-  // iPhone's.
+  // width is set to exactly fit HAND_REFERENCE_COLS (6) cards across the row
+  // — the SAME reference for every device, never varied by device class —
+  // height is set to exactly fit the row count (2 for iPhone portrait, 1 for
+  // every wider device, which shows the whole hand in a single scrollable
+  // row instead — see useWideLayout/handRowCapacity below). On iPad/PC the
+  // page's max-width cap is also loosened (see the page layout below) so
+  // containerW is simply bigger, which scales w/h up proportionally through
+  // this same math — that's the whole mechanism for "enlarge to fill the
+  // wider screen while keeping iPhone's exact card ratio": same formula,
+  // same reference constant, just a bigger input and a different row count.
+  // Whichever of the width/height constraints is tighter wins, and the OTHER
+  // dimension is derived from it via the same card aspect ratio the iPhone
+  // layout naturally lands on (narrow width is always the binding constraint
+  // there). Without deriving one from the other via a fixed ratio, a
+  // wide-but-not-tall container would size height independently off a
+  // generous containerH, producing cards far taller/narrower than iPhone's.
   const HAND_REFERENCE_COLS = 6;
   const HAND_CARD_ASPECT = 32 / 84; // iPhone's natural xs card W/H ratio
   useEffect(() => {
@@ -196,7 +199,7 @@ export default function App() {
     // reference — combined with only recomputing once per page visit (deps
     // below) rather than on every hand change, this keeps the size locked.
     const wrapperEl = el.parentElement ?? el;
-    const rows = 2;
+    const rows = useWideLayout ? 1 : 2;
 
     const calc = (containerW: number, containerH: number) => {
       // Guard against measuring before layout has settled (e.g. mid page-transition):
@@ -1587,13 +1590,18 @@ export default function App() {
     ...player15TrioGroups.flat(),
     ...player.hand.filter(c => !player15TrioIds.has(c.id)),
   ];
-  // Row-1 capacity (columns before wrapping to row 2): 10-card mode's normal
-  // hand fills row 1 with 6 cards exactly (matching the fixed card width
-  // above, so 10-card mode never needs to scroll); 15-card mode's larger hand
-  // prioritizes filling row 1 with 9 before wrapping to row 2 — since card
-  // width stays fixed for 6, those extra 3 columns overflow past the visible
-  // width and the hand scrolls horizontally to reach them.
-  const handRowCapacity = mode === 'pairs' && pairsHandSize === 15 ? 9 : 6;
+  // Row-1 capacity (columns before wrapping to row 2, iPhone portrait only):
+  // 10-card mode's normal hand fills row 1 with 6 cards exactly (matching
+  // the fixed card width above, so 10-card mode never needs to scroll);
+  // 15-card mode's larger hand prioritizes filling row 1 with 9 before
+  // wrapping to row 2 — since card width stays fixed for 6, those extra 3
+  // columns overflow past the visible width and the hand scrolls
+  // horizontally to reach them. On every wider device (useWideLayout) the
+  // hand is a single row instead, so the column count is simply however many
+  // cards are actually displayed.
+  const handRowCapacity = useWideLayout
+    ? (playerHandDisplay.length || 1)
+    : (mode === 'pairs' && pairsHandSize === 15 ? 9 : 6);
 
   // 桌面牌 discard/drawn card size: mirrors handCardDims's proportions but capped independently
   // of the (fixed-height) table row, so it never feeds back into the hand container's ResizeObserver.
@@ -2013,11 +2021,15 @@ export default function App() {
                   </div>
 
 
-                  {/* PLAYER HAND — fixed card size (width fits 6/row, height fits 2 rows;
-                      see effect above). Row 1 fills first, up to handRowCapacity (6 or 9
-                      depending on mode) before wrapping to row 2; once that capacity
-                      exceeds the visible 6-wide reference width, the extra columns overflow
-                      past the viewport and the hand scrolls horizontally to reach them.
+                  {/* PLAYER HAND — fixed card size (width always fits the same 6-card
+                      reference; height fits the row count — see effect above). iPhone
+                      portrait: row 1 fills first, up to handRowCapacity (6 or 9 depending
+                      on mode) before wrapping to row 2; once that capacity exceeds the
+                      visible 6-wide reference width, the extra columns overflow past the
+                      viewport and the hand scrolls horizontally to reach them. Every wider
+                      device (useWideLayout): the whole hand sits in a single row instead,
+                      scaled up proportionally through the same formula fed a wider
+                      container — see handRowCapacity and the effect above.
                       This outer wrapper stays flex-1 — it's the stable ResizeObserver
                       measurement target the effect above reads from (its own size is
                       dictated purely by the surrounding flex layout, never by its
@@ -2032,7 +2044,7 @@ export default function App() {
                     <div
                       ref={handContainerRef}
                       className="shrink-0 grid justify-start content-start gap-x-[1px] gap-y-2.5 overflow-x-auto overflow-y-hidden py-1"
-                      style={{ gridAutoFlow: 'row', gridTemplateRows: `repeat(2, ${handCardDims.h}px)`, gridTemplateColumns: `repeat(${handRowCapacity}, ${handCardDims.w}px)` }}
+                      style={{ gridAutoFlow: 'row', gridTemplateRows: `repeat(${useWideLayout ? 1 : 2}, ${handCardDims.h}px)`, gridTemplateColumns: `repeat(${handRowCapacity}, ${handCardDims.w}px)` }}
                     >
                       {playerHandDisplay.map((card) => {
                         const is10 = mode === 'pairs' && pairsHandSize === 10;
