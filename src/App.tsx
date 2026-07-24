@@ -416,7 +416,7 @@ export default function App() {
     setCanDiscard(mode !== 'pairs');
     setHasDrawn(false);
     
-    setGuideMessage('發牌完成，輪到您！點右邊摸牌。');
+    setGuideMessage('發牌完成，請摸牌。');
     addLog(`牌局正常開啟。洗牌分發完畢，牌席賸餘牌 ${remainingDeck.length} 張。`);
     
     playSound('action');
@@ -450,7 +450,7 @@ export default function App() {
         setLastDiscardedCard(null);
         setPendingTrioOptions(trioOptions);
         setGamePhase('waiting_player_action');
-        setGuideMessage(`自摸 [${drawn.name}] 可湊成一組三張！請選擇動作，或按【過】把牌收進手牌。`);
+        setGuideMessage(`[${drawn.name}] 可湊成一組！請選擇或按過。`);
         return;
       }
 
@@ -465,7 +465,7 @@ export default function App() {
       }
       setPlayer(prev => ({ ...prev, hand: newHand15 }));
       setCanDiscard(true);
-      setGuideMessage(`[${drawn.name}] 加入手牌。請選一張不需要的牌打出。`);
+      setGuideMessage(`[${drawn.name}] 已加入手牌。`);
     } else if (mode === 'pairs') {
       // ── 10-card mode: auto-pair strays ──
       const pGroup = groupPairsMode(player.hand);
@@ -517,7 +517,7 @@ export default function App() {
         setPlayer(prev => ({ ...prev, hand: nextHand }));
         setLastDrawnCard(null);
         setCanDiscard(true);
-        setGuideMessage(`摸到的 [${drawn.name}] 未能配對，已加入手牌。請選取一張散牌打出。`);
+        setGuideMessage(`[${drawn.name}] 未配對，已加入手牌。`);
       }
     } else {
       // Standard Mahjong-like rules check when drawing from deck
@@ -526,7 +526,7 @@ export default function App() {
       if (moves.canHu || moves.canQuad || moves.canPong || moves.canEatSeq) {
         setPendingMoves(moves);
         setGamePhase('waiting_player_action');
-        setGuideMessage(`摸出 [${drawn.name}]！觸發了可配對行動。點選下方操作按鈕，或選擇「過」保留去手牌中。`);
+        setGuideMessage(`摸出 [${drawn.name}]，可行動！請選擇或按過。`);
       } else {
         // No moves. Push to hand and configure discard action
         const nextHand = sortHandForDisplay([...player.hand, drawn]);
@@ -536,7 +536,7 @@ export default function App() {
         }));
         setLastDrawnCard(null);
         setCanDiscard(true);
-        setGuideMessage(`自摸摸牌 [${drawn.name}]。無可用序列吃碰，牌已自動置入手牌。請選中一張牌打出去。`);
+        setGuideMessage(`[${drawn.name}] 無法吃碰，已加入手牌。`);
       }
     }
   };
@@ -1011,7 +1011,7 @@ export default function App() {
         if (trioOptions.length > 0) {
           setPendingTrioOptions(trioOptions);
           setGamePhase('waiting_player_action');
-          setGuideMessage(`電腦拋出 [${discarded.name}]！可湊成一組三張，請選擇動作或按【過】。`);
+          setGuideMessage(`電腦出 [${discarded.name}]，可湊組！請選擇或按過。`);
         } else {
           setCurPlayerId('player');
           setCanDiscard(false);
@@ -1032,7 +1032,7 @@ export default function App() {
             eatSeqOptions: []
           });
           setGamePhase('waiting_player_action');
-          setGuideMessage(`電腦拋出 [${discarded.name}]！正好可以為您的單張配對。點選下方【吃一隻】按鈕以攤派對子，或按【過】。`);
+          setGuideMessage(`電腦出 [${discarded.name}]，可配對！請選擇或按過。`);
         } else {
           setCurPlayerId('player');
           setCanDiscard(false);
@@ -1044,7 +1044,7 @@ export default function App() {
         if (playerMoves.canHu || playerMoves.canPong || playerMoves.canQuad || playerMoves.canEatSeq) {
           setPendingMoves(playerMoves);
           setGamePhase('waiting_player_action');
-          setGuideMessage(`電腦大意拋出 [${discarded.name}]！您有可用吃碰胡牌機會。請點選下方亮明或吃跑按鈕。`);
+          setGuideMessage(`電腦出 [${discarded.name}]，可吃碰胡！請選擇。`);
         } else {
           setCurPlayerId('player');
           setCanDiscard(false);
@@ -1200,7 +1200,7 @@ export default function App() {
           setDrawnFromDeck(true);
           setPendingMoves(repMoves);
           setGamePhase('waiting_player_action');
-          setGuideMessage(`補摸 [${repCard.name}]！再次觸發行動機會，請選擇！`);
+          setGuideMessage(`補摸 [${repCard.name}]，可行動！請選擇。`);
         } else {
           const finalHand = sortHandForDisplay([...quadHand, repCard]);
           setPlayer(prev => ({ ...prev, hand: finalHand, revealed: quadRevealed }));
@@ -1311,7 +1311,7 @@ export default function App() {
       handleWin('player', 'hu', result.explanation);
     } else {
       playSound('lose');
-      setGuideMessage(`宣告胡牌失敗：尚未滿足胡牌條件 (必須所有手牌都被成功分組，且總分數需達 10 胡或以上)！`);
+      setGuideMessage('尚未達成胡牌條件（需完整分組且達 10 胡）。');
       addLog(`[宣告失敗] ${result.explanation}`);
     }
   };
@@ -2039,8 +2039,8 @@ export default function App() {
                     <p className="text-base font-black leading-tight truncate flex-1 text-cyan-400">
                       {gamePhase === 'playing' && curPlayerId === 'player' && canDiscard
                         ? (selectedCardId
-                            ? `已選擇 [${player.hand.find(c => c.id === selectedCardId)?.name}]，請點擊「打出這張牌」`
-                            : '您的手牌：請點一張牌，再點擊「打出這張牌」')
+                            ? `已選 [${player.hand.find(c => c.id === selectedCardId)?.name}]，點擊打出`
+                            : '請點一張牌，再點擊打出')
                         : guideMessage}
                     </p>
                   </div>
