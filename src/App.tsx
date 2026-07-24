@@ -2348,6 +2348,7 @@ export default function App() {
               fontWeight: 900,
               borderRadius: '0.6rem',
               lineHeight: 1.1,
+              border: '3px solid #fff59d',
               animation: 'eatPairPop 0.5s cubic-bezier(0.34,1.56,0.64,1) both, boxGlow 0.8s ease-in-out 0.5s infinite alternate',
             }}
           >
@@ -2406,6 +2407,7 @@ export default function App() {
                 fontWeight: 900,
                 borderRadius: '0.6rem',
                 lineHeight: 1.1,
+                border: '3px solid #fca5a5',
                 animation: 'huStamp 0.7s cubic-bezier(0.22,1,0.36,1) both, huBoxGlow 1s ease-in-out 0.7s infinite alternate',
               }}
             >
@@ -2449,7 +2451,7 @@ export default function App() {
                   fontWeight: 900,
                   borderRadius: '0.6rem',
                   lineHeight: 1.1,
-                  border: 'none',
+                  border: '3px solid #fff59d',
                   cursor: 'pointer',
                   animation: 'fadeInUp 0.6s ease both, continuePulse 1.2s ease-in-out infinite alternate',
                 }}
