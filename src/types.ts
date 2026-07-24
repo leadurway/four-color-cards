@@ -24,6 +24,12 @@ export interface RevealedMeld {
   cards: Card[];
   hoo: number;
   name: string; // Description like "同色車馬包", "明刻"
+  // 'draw': formed by the player/computer's own draw (never touched the
+  // opponent's discard) — displayed inline in the hand, doesn't count toward
+  // 露牌 and never breaks 門清. 'discard': claimed straight out of the
+  // opponent's discard pile (碰/吃) — displayed in the separate 露牌 row and
+  // breaks 門清.
+  origin: 'draw' | 'discard';
 }
 
 export interface GameState {

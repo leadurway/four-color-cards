@@ -88,11 +88,6 @@ export default function App() {
   // since curPlayerId may not flip until well after the discard is displayed
   // (e.g. during the delayed reaction-check window).
   const [discardedBy, setDiscardedBy] = useState<'player' | 'computer' | null>(null);
-  // 門清 tracking for 台數計分: true until the very first time that side claims a
-  // trio/pair straight out of the opponent's discard pile (碰一隻/吃一隻/etc.).
-  // Reset to true at the start of every round in initGame.
-  const [playerMenqing, setPlayerMenqing] = useState(true);
-  const [computerMenqing, setComputerMenqing] = useState(true);
   const [isComputerThinking, setIsComputerThinking] = useState(false);
   const [showComputerHand, setShowComputerHand] = useState(false);
   
@@ -138,10 +133,14 @@ export default function App() {
     logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [logs]);
 
-  // Recalculate hand card size whenever hand count or container size changes
+  // Recalculate hand card size whenever the *displayed* card count (hand +
+  // self-formed/draw-origin locked melds, which render inline — see
+  // playerHandDisplay) or container size changes.
+  const playerDrawMeldCardCount = player.revealed.reduce((sum, m) => sum + (m.origin === 'draw' ? m.cards.length : 0), 0);
   useEffect(() => {
     const el = handContainerRef.current;
-    if (!el || player.hand.length === 0) return;
+    const displayCount = player.hand.length + playerDrawMeldCardCount;
+    if (!el || displayCount === 0) return;
 
     const calc = (containerW: number, containerH: number) => {
       // Guard against measuring before layout has settled (e.g. mid page-transition):
@@ -149,19 +148,40 @@ export default function App() {
       // 0px-wide columns, briefly showing a single vertical column until something else
       // (like drawing a card) forces a fresh, valid measurement.
       if (containerW < 10 || containerH < 10) return;
-      const count = player.hand.length;
-      const cols = Math.ceil(count / 2) || 1;
       const colGap = 1;
       const rowGap = 10; // gap-y-2.5
+      const aspect = 32 / 84; // xs card W/H ratio
+
+      // Baseline size: never shrink cards smaller than what this mode's normal
+      // steady-state hand would compute — 5 columns for 10-card mode's 9-10
+      // cards, 7 columns for 15-card mode's usual 14 — so legibility stays
+      // constant for seniors. It's only the OCCASIONAL 15th card (right after
+      // claiming a trio, before the first discard) that needs one column more
+      // than that baseline provides — instead of shrinking every card to fit,
+      // that extra column overflows horizontally and the hand scrolls (JSX below).
+      const baselineCols = mode === 'pairs' && pairsHandSize === 15 ? 7 : 5;
+      const baseMaxCardW = (containerW - colGap * (baselineCols - 1)) / baselineCols;
+      const baseMaxCardH = (containerH - rowGap) / 2;
+      let baseW: number, baseH: number;
+      if (baseMaxCardW / aspect <= baseMaxCardH) {
+        baseW = baseMaxCardW; baseH = baseMaxCardW / aspect;
+      } else {
+        baseH = baseMaxCardH; baseW = baseMaxCardH * aspect;
+      }
+
+      const cols = Math.ceil(displayCount / 2) || 1;
       const maxCardW = (containerW - colGap * (cols - 1)) / cols;
       const maxCardH = (containerH - rowGap) / 2; // 2 rows
-      const aspect = 32 / 84; // xs card W/H ratio
       let w: number, h: number;
       if (maxCardW / aspect <= maxCardH) {
         w = maxCardW; h = maxCardW / aspect;
       } else {
         h = maxCardH; w = maxCardH * aspect;
       }
+
+      // Clamp to the baseline floor — never shrink below it.
+      if (w < baseW) { w = baseW; h = baseH; }
+
       setHandCardDims({ w: Math.floor(w), h: Math.floor(h), fs: Math.round(w * 19 / 32) });
     };
 
@@ -171,7 +191,7 @@ export default function App() {
     });
     obs.observe(el);
     return () => obs.disconnect();
-  }, [player.hand.length]);
+  }, [player.hand.length, playerDrawMeldCardCount, mode, pairsHandSize]);
 
   // Fireworks canvas animation
   useEffect(() => {
@@ -348,7 +368,8 @@ export default function App() {
           type: 'quad',
           cards: q,
           hoo: isGeneral(q[0]) ? 8 : 4,
-          name: `自帶暗開車 [${q[0].name}*4]`
+          name: `自帶暗開車 [${q[0].name}*4]`,
+          origin: 'draw'
         });
         addLog(`[開局判定] 系統為您自動保留【暗開車 ${q[0].name}*4】。`);
       });
@@ -359,7 +380,8 @@ export default function App() {
           type: 'triple',
           cards: t,
           hoo: isGeneral(t[0]) ? 3 : 1,
-          name: `自帶暗坎 [${t[0].name}*3]`
+          name: `自帶暗坎 [${t[0].name}*3]`,
+          origin: 'draw'
         });
         addLog(`[開局判定] 系統為您自動保留【暗坎 ${t[0].name}*3】。`);
       });
@@ -378,7 +400,8 @@ export default function App() {
           type: 'quad',
           cards: q,
           hoo: isGeneral(q[0]) ? 8 : 4,
-          name: `自帶暗開車 [${q[0].name}*4]`
+          name: `自帶暗開車 [${q[0].name}*4]`,
+          origin: 'draw'
         });
         addLog(`[開局判定] 電腦 AI 自動鎖定【暗開車 ${q[0].name}*4】。`);
       });
@@ -388,7 +411,8 @@ export default function App() {
           type: 'triple',
           cards: t,
           hoo: isGeneral(t[0]) ? 3 : 1,
-          name: `自帶暗坎 [${t[0].name}*3]`
+          name: `自帶暗坎 [${t[0].name}*3]`,
+          origin: 'draw'
         });
         addLog(`[開局判定] 電腦 AI 自動鎖定【暗坎 ${t[0].name}*3】。`);
       });
@@ -430,8 +454,6 @@ export default function App() {
     setDrawnFromDeck(false);
     setSelectedCardId(null);
     setPendingMoves(null);
-    setPlayerMenqing(true);
-    setComputerMenqing(true);
     // In pairs mode player must draw first; in standard mode initial discard is allowed
     setCanDiscard(mode !== 'pairs');
     setHasDrawn(false);
@@ -507,7 +529,8 @@ export default function App() {
             type: 'pair',
             cards: [drawn, matchedCard],
             hoo: isGeneral(drawn) ? 2 : 0,
-            name: `對子 [${drawn.name}]`
+            name: `對子 [${drawn.name}]`,
+            origin: 'draw'
           };
           const newRevealed = [...player.revealed, autoPairMeld];
           setPlayer(prev => ({ ...prev, hand: nextHand, revealed: newRevealed }));
@@ -636,13 +659,13 @@ export default function App() {
             type: 'pair',
             cards: [playerDiscard, matchesStray],
             hoo: isGeneral(playerDiscard) ? 2 : 0,
-            name: `對子 [${playerDiscard.name}]`
+            name: `對子 [${playerDiscard.name}]`,
+            origin: 'discard'
           };
           const newRevealed = [...computer.revealed, newMeld];
           setComputer(prev => ({ ...prev, hand: newHand, revealed: newRevealed }));
           setLastDiscardedCard(null);
           setDiscardPile(prev => prev.filter(c => c.id !== playerDiscard.id));
-          setComputerMenqing(false);
           addLog(`🤖 電腦 AI 宣告【吃一隻】，將剛才您打出的 [${playerDiscard.name}] 配成一對。`);
           setEatPairAnimWho('computer');
           setEatPairAnimCards([playerDiscard, matchesStray]);
@@ -676,13 +699,13 @@ export default function App() {
             type: option.meldType,
             cards: option.resultCards,
             hoo: 0,
-            name: option.meldName
+            name: option.meldName,
+            origin: 'discard'
           };
           const newRevealed = [...computer.revealed, newMeld];
           setComputer(prev => ({ ...prev, hand: newHand, revealed: newRevealed }));
           setLastDiscardedCard(null);
           setDiscardPile(prev => prev.filter(c => c.id !== playerDiscard.id));
-          setComputerMenqing(false);
           addLog(`🤖 電腦 AI 宣告【${option.actionLabel}】，用您打出的 [${playerDiscard.name}] 湊成${option.meldName}。`);
           setEatPairAnimWho('computer');
           setEatPairAnimCards(option.resultCards);
@@ -725,7 +748,8 @@ export default function App() {
               type: 'quad',
               cards: [playerDiscard, ...inHand],
               hoo: 6,
-              name: `明開車 [${playerDiscard.name}*4]`
+              name: `明開車 [${playerDiscard.name}*4]`,
+              origin: 'discard'
             };
             effectiveRevealed = [...computer.revealed, newMeld];
             setComputer(prev => ({ ...prev, hand: effectiveHand, revealed: effectiveRevealed }));
@@ -733,7 +757,6 @@ export default function App() {
           addLog(`🤖 電腦 AI 吃牌宣告【明開車/槓】，霸氣槓出您的 [${playerDiscard.name}]！`);
           setLastDiscardedCard(null);
           setDiscardPile(prev => prev.filter(c => c.id !== playerDiscard.id));
-          setComputerMenqing(false);
 
           // Replacement draw after quad (rule requirement)
           if (deck.length > 0) {
@@ -763,13 +786,13 @@ export default function App() {
             type: 'triple',
             cards: [playerDiscard, ...toRemove],
             hoo: isGeneral(playerDiscard) ? 3 : 1,
-            name: `明刻 [${playerDiscard.name}*3]`
+            name: `明刻 [${playerDiscard.name}*3]`,
+            origin: 'discard'
           };
           setComputer(prev => ({ ...prev, hand: newHand, revealed: [...prev.revealed, newMeld] }));
           addLog(`🤖 電腦 AI 碰牌成功！亮明碰出了您的 [${playerDiscard.name}]。`);
           setLastDiscardedCard(null);
           setDiscardPile(prev => prev.filter(c => c.id !== playerDiscard.id));
-          setComputerMenqing(false);
           setTimeout(() => { executeComputerDiscard(newHand); }, 900);
           return;
         }
@@ -805,7 +828,8 @@ export default function App() {
           type: option.meldType,
           cards: option.resultCards,
           hoo: 0,
-          name: option.meldName
+          name: option.meldName,
+          origin: 'draw'
         };
         const newRevealed = [...computer.revealed, newMeld];
         setComputer(prev => ({ ...prev, hand: newHand, revealed: newRevealed }));
@@ -855,7 +879,8 @@ export default function App() {
           type: 'pair',
           cards: [drawn, matched],
           hoo: isGeneral(drawn) ? 2 : 0,
-          name: `對子 [${drawn.name}]`
+          name: `對子 [${drawn.name}]`,
+          origin: 'draw'
         };
         const newRevealed = [...computer.revealed, newMeld];
         setComputer(prev => ({ ...prev, hand: newHand, revealed: newRevealed }));
@@ -906,7 +931,8 @@ export default function App() {
             type: 'quad',
             cards: [drawn, ...inHand],
             hoo: 8,
-            name: `暗開車 [${drawn.name}*4]`
+            name: `暗開車 [${drawn.name}*4]`,
+            origin: 'draw'
           };
           const quadRevealed = [...computer.revealed, newMeld];
           setComputer(prev => ({ ...prev, hand: quadHand, revealed: quadRevealed }));
@@ -1095,7 +1121,6 @@ export default function App() {
     const claimedFromDiscard = !lastDrawnCard && !!lastDiscardedCard;
     if (claimedFromDiscard) {
       setDiscardPile(prev => prev.filter(c => c.id !== trigger.id));
-      setPlayerMenqing(false);
     }
 
     playSound('action');
@@ -1117,7 +1142,8 @@ export default function App() {
             type: 'pair',
             cards: [trigger, matchCard],
             hoo: isGeneral(trigger) ? 2 : 0,
-            name: `對子 [${trigger.name}]`
+            name: `對子 [${trigger.name}]`,
+            origin: claimedFromDiscard ? 'discard' : 'draw'
           };
 
           const updatedRevealed = [...player.revealed, newMeld];
@@ -1176,7 +1202,8 @@ export default function App() {
           type: 'triple',
           cards: [trigger, ...toRemove],
           hoo: isGeneral(trigger) ? 3 : 1, // Standard general triple gets 3 Hoo
-          name: `明刻 [${trigger.name}*3]`
+          name: `明刻 [${trigger.name}*3]`,
+          origin: claimedFromDiscard ? 'discard' : 'draw'
         };
 
         setPlayer(prev => ({
@@ -1205,7 +1232,8 @@ export default function App() {
         type: 'quad',
         cards: [trigger, ...toRemove],
         hoo: 6,
-        name: `明開車 [${trigger.name}*4]`
+        name: `明開車 [${trigger.name}*4]`,
+        origin: claimedFromDiscard ? 'discard' : 'draw'
       };
       const quadRevealed = [...player.revealed, newMeld];
 
@@ -1258,7 +1286,8 @@ export default function App() {
         type: 'consec_three',
         cards: eatOption.resultCards,
         hoo: 2,
-        name: eatOption.meldName
+        name: eatOption.meldName,
+        origin: 'discard'
       };
 
       setPlayer(prev => ({
@@ -1291,7 +1320,6 @@ export default function App() {
     // while also now part of the newly revealed 組).
     if (!lastDrawnCard && lastDiscardedCard) {
       setDiscardPile(prev => prev.filter(c => c.id !== trigger.id));
-      setPlayerMenqing(false);
     }
 
     playSound('action');
@@ -1303,7 +1331,8 @@ export default function App() {
       type: option.meldType,
       cards: option.resultCards,
       hoo: 0,
-      name: option.meldName
+      name: option.meldName,
+      origin: wasSelfDraw ? 'draw' : 'discard'
     };
     const newRevealed = [...player.revealed, newMeld];
     setPlayer(prev => ({ ...prev, hand: nextHand, revealed: newRevealed }));
@@ -1399,15 +1428,16 @@ export default function App() {
     setWinnerId(winner);
     setWinType(type);
 
-    let finalExplanation = explanation;
     let breakdown: ScoreBreakdown | null = null;
     if (type === 'pairs' && scoring) {
-      const wasMenqing = winner === 'player' ? playerMenqing : computerMenqing;
+      // 門清 is now purely structural: true unless the revealed melds include at
+      // least one claimed straight out of the opponent's discard pile (碰/吃).
+      // Self-formed melds (origin 'draw') never break it, matching the rule that
+      // 露牌 only counts discard-claimed melds.
+      const wasMenqing = !scoring.revealed.some(m => m.origin === 'discard');
       breakdown = scorePairsWin(scoring.hand, scoring.revealed, pairsHandSize, scoring.wasSelfDraw, wasMenqing);
-      const itemsText = breakdown.items.map(it => `${it.label} +${it.tai}`).join('、');
-      finalExplanation = `${explanation}\n台數：${itemsText}（共 ${breakdown.totalTai} 台）`;
     }
-    setWinExplanation(finalExplanation);
+    setWinExplanation(explanation);
     setWinScore(breakdown);
 
     // 贏家得分、輸家扣分；玩家分數同時寫回 localStorage 做跨 session 持久化
@@ -1421,7 +1451,7 @@ export default function App() {
       savePlayerScore(playerName, newPlayerScore);
     }
 
-    addLog(`📢 牌局終止！【${winner === 'player' ? '玩家' : '電腦 AI'}】宣佈贏得本盤勝利！理由：${finalExplanation}`);
+    addLog(`📢 牌局終止！【${winner === 'player' ? '玩家' : '電腦 AI'}】宣佈贏得本盤勝利！理由：${explanation}${breakdown ? `（共 ${breakdown.totalTai} 台）` : ''}`);
     setHuAnimWho(winner);
     setHuAnimCards(winCards);
     setShowHuCelebration(true);
@@ -1477,17 +1507,25 @@ export default function App() {
   const activeHuCheck = solveHu(huCheckHand, player.revealed);
   const playerGrouping = groupPairsMode(player.hand);
   const computerGrouping = groupPairsMode(computer.hand);
+  // Only discard-claimed melds (碰/吃) count as 露牌 — self-formed ones render
+  // inline in the computer's own hand-fan (cheat mode) instead.
+  const computerClaimedMelds = computer.revealed.filter(m => m.origin === 'discard');
 
   // 15-card mode: "組" hint (all 3 valid trio types) — locked from discard, seated together in display
   const player15TrioGroups = mode === 'pairs' && pairsHandSize === 15 ? find15TrioHints(player.hand) : [];
   const player15TrioIds = new Set(player15TrioGroups.flat().map(c => c.id));
-  // Already-locked melds (claimed 對/組) used to live in a separate "對子:/組子:" mini-card row;
-  // they now render inline in the hand grid instead, grouped together and badge-marked, so the
-  // player sees their whole hand — including what's already locked in — in one place.
-  const playerRevealedCards = player.revealed.flatMap(m => m.cards);
+  // Locked melds split by origin: self-formed ones (drawn — never touched the
+  // opponent's discard) render inline in the hand grid, badge-marked, since
+  // they're conceptually "still yours". Melds claimed from the opponent's
+  // discard (碰/吃) instead render in the separate 露牌 row (see
+  // playerClaimedMelds below), matching the original display and — more
+  // importantly — being the only thing that counts toward 露牌/breaks 門清.
+  const playerDrawMelds = player.revealed.filter(m => m.origin === 'draw');
+  const playerClaimedMelds = player.revealed.filter(m => m.origin === 'discard');
+  const playerRevealedCards = playerDrawMelds.flatMap(m => m.cards);
   const playerRevealedIds = new Set(playerRevealedCards.map(c => c.id));
   const playerRevealedBadge = new Map<string, string>();
-  player.revealed.forEach(meld => {
+  playerDrawMelds.forEach(meld => {
     const label = meld.type === 'pair' ? '對' : '組';
     meld.cards.forEach(c => playerRevealedBadge.set(c.id, label));
   });
@@ -1753,13 +1791,23 @@ export default function App() {
                     )}
                   </div>
 
-                  {/* Robot's revealed sets — cards now render inline in the hand area below
-                      (or in the 透視 fan when cheat mode is on); this just keeps a quick count. */}
+                  {/* Robot's 露牌: only melds claimed from the player's discard (碰/吃) —
+                      self-formed ones render inline in the hand area below (or in the
+                      透視 fan when cheat mode is on) and don't count here. */}
                   {mode === 'pairs' ? (
-                    <div className="flex items-center gap-1 text-xs font-bold text-cyan-400">
-                      <span>{pairsHandSize === 15 ? '組子：' : '對子：'}</span>
-                      <strong className="text-sm">{computer.revealed.length}</strong>
-                      <span>組</span>
+                    <div className="flex items-center gap-1.5 p-1 bg-black/25 rounded-xl border border-white/5">
+                      <span className="text-xs font-bold text-cyan-400 shrink-0">{pairsHandSize === 15 ? '組子：' : '對子：'}</span>
+                      <strong className="text-sm text-cyan-400 shrink-0">{computerClaimedMelds.length}</strong>
+                      <span className="text-xs font-bold text-cyan-400 shrink-0">組</span>
+                      <div className="flex flex-wrap gap-[3px] flex-1 min-w-0">
+                        {computerClaimedMelds.length > 0
+                          ? computerClaimedMelds.map((meld) => (
+                              <div key={meld.id} className="flex gap-[1px]">
+                                {meld.cards.map((c, i) => renderMiniCard(c, `comp-claim-${meld.id}-${c.id}-${i}`))}
+                              </div>
+                            ))
+                          : <span className="text-cyan-400/60 text-xs">無</span>}
+                      </div>
                     </div>
                   ) : computer.revealed.length > 0 && (
                     <div className="flex items-center gap-1 p-1 bg-black/40 rounded-xl border border-white/5 mt-0.5 overflow-x-auto whitespace-nowrap scrollbar-none">
@@ -1774,12 +1822,12 @@ export default function App() {
                     </div>
                   )}
 
-                  {/* Fan of AI cards — only shown in cheat/透視 mode. Locked melds render inline
-                      with the rest of the hand (same as the player's own hand) instead of a
-                      separate row, each tagged with its 對/組 badge. */}
+                  {/* Fan of AI cards — only shown in cheat/透視 mode. Self-formed (draw-origin)
+                      melds render inline with the rest of the hand, tagged with their 對/組
+                      badge; discard-claimed melds already show in the 露牌 row above instead. */}
                   {showComputerHand && (
                     <div className="flex flex-wrap justify-center items-center gap-0.5 pt-1.5 border-t border-white/5 max-h-[110px] overflow-hidden">
-                      {computer.revealed.flatMap(meld =>
+                      {computer.revealed.filter(m => m.origin === 'draw').flatMap(meld =>
                         meld.cards.map((card, i) => (
                           <div key={`comp-revealed-${meld.id}-${card.id}-${i}`} className="opacity-75 filter scale-75 relative">
                             <FourColorCard card={card} size="sm" isRevealed={true} disabled={true} />
@@ -1881,21 +1929,35 @@ export default function App() {
                       )}
                     </div>
                     {mode === 'pairs' && (
-                      <div className="flex items-center gap-1 text-xs font-bold text-yellow-300">
-                        <span>{pairsHandSize === 15 ? '組子：' : '對子：'}</span>
-                        <strong className="text-sm">{player.revealed.length}</strong>
-                        <span>組</span>
+                      <div className="flex items-center gap-1.5 p-1 bg-black/25 rounded-xl border border-white/5">
+                        <span className="text-xs font-bold text-yellow-300 shrink-0">{pairsHandSize === 15 ? '組子：' : '對子：'}</span>
+                        <strong className="text-sm text-yellow-300 shrink-0">{playerClaimedMelds.length}</strong>
+                        <span className="text-xs font-bold text-yellow-300 shrink-0">組</span>
+                        <div className="flex flex-wrap gap-[3px] flex-1 min-w-0">
+                          {playerClaimedMelds.length > 0
+                            ? playerClaimedMelds.map((meld) => (
+                                <div key={meld.id} className="flex gap-[1px]">
+                                  {meld.cards.map((c, i) => renderMiniCard(c, `player-claim-${meld.id}-${c.id}-${i}`))}
+                                </div>
+                              ))
+                            : <span className="text-yellow-300/60 text-xs">無</span>}
+                        </div>
                       </div>
                     )}
                   </div>
 
 
-                  {/* PLAYER HAND — 2 rows, max card size via ResizeObserver */}
+                  {/* PLAYER HAND — 2 rows, max card size via ResizeObserver. Cards never
+                      shrink below the baseline legible size (see effect above); once a
+                      hand (e.g. 15 cards right after claiming, before the first discard)
+                      needs more columns than fit at that size, this scrolls horizontally
+                      instead — the 2-row shape and priority ordering (locked melds, then
+                      trio hints, then strays) stay intact, just wider than the viewport. */}
                   <div className="flex-1 min-h-0 flex flex-col px-1 pt-1 pb-0 overflow-hidden">
                     <div
                       ref={handContainerRef}
-                      className="flex-1 min-h-0 grid justify-center content-start gap-x-[1px] gap-y-2.5 overflow-hidden py-1"
-                      style={{ gridTemplateColumns: `repeat(${Math.ceil(playerHandDisplay.length / 2) || 1}, ${handCardDims.w}px)` }}
+                      className="flex-1 min-h-0 grid justify-start content-start gap-x-[1px] gap-y-2.5 overflow-x-auto overflow-y-hidden py-1"
+                      style={{ gridAutoFlow: 'row', gridTemplateRows: `repeat(2, ${handCardDims.h}px)`, gridTemplateColumns: `repeat(${Math.ceil(playerHandDisplay.length / 2) || 1}, ${handCardDims.w}px)` }}
                     >
                       {playerHandDisplay.map((card) => {
                         const is10 = mode === 'pairs' && pairsHandSize === 10;
@@ -2405,21 +2467,13 @@ export default function App() {
               {mode === 'pairs' ? '👦 抓對對子簡單對局' : '🀄 傳統吃碰標準對戰'}
             </p>
 
-            <div className="bg-black/45 p-4 rounded-2xl border border-blue-800 text-slate-100 text-sm font-serif font-medium leading-relaxed whitespace-pre-line mb-3 max-h-[140px] overflow-y-auto">
+            {/* This modal only ever appears for the 流局/draw path (handleDrawGame) —
+                real wins stay inside the 胡牌慶祝 celebration overlay (which owns the
+                積分計算資訊框) until "繼續下局" restarts the round, so there's no score
+                to show here; a draw never changes anyone's score. */}
+            <div className="bg-black/45 p-4 rounded-2xl border border-blue-800 text-slate-100 text-sm font-serif font-medium leading-relaxed mb-5 max-h-[140px] overflow-y-auto">
               {winExplanation}
             </div>
-
-            {winScore && (
-              <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-3 mb-5 text-sm">
-                <p className="text-emerald-300 font-black mb-1">
-                  本局輸贏：{winnerId === 'player' ? '+' : '-'}{winScore.payout.toLocaleString()} 分
-                </p>
-                <div className="flex justify-between text-xs font-bold text-slate-300 tabular-nums">
-                  <span>{playerAvatar} {playerName}：{player.score.toLocaleString()}</span>
-                  <span>🤖 電腦AI：{computer.score.toLocaleString()}</span>
-                </div>
-              </div>
-            )}
 
             <button
               onClick={() => { playSound('click'); initGame(false); }}
@@ -2570,16 +2624,29 @@ export default function App() {
               {huAnimWho === 'player' ? '恭喜大獲全勝！' : '電腦勝出'}
             </div>
 
-            {/* 本局輸贏 + 雙方最新總分 */}
+            {/* 積分計算資訊框：台數明細 + 本局輸贏 + 雙方最新總分 */}
             {winScore && (
               <div
-                className="bg-black/50 border border-white/20 rounded-xl px-4 py-2 text-center"
-                style={{ animation: 'fadeInUp 0.5s ease 0.7s both' }}
+                className="bg-black/55 border border-emerald-500/30 rounded-2xl px-4 py-3 text-left"
+                style={{ animation: 'fadeInUp 0.5s ease 0.7s both', minWidth: 230, maxWidth: 300 }}
               >
-                <p className="text-emerald-300 font-black text-sm">
+                <p className="text-emerald-300 font-black text-xs text-center mb-1.5 tracking-wide">💰 積分計算</p>
+                <ul className="space-y-0.5 mb-1.5">
+                  {winScore.items.map((it, i) => (
+                    <li key={i} className="flex justify-between text-[11px] font-semibold text-slate-200">
+                      <span>{it.label}</span>
+                      <span className="tabular-nums">+{it.tai} 台</span>
+                    </li>
+                  ))}
+                </ul>
+                <div className="flex justify-between text-xs font-black text-emerald-300 border-t border-emerald-500/25 pt-1 mb-1.5">
+                  <span>共計台數</span>
+                  <span className="tabular-nums">{winScore.totalTai} 台</span>
+                </div>
+                <p className="text-emerald-300 font-black text-sm text-center mb-1">
                   本局輸贏：{huAnimWho === 'player' ? '+' : '-'}{winScore.payout.toLocaleString()} 分
                 </p>
-                <div className="flex gap-3 text-xs font-bold text-slate-300 tabular-nums mt-0.5">
+                <div className="flex justify-between text-[11px] font-bold text-slate-300 tabular-nums">
                   <span>{playerAvatar} {playerName}：{player.score.toLocaleString()}</span>
                   <span>🤖 電腦AI：{computer.score.toLocaleString()}</span>
                 </div>
