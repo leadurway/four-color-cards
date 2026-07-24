@@ -135,11 +135,19 @@ export default function App() {
 
   // Card size is fixed, independent of how many cards are actually in hand:
   // width is set to exactly fit HAND_ROW_REFERENCE_COLS (6) cards across the
-  // row, height to exactly fit 2 rows. The *logical* row-1 capacity (how many
-  // cards sit in row 1 before wrapping to row 2) is mode-specific and can
-  // exceed 6 (see handRowCapacity below) — those extra columns simply overflow
-  // past the visible width and the hand scrolls horizontally to reach them.
+  // row, height to exactly fit 2 rows — whichever of those two constraints is
+  // tighter wins, and the OTHER dimension is derived from it via the same
+  // card aspect ratio the iPhone layout naturally lands on (narrow width is
+  // always the binding constraint there). Without this, a wide-but-not-tall
+  // container (iPad landscape, desktop web — capped to max-w-lg horizontally
+  // but with plenty of vertical room) would size height independently off a
+  // generous containerH, producing cards far taller/narrower than iPhone's.
+  // The *logical* row-1 capacity (how many cards sit in row 1 before wrapping
+  // to row 2) is mode-specific and can exceed 6 (see handRowCapacity below) —
+  // those extra columns simply overflow past the visible width and the hand
+  // scrolls horizontally to reach them.
   const HAND_ROW_REFERENCE_COLS = 6;
+  const HAND_CARD_ASPECT = 32 / 84; // iPhone's natural xs card W/H ratio
   useEffect(() => {
     const el = handContainerRef.current;
     if (!el) return;
@@ -162,8 +170,14 @@ export default function App() {
       if (containerW < 10 || containerH < 10) return;
       const colGap = 1;
       const rowGap = 10; // gap-y-2.5
-      const w = (containerW - colGap * (HAND_ROW_REFERENCE_COLS - 1)) / HAND_ROW_REFERENCE_COLS;
-      const h = (containerH - rowGap) / 2; // exactly 2 rows
+      const maxCardW = (containerW - colGap * (HAND_ROW_REFERENCE_COLS - 1)) / HAND_ROW_REFERENCE_COLS;
+      const maxCardH = (containerH - rowGap) / 2; // exactly 2 rows
+      let w: number, h: number;
+      if (maxCardW / HAND_CARD_ASPECT <= maxCardH) {
+        w = maxCardW; h = maxCardW / HAND_CARD_ASPECT;
+      } else {
+        h = maxCardH; w = maxCardH * HAND_CARD_ASPECT;
+      }
       setHandCardDims({ w: Math.floor(w), h: Math.floor(h), fs: Math.round(w * 19 / 32) });
     };
 
