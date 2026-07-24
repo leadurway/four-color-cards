@@ -1764,114 +1764,6 @@ export default function App() {
                 {/* ② 控制頁面 — Control Panel (no vertical scroll — everything fits) */}
                 <div className="flex-1 flex flex-col min-h-0 px-3 pt-1.5 gap-1.5 overflow-hidden">
 
-                {/* GAME ACTIVE DECISIONS */}
-                {(pendingMoves || pendingTrioOptions.length > 0) && gamePhase === 'waiting_player_action' && (
-                  <div className="bg-black/95 border-2 border-yellow-500 p-2.5 rounded-2xl flex flex-col items-center gap-2 animate-pulse shadow-2xl shrink-0 z-40">
-                    <div className="text-[11px] font-black text-yellow-400 border-b border-white/10 w-full text-center pb-1">
-                      🚨 雷達鎖定配對信號{triggerSourceLabel ? `（${triggerSourceLabel}）` : ''}！請選擇：
-                    </div>
-                    
-                    <div className="flex flex-wrap items-center justify-center gap-2">
-                      {/* Declare HU (Winning) */}
-                      {pendingMoves?.canHu && (
-                        <button
-                          onClick={() => handlePlayerAction('hu')}
-                          style={{
-                            width: handCardDims.w * 3,
-                            height: handCardDims.w,
-                            fontSize: Math.min(handCardDims.w * 0.55, handCardDims.h * 0.38),
-                            animation: 'bounceSmall 0.7s ease-in-out infinite',
-                          }}
-                          className="rounded-xl bg-red-500 hover:bg-red-400 border-2 border-yellow-300 shadow-lg flex items-center justify-center font-black text-white hover:scale-105 active:scale-95 transition-transform whitespace-nowrap"
-                        >
-                          胡！
-                        </button>
-                      )}
-
-                      {/* Pairs Match or standard Pong */}
-                      {pendingMoves?.canPong && (
-                        <button
-                          onClick={() => handlePlayerAction('pong')}
-                          style={{
-                            width: handCardDims.w * 3,
-                            height: handCardDims.w,
-                            fontSize: Math.min(handCardDims.w * 0.5, handCardDims.h * 0.34),
-                            animation: 'bounceSmall 0.85s ease-in-out infinite',
-                          }}
-                          className="rounded-xl bg-amber-400 hover:bg-amber-300 border-2 border-white shadow-md flex items-center justify-center font-black text-white hover:scale-105 active:scale-95 transition-transform whitespace-nowrap"
-                        >
-                          {mode === 'pairs' ? '吃一隻' : '碰'}
-                        </button>
-                      )}
-
-                      {/* Quads action */}
-                      {pendingMoves?.canQuad && (
-                        <button
-                          onClick={() => handlePlayerAction('quad')}
-                          style={{
-                            width: handCardDims.w * 3,
-                            height: handCardDims.w,
-                            fontSize: Math.min(handCardDims.w * 0.5, handCardDims.h * 0.34),
-                            animation: 'bounceSmall 0.85s ease-in-out infinite 0.1s',
-                          }}
-                          className="rounded-xl bg-yellow-400 hover:bg-yellow-300 border-2 border-white shadow-md flex items-center justify-center font-black text-black hover:scale-105 active:scale-95 transition-transform whitespace-nowrap"
-                        >
-                          槓
-                        </button>
-                      )}
-
-                      {/* Eat sequences (with lists support) */}
-                      {pendingMoves?.canEatSeq && pendingMoves.eatSeqOptions.map((opt, i) => (
-                        <button
-                          key={i}
-                          onClick={() => handlePlayerAction('eat', opt)}
-                          style={{
-                            width: handCardDims.w * 3,
-                            height: handCardDims.w,
-                            fontSize: Math.min(handCardDims.w * 0.5, handCardDims.h * 0.34),
-                            animation: `bounceSmall 0.85s ease-in-out infinite ${i * 0.1}s`,
-                          }}
-                          className="rounded-xl bg-lime-400 hover:bg-lime-300 border-2 border-white shadow-md flex items-center justify-center font-black text-black active:scale-95 transition-transform whitespace-nowrap"
-                        >
-                          吃:{opt.resultCards.map(c=>c.character).join('')}
-                        </button>
-                      ))}
-
-                      {/* 15-card mode: 碰一隻/吃一隻 trio claim options */}
-                      {pendingTrioOptions.map((opt, i) => (
-                        <button
-                          key={i}
-                          onClick={() => handlePlayerTrioAction(opt)}
-                          style={{
-                            width: handCardDims.w * 3,
-                            height: handCardDims.w,
-                            animation: `bounceSmall 0.85s ease-in-out infinite ${i * 0.1}s`,
-                          }}
-                          className="rounded-xl bg-amber-400 hover:bg-amber-300 border-2 border-white shadow-md flex flex-col items-center justify-center font-black text-white hover:scale-105 active:scale-95 transition-transform"
-                        >
-                          <span style={{ fontSize: Math.min(handCardDims.w * 0.42, handCardDims.h * 0.28) }}>{opt.actionLabel}</span>
-                          <span className="opacity-90" style={{ fontSize: Math.min(handCardDims.w * 0.22, handCardDims.h * 0.15) }}>
-                            {opt.resultCards.map(c => c.name).join('‧')}
-                          </span>
-                        </button>
-                      ))}
-
-                      {/* Drop choices */}
-                      <button
-                        onClick={handlePlayerSkip}
-                        style={{
-                          width: handCardDims.w * 3,
-                          height: handCardDims.w,
-                          fontSize: Math.min(handCardDims.w * 0.5, handCardDims.h * 0.34),
-                        }}
-                        className="rounded-xl bg-slate-600 hover:bg-slate-500 border border-slate-400 font-bold text-white active:scale-95 flex items-center justify-center whitespace-nowrap"
-                      >
-                        過 (放棄)
-                      </button>
-                    </div>
-                  </div>
-                )}
-
                 {/* ELDER ACTION CONTROLLER AID — flex-1 fills remaining height */}
                 <div className="flex-1 flex flex-col min-h-0 bg-black/35 rounded-2xl border border-white/10 select-none overflow-hidden">
 
@@ -2094,6 +1986,119 @@ export default function App() {
               </aside>
 
               </div>{/* closes flex-1 min-h-0 flex overflow-hidden */}
+
+              {/* GAME ACTIVE DECISIONS — floats over the game page so showing/hiding it
+                  never reflows the underlying layout (was previously an in-flow shrink-0
+                  block inside the control panel, which pushed the hand/action area down
+                  whenever it appeared) */}
+              {(pendingMoves || pendingTrioOptions.length > 0) && gamePhase === 'waiting_player_action' && (
+                <div className="absolute inset-x-0 bottom-0 top-[52px] z-40 flex items-center justify-center pointer-events-none px-3">
+                  <div className="pointer-events-auto bg-black/95 border-2 border-yellow-500 p-2.5 rounded-2xl flex flex-col items-center gap-2 animate-pulse shadow-2xl max-w-full">
+                    <div className="text-[11px] font-black text-yellow-400 border-b border-white/10 w-full text-center pb-1">
+                      🚨 雷達配對組信號{triggerSourceLabel ? `（${triggerSourceLabel}）` : ''}！請選擇：
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-center gap-2">
+                      {/* Declare HU (Winning) */}
+                      {pendingMoves?.canHu && (
+                        <button
+                          onClick={() => handlePlayerAction('hu')}
+                          style={{
+                            width: handCardDims.w * 3,
+                            height: handCardDims.w,
+                            fontSize: Math.min(handCardDims.w * 0.55, handCardDims.h * 0.38),
+                            animation: 'bounceSmall 0.7s ease-in-out infinite',
+                          }}
+                          className="rounded-xl bg-red-500 hover:bg-red-400 border-2 border-yellow-300 shadow-lg flex items-center justify-center font-black text-white hover:scale-105 active:scale-95 transition-transform whitespace-nowrap"
+                        >
+                          胡！
+                        </button>
+                      )}
+
+                      {/* Pairs Match or standard Pong */}
+                      {pendingMoves?.canPong && (
+                        <button
+                          onClick={() => handlePlayerAction('pong')}
+                          style={{
+                            width: handCardDims.w * 3,
+                            height: handCardDims.w,
+                            fontSize: Math.min(handCardDims.w * 0.5, handCardDims.h * 0.34),
+                            animation: 'bounceSmall 0.85s ease-in-out infinite',
+                          }}
+                          className="rounded-xl bg-amber-400 hover:bg-amber-300 border-2 border-white shadow-md flex items-center justify-center font-black text-white hover:scale-105 active:scale-95 transition-transform whitespace-nowrap"
+                        >
+                          {mode === 'pairs' ? '吃一隻' : '碰'}
+                        </button>
+                      )}
+
+                      {/* Quads action */}
+                      {pendingMoves?.canQuad && (
+                        <button
+                          onClick={() => handlePlayerAction('quad')}
+                          style={{
+                            width: handCardDims.w * 3,
+                            height: handCardDims.w,
+                            fontSize: Math.min(handCardDims.w * 0.5, handCardDims.h * 0.34),
+                            animation: 'bounceSmall 0.85s ease-in-out infinite 0.1s',
+                          }}
+                          className="rounded-xl bg-yellow-400 hover:bg-yellow-300 border-2 border-white shadow-md flex items-center justify-center font-black text-black hover:scale-105 active:scale-95 transition-transform whitespace-nowrap"
+                        >
+                          槓
+                        </button>
+                      )}
+
+                      {/* Eat sequences (with lists support) */}
+                      {pendingMoves?.canEatSeq && pendingMoves.eatSeqOptions.map((opt, i) => (
+                        <button
+                          key={i}
+                          onClick={() => handlePlayerAction('eat', opt)}
+                          style={{
+                            width: handCardDims.w * 3,
+                            height: handCardDims.w,
+                            fontSize: Math.min(handCardDims.w * 0.5, handCardDims.h * 0.34),
+                            animation: `bounceSmall 0.85s ease-in-out infinite ${i * 0.1}s`,
+                          }}
+                          className="rounded-xl bg-lime-400 hover:bg-lime-300 border-2 border-white shadow-md flex items-center justify-center font-black text-black active:scale-95 transition-transform whitespace-nowrap"
+                        >
+                          吃:{opt.resultCards.map(c=>c.character).join('')}
+                        </button>
+                      ))}
+
+                      {/* 15-card mode: 碰一隻/吃一隻 trio claim options */}
+                      {pendingTrioOptions.map((opt, i) => (
+                        <button
+                          key={i}
+                          onClick={() => handlePlayerTrioAction(opt)}
+                          style={{
+                            width: handCardDims.w * 3,
+                            height: handCardDims.w,
+                            animation: `bounceSmall 0.85s ease-in-out infinite ${i * 0.1}s`,
+                          }}
+                          className="rounded-xl bg-amber-400 hover:bg-amber-300 border-2 border-white shadow-md flex flex-col items-center justify-center font-black text-white hover:scale-105 active:scale-95 transition-transform"
+                        >
+                          <span style={{ fontSize: Math.min(handCardDims.w * 0.42, handCardDims.h * 0.28) }}>{opt.actionLabel}</span>
+                          <span className="opacity-90" style={{ fontSize: Math.min(handCardDims.w * 0.22, handCardDims.h * 0.15) }}>
+                            {opt.resultCards.map(c => c.name).join('‧')}
+                          </span>
+                        </button>
+                      ))}
+
+                      {/* Drop choices */}
+                      <button
+                        onClick={handlePlayerSkip}
+                        style={{
+                          width: handCardDims.w * 3,
+                          height: handCardDims.w,
+                          fontSize: Math.min(handCardDims.w * 0.5, handCardDims.h * 0.34),
+                        }}
+                        className="rounded-xl bg-slate-600 hover:bg-slate-500 border border-slate-400 font-bold text-white active:scale-95 flex items-center justify-center whitespace-nowrap"
+                      >
+                        過 (放棄)
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* RETRO DIALOG HISTORY ON DEMAND OVERLAY */}
               {showLogDrawer && (
