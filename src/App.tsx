@@ -112,6 +112,36 @@ export default function App() {
   const logsEndRef = useRef<HTMLDivElement>(null);
   const handContainerRef = useRef<HTMLDivElement>(null);
   const [handCardDims, setHandCardDims] = useState({ w: 32, h: 84, fs: 19 });
+  // Device/orientation classification driving hand-layout behavior:
+  // - iPhone portrait (isPhoneSized && !isLandscape): untouched, exactly the
+  //   original single-row-of-melds/2-row-hand layout — no changes here at all.
+  // - iPhone landscape, iPad landscape, and PC web (all !isPhoneSized||isLandscape,
+  //   i.e. anything landscape, or anything not phone-sized) show the hand in a
+  //   single scrollable row and get the optimized info-box layout.
+  // - iPad portrait keeps the 2-row hand but still gets the optimized info-box
+  //   layout (it's !isPhoneSized, so it's not the excluded iPhone-portrait case).
+  // "Phone-sized" is judged by the SHORTER of the two viewport dimensions (the
+  // phone's portrait-width even while it's held sideways), so a rotated iPhone
+  // doesn't get misclassified as tablet-sized.
+  const [isLandscape, setIsLandscape] = useState(false);
+  const [isPhoneSized, setIsPhoneSized] = useState(true);
+  useEffect(() => {
+    const update = () => {
+      const w = window.innerWidth, h = window.innerHeight;
+      setIsLandscape(w > h);
+      setIsPhoneSized(Math.min(w, h) < 768);
+    };
+    update();
+    window.addEventListener('resize', update);
+    window.addEventListener('orientationchange', update);
+    return () => {
+      window.removeEventListener('resize', update);
+      window.removeEventListener('orientationchange', update);
+    };
+  }, []);
+  const isIphonePortrait = isPhoneSized && !isLandscape;
+  const showSingleRowHand = isLandscape; // iPhone-landscape, iPad-landscape, PC web
+  const useOptimizedInfoBoxLayout = !isIphonePortrait;
 
   // Animation overlays
   const [showEatPairAnim, setShowEatPairAnim] = useState(false);
@@ -135,17 +165,19 @@ export default function App() {
 
   // Card size is fixed, independent of how many cards are actually in hand:
   // width is set to exactly fit HAND_ROW_REFERENCE_COLS (6) cards across the
-  // row, height to exactly fit 2 rows — whichever of those two constraints is
-  // tighter wins, and the OTHER dimension is derived from it via the same
-  // card aspect ratio the iPhone layout naturally lands on (narrow width is
-  // always the binding constraint there). Without this, a wide-but-not-tall
-  // container (iPad landscape, desktop web — capped to max-w-lg horizontally
-  // but with plenty of vertical room) would size height independently off a
-  // generous containerH, producing cards far taller/narrower than iPhone's.
+  // row, height to exactly fit the hand's row count (2 for iPhone/iPad
+  // portrait, 1 for anything landscape or PC web — see showSingleRowHand)
+  // — whichever of those two constraints is tighter wins, and the OTHER
+  // dimension is derived from it via the same card aspect ratio the iPhone
+  // layout naturally lands on (narrow width is always the binding constraint
+  // there). Without this, a wide-but-not-tall container (iPad landscape,
+  // desktop web — capped to max-w-lg horizontally but with plenty of
+  // vertical room) would size height independently off a generous
+  // containerH, producing cards far taller/narrower than iPhone's.
   // The *logical* row-1 capacity (how many cards sit in row 1 before wrapping
-  // to row 2) is mode-specific and can exceed 6 (see handRowCapacity below) —
-  // those extra columns simply overflow past the visible width and the hand
-  // scrolls horizontally to reach them.
+  // to row 2, when 2-row) is mode-specific and can exceed 6 (see
+  // handRowCapacity below) — those extra columns simply overflow past the
+  // visible width and the hand scrolls horizontally to reach them.
   const HAND_ROW_REFERENCE_COLS = 6;
   const HAND_CARD_ASPECT = 32 / 84; // iPhone's natural xs card W/H ratio
   useEffect(() => {
@@ -162,6 +194,7 @@ export default function App() {
     // reference — combined with only recomputing once per page visit (deps
     // below) rather than on every hand change, this keeps the size locked.
     const wrapperEl = el.parentElement ?? el;
+    const rows = showSingleRowHand ? 1 : 2;
 
     const calc = (containerW: number, containerH: number) => {
       // Guard against measuring before layout has settled (e.g. mid page-transition):
@@ -171,7 +204,7 @@ export default function App() {
       const colGap = 1;
       const rowGap = 10; // gap-y-2.5
       const maxCardW = (containerW - colGap * (HAND_ROW_REFERENCE_COLS - 1)) / HAND_ROW_REFERENCE_COLS;
-      const maxCardH = (containerH - rowGap) / 2; // exactly 2 rows
+      const maxCardH = (containerH - rowGap * (rows - 1)) / rows;
       let w: number, h: number;
       if (maxCardW / HAND_CARD_ASPECT <= maxCardH) {
         w = maxCardW; h = maxCardW / HAND_CARD_ASPECT;
@@ -187,7 +220,7 @@ export default function App() {
     });
     obs.observe(wrapperEl);
     return () => obs.disconnect();
-  }, [activePage]);
+  }, [activePage, showSingleRowHand]);
 
   // Fireworks canvas animation
   useEffect(() => {
@@ -1538,13 +1571,18 @@ export default function App() {
     ...player15TrioGroups.flat(),
     ...player.hand.filter(c => !player15TrioIds.has(c.id)),
   ];
-  // Row-1 capacity (columns before wrapping to row 2): 10-card mode's normal
-  // hand fills row 1 with 6 cards exactly (matching the fixed card width
-  // above, so 10-card mode never needs to scroll); 15-card mode's larger hand
-  // prioritizes filling row 1 with 9 before wrapping to row 2 — since card
-  // width stays fixed for 6, those extra 3 columns overflow past the visible
-  // width and the hand scrolls horizontally to reach them.
-  const handRowCapacity = mode === 'pairs' && pairsHandSize === 15 ? 9 : 6;
+  // Row-1 capacity (columns before wrapping to row 2, when 2-row): 10-card
+  // mode's normal hand fills row 1 with 6 cards exactly (matching the fixed
+  // card width above, so 10-card mode never needs to scroll); 15-card mode's
+  // larger hand prioritizes filling row 1 with 9 before wrapping to row 2 —
+  // since card width stays fixed for 6, those extra 3 columns overflow past
+  // the visible width and the hand scrolls horizontally to reach them.
+  // In single-row layout (iPhone/iPad landscape, PC web) every card sits in
+  // the one row instead, so the column count is simply however many cards
+  // are actually displayed.
+  const handRowCapacity = showSingleRowHand
+    ? (playerHandDisplay.length || 1)
+    : (mode === 'pairs' && pairsHandSize === 15 ? 9 : 6);
 
   // 桌面牌 discard/drawn card size: mirrors handCardDims's proportions but capped independently
   // of the (fixed-height) table row, so it never feeds back into the hand container's ResizeObserver.
@@ -1773,7 +1811,7 @@ export default function App() {
 
               {/* GAME SPACE FLOW */}
               <div className="flex-1 min-h-0 flex overflow-hidden">
-              <div className="flex-1 flex flex-col min-h-0 overflow-hidden max-w-lg mx-auto">
+              <div className={`flex-1 flex flex-col min-h-0 overflow-hidden mx-auto ${useOptimizedInfoBoxLayout ? 'max-w-2xl' : 'max-w-lg'}`}>
 
                 {/* ① 遊戲頁面 — Game Display Panel */}
                 <div className="shrink-0 flex flex-col px-3 pt-2 pb-1.5 space-y-1.5 border-b-2 border-white/10">
@@ -1977,7 +2015,7 @@ export default function App() {
                     <div
                       ref={handContainerRef}
                       className="shrink-0 grid justify-start content-start gap-x-[1px] gap-y-2.5 overflow-x-auto overflow-y-hidden py-1"
-                      style={{ gridAutoFlow: 'row', gridTemplateRows: `repeat(2, ${handCardDims.h}px)`, gridTemplateColumns: `repeat(${handRowCapacity}, ${handCardDims.w}px)` }}
+                      style={{ gridAutoFlow: 'row', gridTemplateRows: `repeat(${showSingleRowHand ? 1 : 2}, ${handCardDims.h}px)`, gridTemplateColumns: `repeat(${handRowCapacity}, ${handCardDims.w}px)` }}
                     >
                       {playerHandDisplay.map((card) => {
                         const is10 = mode === 'pairs' && pairsHandSize === 10;
