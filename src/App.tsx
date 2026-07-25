@@ -2332,7 +2332,7 @@ export default function App() {
                           left: 2, right: 2,
                           top: '50%',
                           transform: 'translateY(-50%)',
-                          height: Math.max(20, handCardDims.h * 0.24),
+                          height: Math.max(16, handCardDims.h * 0.19),
                           fontSize: Math.max(13, handCardDims.fs * 0.5),
                           background: '#1d4ed8',
                           color: '#ffffff',
