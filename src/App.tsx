@@ -2923,17 +2923,18 @@ export default function App() {
               </div>
             )}
 
-            {/* 胡牌 badge: 長=一個手牌的高度, 高=兩個手牌的寬度, 紅底白字 */}
+            {/* 胡牌 badge: 單排四字（玩家自摸／玩家胡牌／電腦自摸／電腦胡牌），紅底白字，長方形 */}
             <div
               style={{
-                width: handCardDims.h,
-                height: handCardDims.w * 2,
+                width: handCardDims.h * 1.7,
+                height: handCardDims.w * 1.3,
                 background: '#dc2626',
                 color: '#ffffff',
                 display: 'flex',
-                flexDirection: 'column',
+                flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'center',
+                gap: 4,
                 fontSize: Math.min(handCardDims.w * 0.88, handCardDims.h * 0.38),
                 fontWeight: 900,
                 borderRadius: '0.6rem',
@@ -2999,14 +3000,15 @@ export default function App() {
                   initGame(false);
                 }}
                 style={{
-                  width: handCardDims.h,
-                  height: handCardDims.w * 2,
+                  width: handCardDims.h * 1.7,
+                  height: handCardDims.w * 1.3,
                   background: '#f5c218',
                   color: '#0a1628',
                   display: 'flex',
-                  flexDirection: 'column',
+                  flexDirection: 'row',
                   alignItems: 'center',
                   justifyContent: 'center',
+                  gap: 4,
                   fontSize: Math.min(handCardDims.w * 0.88, handCardDims.h * 0.38),
                   fontWeight: 900,
                   borderRadius: '0.6rem',
