@@ -401,6 +401,44 @@ export default function App() {
     setLogs(prev => [...prev, `[${new Date().toLocaleTimeString('zh-TW', { hour12: false })}] ${msg}`]);
   };
 
+  // Runtime invariant check, called explicitly right at every 摸/吃/碰/丟牌 point
+  // (immediately after computing that action's own new hand/revealed/deck/
+  // discardPile values, using those LOCAL values directly rather than waiting
+  // for a re-render) — the full 112-card deck must always be conserved across
+  // deck + both hands + both revealed piles + the discard pile + one pending
+  // self-drawn card. Passing a `label` naming the specific action means that
+  // if the count is ever off, the game log points at exactly which action
+  // caused it instead of just the after-the-fact symptom. Any piece not
+  // touched by a given action is left undefined and falls back to the current
+  // committed state for that piece.
+  // lastDiscardedCard is deliberately never added — it's always a pointer to
+  // the top of discardPile for display, not a separate physical card (see
+  // handlePlayerDiscard/executeComputerDiscard).
+  const assertCardTotal = (label: string, overrides: {
+    deck?: Card[];
+    playerHand?: Card[];
+    playerRevealed?: RevealedMeld[];
+    computerHand?: Card[];
+    computerRevealed?: RevealedMeld[];
+    discardPile?: Card[];
+    pendingDrawn?: Card | null;
+  }) => {
+    const d = overrides.deck ?? deck;
+    const ph = overrides.playerHand ?? player.hand;
+    const pr = overrides.playerRevealed ?? player.revealed;
+    const ch = overrides.computerHand ?? computer.hand;
+    const cr = overrides.computerRevealed ?? computer.revealed;
+    const dp = overrides.discardPile ?? discardPile;
+    const pd = 'pendingDrawn' in overrides ? overrides.pendingDrawn : lastDrawnCard;
+    const revealedCount = (melds: RevealedMeld[]) => melds.reduce((sum, m) => sum + m.cards.length, 0);
+    const total = d.length + ph.length + revealedCount(pr) + ch.length + revealedCount(cr) + dp.length + (pd ? 1 : 0);
+    if (total !== 112) {
+      const detail = `牌庫=${d.length} 玩家手牌=${ph.length} 玩家露牌=${revealedCount(pr)} 電腦手牌=${ch.length} 電腦露牌=${revealedCount(cr)} 棄牌堆=${dp.length} 待定摸牌=${pd ? 1 : 0} 總計=${total}`;
+      console.warn(`[牌數異常/${label}] 總牌數應為112，實際為${total}。${detail}`);
+      addLog(`⚠️ [系統偵測/${label}] 牌數異常！總數應為112，目前為 ${total} 張。${detail}`);
+    }
+  };
+
   // Setup/Initialize core gaming deck & distribute hands.
   // `isNewSession` distinguishes the lobby's "開始遊戲" (a brand-new session) from
   // "重新發牌，再開一局"/"繼續下局" (continuing the current session): only a new
@@ -558,11 +596,12 @@ export default function App() {
     const newDeck = [...deck];
     const drawn = newDeck.shift()!;
     setDeck(newDeck);
-    
+
     setLastDrawnCard(drawn);
     setLastDiscardedCard(null);
     setDrawnFromDeck(true); // Player drew this card
     addLog(`【您摸牌】摸到了一張牌：[${drawn.name}]`);
+    assertCardTotal('玩家摸牌', { deck: newDeck, pendingDrawn: drawn });
 
     if (mode === 'pairs' && pairsHandSize === 15) {
       // ── 15-card mode: check if the drawn card completes a claimable trio first ──
@@ -582,6 +621,7 @@ export default function App() {
       const newHand15 = [...player.hand, drawn];
       setLastDrawnCard(null);
       setLastDiscardedCard(null);
+      assertCardTotal('玩家摸牌-加入手牌(15張)', { playerHand: newHand15, pendingDrawn: null });
       if (checkTriosWin(newHand15)) {
         setPlayer(prev => ({ ...prev, hand: newHand15 }));
         handleWin('player', 'pairs', '恭喜！您的15張牌已湊成5組三張，宣告勝出！', [], { hand: newHand15, revealed: player.revealed, wasSelfDraw: true });
@@ -616,6 +656,7 @@ export default function App() {
           };
           const newRevealed = [...player.revealed, autoPairMeld];
           setPlayer(prev => ({ ...prev, hand: nextHand, revealed: newRevealed }));
+          assertCardTotal('玩家自摸配對', { playerHand: nextHand, playerRevealed: newRevealed, pendingDrawn: null });
           setEatPairAnimWho('player');
           setEatPairAnimCards([drawn, matchedCard]);
           setEatPairAnimSource('玩家摸牌');
@@ -644,6 +685,7 @@ export default function App() {
         const nextHand = [...player.hand, drawn];
         setPlayer(prev => ({ ...prev, hand: nextHand }));
         setLastDrawnCard(null);
+        assertCardTotal('玩家摸牌-加入手牌', { playerHand: nextHand, pendingDrawn: null });
         setCanDiscard(true);
         setGuideMessage(`[${drawn.name}] 未配對，已加入手牌。`);
       }
@@ -693,7 +735,8 @@ export default function App() {
       hand: updatedHand
     }));
 
-    setDiscardPile(prev => [cardToDiscard, ...prev]);
+    const newDiscardPile = [cardToDiscard, ...discardPile];
+    setDiscardPile(newDiscardPile);
     setLastDiscardedCard(cardToDiscard);
     setDiscardedBy('player');
     setLastDrawnCard(null);
@@ -702,6 +745,7 @@ export default function App() {
     setHasDrawn(false); // Reset drawing lock for player's future turn
 
     addLog(`【您打牌】打出了一張棄牌：[${cardToDiscard.name}]`);
+    assertCardTotal('玩家丟牌', { playerHand: updatedHand, discardPile: newDiscardPile, pendingDrawn: null });
 
     // 10-card pairs mode: check if discarding leaves hand with no strays → win
     if (mode === 'pairs' && pairsHandSize === 10) {
@@ -752,8 +796,10 @@ export default function App() {
           const newRevealed = [...computer.revealed, newMeld];
           setComputer(prev => ({ ...prev, hand: newHand, revealed: newRevealed }));
           setLastDiscardedCard(null);
-          setDiscardPile(prev => prev.filter(c => c.id !== playerDiscard.id));
+          const newDiscardPile = discardPile.filter(c => c.id !== playerDiscard.id);
+          setDiscardPile(newDiscardPile);
           addLog(`🤖 電腦 AI 宣告【吃一隻】，將剛才您打出的 [${playerDiscard.name}] 配成一對。`);
+          assertCardTotal('電腦吃一隻', { computerHand: newHand, computerRevealed: newRevealed, discardPile: newDiscardPile });
           setEatPairAnimWho('computer');
           setEatPairAnimCards([playerDiscard, matchesStray]);
           setEatPairAnimSource('玩家出牌');
@@ -792,8 +838,10 @@ export default function App() {
           const newRevealed = [...computer.revealed, newMeld];
           setComputer(prev => ({ ...prev, hand: newHand, revealed: newRevealed }));
           setLastDiscardedCard(null);
-          setDiscardPile(prev => prev.filter(c => c.id !== playerDiscard.id));
+          const newDiscardPile = discardPile.filter(c => c.id !== playerDiscard.id);
+          setDiscardPile(newDiscardPile);
           addLog(`🤖 電腦 AI 宣告【${option.actionLabel}】，用您打出的 [${playerDiscard.name}] 湊成${option.meldName}。`);
+          assertCardTotal(`電腦${option.actionLabel}`, { computerHand: newHand, computerRevealed: newRevealed, discardPile: newDiscardPile });
           setEatPairAnimWho('computer');
           setEatPairAnimCards(option.resultCards);
           setEatPairAnimSource('玩家出牌');
@@ -903,6 +951,7 @@ export default function App() {
     setLastDiscardedCard(null);
     setDrawnFromDeck(false); // Was drawn by computer
     addLog(`🤖 電腦 AI 從牌庫自摸摸牌：[${drawn.name}]。`);
+    assertCardTotal('電腦摸牌', { deck: newDeck, pendingDrawn: drawn });
 
     if (mode === 'pairs' && pairsHandSize === 15) {
       // 15-card: self-drawn card may complete a claimable trio (碰一隻/吃一隻) — claim it immediately
@@ -922,6 +971,7 @@ export default function App() {
         setComputer(prev => ({ ...prev, hand: newHand, revealed: newRevealed }));
         setLastDrawnCard(null);
         addLog(`🤖 電腦 AI 自摸【${option.actionLabel}】，湊成${option.meldName}。`);
+        assertCardTotal(`電腦自摸${option.actionLabel}`, { computerHand: newHand, computerRevealed: newRevealed, pendingDrawn: null });
         setEatPairAnimWho('computer');
         setEatPairAnimCards(option.resultCards);
         setEatPairAnimSource('電腦摸牌');
@@ -945,6 +995,7 @@ export default function App() {
       // No auto-pair; check trio win on 15-card hand
       const newHand15 = sortHandForDisplay([...computer.hand, drawn]);
       setLastDrawnCard(null);
+      assertCardTotal('電腦摸牌-加入手牌(15張)', { computerHand: newHand15, pendingDrawn: null });
       if (checkTriosWin(newHand15)) {
         setComputer(prev => ({ ...prev, hand: newHand15 }));
         handleWin('computer', 'pairs', '電腦的15張牌湊成5組三張，電腦勝出！', [], { hand: newHand15, revealed: computer.revealed, wasSelfDraw: true });
@@ -973,6 +1024,7 @@ export default function App() {
         setComputer(prev => ({ ...prev, hand: newHand, revealed: newRevealed }));
         setLastDrawnCard(null);
         addLog(`🤖 電腦 AI 自我配對成功！亮出明對：[${drawn.name}]。`);
+        assertCardTotal('電腦自摸配對', { computerHand: newHand, computerRevealed: newRevealed, pendingDrawn: null });
         setEatPairAnimWho('computer');
         setEatPairAnimCards([drawn, matched]);
         setEatPairAnimSource('電腦摸牌');
@@ -995,6 +1047,7 @@ export default function App() {
         const updatedHand = sortHandForDisplay([...computer.hand, drawn]);
         setComputer(prev => ({ ...prev, hand: updatedHand }));
         setLastDrawnCard(null);
+        assertCardTotal('電腦摸牌-加入手牌', { computerHand: updatedHand, pendingDrawn: null });
         setTimeout(() => { executeComputerDiscard(updatedHand); }, 900);
       }
     } else {
@@ -1121,11 +1174,13 @@ export default function App() {
       hand: finalHand
     }));
 
-    setDiscardPile(prev => [discarded, ...prev]);
+    const newDiscardPile = [discarded, ...discardPile];
+    setDiscardPile(newDiscardPile);
     setLastDiscardedCard(discarded);
     setDiscardedBy('computer');
     addLog(`🤖 電腦 AI 思考後打出了拋牌：[${discarded.name}]`);
     setGuideMessage(`電腦打出了 [${discarded.name}]，正在判斷您是否能配對...`);
+    assertCardTotal('電腦丟牌', { computerHand: finalHand, discardPile: newDiscardPile });
 
     // Pairs mode: check if computer's hand is all-paired after discarding (10-card only)
     if (mode === 'pairs' && pairsHandSize === 10) {
@@ -1206,8 +1261,9 @@ export default function App() {
     // trigger) must remove it from discardPile — otherwise it stays double-booked:
     // visible both in 回收牌 and in the newly revealed meld.
     const claimedFromDiscard = !lastDrawnCard && !!lastDiscardedCard;
+    const newDiscardPile = claimedFromDiscard ? discardPile.filter(c => c.id !== trigger.id) : discardPile;
     if (claimedFromDiscard) {
-      setDiscardPile(prev => prev.filter(c => c.id !== trigger.id));
+      setDiscardPile(newDiscardPile);
     }
 
     playSound('action');
@@ -1241,6 +1297,7 @@ export default function App() {
           }));
 
           addLog(`【吃一隻】您吃到了 [${trigger.name}]，配對擺在案前。`);
+          assertCardTotal('玩家吃一隻', { playerHand: nextHand, playerRevealed: updatedRevealed, discardPile: newDiscardPile, pendingDrawn: null });
           setLastDrawnCard(null);
           setLastDiscardedCard(null);
           setPendingMoves(null);
@@ -1405,8 +1462,10 @@ export default function App() {
     // Claiming straight out of the discard pile must remove the card from
     // discardPile — otherwise it stays double-booked (still shown in 回收牌
     // while also now part of the newly revealed 組).
-    if (!lastDrawnCard && lastDiscardedCard) {
-      setDiscardPile(prev => prev.filter(c => c.id !== trigger.id));
+    const claimedFromDiscard = !lastDrawnCard && !!lastDiscardedCard;
+    const newDiscardPile = claimedFromDiscard ? discardPile.filter(c => c.id !== trigger.id) : discardPile;
+    if (claimedFromDiscard) {
+      setDiscardPile(newDiscardPile);
     }
 
     playSound('action');
@@ -1424,6 +1483,7 @@ export default function App() {
     const newRevealed = [...player.revealed, newMeld];
     setPlayer(prev => ({ ...prev, hand: nextHand, revealed: newRevealed }));
     addLog(`【${option.actionLabel}】您用 [${trigger.name}] 湊成${option.meldName}，鎖定亮出。`);
+    assertCardTotal(`玩家${option.actionLabel}`, { playerHand: nextHand, playerRevealed: newRevealed, discardPile: newDiscardPile, pendingDrawn: null });
     setLastDrawnCard(null);
     setLastDiscardedCard(null);
     setPendingMoves(null);
@@ -1475,10 +1535,22 @@ export default function App() {
     setGamePhase('playing');
 
     if (curPlayerId === 'player' && lastDrawnCard && drawnFromDeck) {
-      // Skipped on self-drawn card. Push to hand and prepare discard action
+      // Skipped on self-drawn card. Push to hand and prepare discard action.
+      // 15-card mode: the drawn card was only withheld from the hand because
+      // it could ALSO complete a claimable trio (see handlePlayerDraw) — the
+      // player might have skipped that specific option because the hand is
+      // ALREADY a complete win without locking it into a meld, so this still
+      // needs its own win check (checkTriosWin), same as the normal
+      // no-claimable-trio draw path does.
       const appendedHand = sortHandForDisplay([...player.hand, lastDrawnCard]);
-      setPlayer(prev => ({ ...prev, hand: appendedHand }));
       setLastDrawnCard(null);
+      assertCardTotal('玩家跳過-摸牌加入手牌', { playerHand: appendedHand, pendingDrawn: null });
+      if (mode === 'pairs' && pairsHandSize === 15 && checkTriosWin(appendedHand)) {
+        setPlayer(prev => ({ ...prev, hand: appendedHand }));
+        handleWin('player', 'pairs', '恭喜！您的15張牌已湊成5組三張，宣告勝出！', [], { hand: appendedHand, revealed: player.revealed, wasSelfDraw: true });
+        return;
+      }
+      setPlayer(prev => ({ ...prev, hand: appendedHand }));
       setCanDiscard(true);
       setGuideMessage('已跳過，請選牌打出。');
     } else {

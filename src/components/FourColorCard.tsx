@@ -189,9 +189,9 @@ export const FourColorCard: React.FC<FourColorCardProps> = ({
       } ${sizeClasses[size]} ${
         disabled ? 'opacity-85 cursor-not-allowed' : 'cursor-pointer hover:scale-105 active:scale-95'
       } ${
-        isSelected ? 'ring-4 ring-cyan-400 scale-105 -translate-y-2' : ''
+        isSelected ? 'ring-4 ring-cyan-400 shadow-[0_0_16px_4px_rgba(34,211,238,0.65)]' : ''
       }`}
-      style={cardStyle}
+      style={isSelected ? { ...cardStyle, animation: 'bounceSmall 1.4s ease-in-out infinite' } : cardStyle}
     >
       {/* Outer black/red frame matching traditional woodblock designs */}
       <div className={`absolute inset-[1.5px] md:inset-[2.5px] border-[2px] md:border-[3px] border-solid rounded-xs opacity-95 pointer-events-none ${theme.border}`} />
