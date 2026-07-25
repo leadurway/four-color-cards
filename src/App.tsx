@@ -1673,6 +1673,20 @@ export default function App() {
   // 15-card mode: "組" hint (all 3 valid trio types) — locked from discard, seated together in display
   const player15TrioGroups = mode === 'pairs' && pairsHandSize === 15 ? find15TrioHints(player.hand) : [];
   const player15TrioIds = new Set(player15TrioGroups.flat().map(c => c.id));
+  const computer15TrioIds = new Set(
+    (mode === 'pairs' && pairsHandSize === 15 ? find15TrioHints(computer.hand) : []).flat().map(c => c.id)
+  );
+  // 散牌 = 手裡牌扣除掉已標示對子/組子的牌。10張玩法看的是「對」（同色同字在
+  // 手牌裡有沒有搭檔，即 groupPairsMode 的配對邏輯，跟手牌格線裡「對」徽章用的
+  // 是同一套判斷）；15張玩法看的是「組」（能不能湊成任一種組子提示，跟手牌格線
+  // 裡「組」徽章用的是同一套 find15TrioHints 判斷）——15張玩法先前誤用了10張
+  // 玩法的配對邏輯，算出來的散牌數跟畫面上實際的徽章標記兜不起來。
+  const playerStrayCount = mode !== 'pairs' ? 0
+    : pairsHandSize === 15 ? player.hand.length - player15TrioIds.size
+    : playerGrouping.strays.length;
+  const computerStrayCount = mode !== 'pairs' ? 0
+    : pairsHandSize === 15 ? computer.hand.length - computer15TrioIds.size
+    : computerGrouping.strays.length;
   // Locked melds split by origin: self-formed ones (drawn — never touched the
   // opponent's discard) render inline in the hand grid, badge-marked, since
   // they're conceptually "still yours". Melds claimed from the opponent's
@@ -1967,7 +1981,7 @@ export default function App() {
                     {mode === 'pairs' ? (
                       <div className="flex items-center gap-1 text-xs text-cyan-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full font-bold">
                         <span>散牌:</span>
-                        <strong className="text-cyan-400 text-sm">{computerGrouping.strays.length}</strong>
+                        <strong className="text-cyan-400 text-sm">{computerStrayCount}</strong>
                         <span>張</span>
                       </div>
                     ) : (
@@ -1984,9 +1998,8 @@ export default function App() {
                       透視 fan when cheat mode is on) and don't count here. */}
                   {mode === 'pairs' ? (
                     <div className="flex items-center gap-1.5 p-1 bg-black/25 rounded-xl border border-white/5">
-                      <span className="text-xs font-bold text-cyan-400 shrink-0">{pairsHandSize === 15 ? '組子：' : '對子：'}</span>
+                      <span className="text-xs font-bold text-cyan-400 shrink-0">{pairsHandSize === 15 ? '組' : '對'}</span>
                       <strong className="text-sm text-cyan-400 shrink-0">{computerClaimedMelds.length}</strong>
-                      <span className="text-xs font-bold text-cyan-400 shrink-0">組</span>
                       <div className="flex flex-wrap gap-[3px] flex-1 min-w-0">
                         {computerClaimedMelds.length > 0
                           ? computerClaimedMelds.map((meld) => (
@@ -2104,7 +2117,7 @@ export default function App() {
                       {mode === 'pairs' ? (
                         <div className="flex items-center gap-1 text-xs text-yellow-300 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full font-bold">
                           <span>散牌:</span>
-                          <strong className="text-yellow-300 text-sm">{playerGrouping.strays.length}</strong>
+                          <strong className="text-yellow-300 text-sm">{playerStrayCount}</strong>
                           <span>張</span>
                         </div>
                       ) : (
@@ -2119,9 +2132,8 @@ export default function App() {
                     </div>
                     {mode === 'pairs' && (
                       <div className="flex items-center gap-1.5 p-1 bg-black/25 rounded-xl border border-white/5">
-                        <span className="text-xs font-bold text-yellow-300 shrink-0">{pairsHandSize === 15 ? '組子：' : '對子：'}</span>
+                        <span className="text-xs font-bold text-yellow-300 shrink-0">{pairsHandSize === 15 ? '組' : '對'}</span>
                         <strong className="text-sm text-yellow-300 shrink-0">{playerClaimedMelds.length}</strong>
-                        <span className="text-xs font-bold text-yellow-300 shrink-0">組</span>
                         <div className="flex flex-wrap gap-[3px] flex-1 min-w-0">
                           {playerClaimedMelds.length > 0
                             ? playerClaimedMelds.map((meld) => (
