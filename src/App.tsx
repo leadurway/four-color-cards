@@ -15,7 +15,8 @@ import {
   scorePairsWin,
   ScoreBreakdown,
   PairsGrouping,
-  HuResult
+  HuResult,
+  classifyTrio
 } from './cardUtils';
 import { Card, GameMode, GameState, Player, RevealedMeld } from './types';
 import { loadPlayerScore, savePlayerScore } from './scoreStorage';
@@ -111,6 +112,14 @@ export default function App() {
   const logsEndRef = useRef<HTMLDivElement>(null);
   const handContainerRef = useRef<HTMLDivElement>(null);
   const guideBarRef = useRef<HTMLDivElement>(null);
+  // Guards handlePlayerDraw/handlePlayerDiscard against a fast double-tap
+  // firing the same action twice before React has re-rendered to disable the
+  // button — the guard conditions those handlers check (hasDrawn, canDiscard)
+  // are React STATE, which only updates on the next render, so two taps
+  // landing within that same window would both read the pre-update values
+  // and both run. A ref updates synchronously and is immune to that gap; it
+  // self-releases on the next tick (setTimeout 0) so it can never get stuck.
+  const playerActionLockRef = useRef(false);
   const [handCardDims, setHandCardDims] = useState({ w: 32, h: 84, fs: 19 });
   // Device/orientation classification: iPhone portrait is the ONE reference
   // design (isPhoneSized && !isLandscape) — its 2-row hand layout, 6-card-
@@ -414,6 +423,16 @@ export default function App() {
   // lastDiscardedCard is deliberately never added — it's always a pointer to
   // the top of discardPile for display, not a separate physical card (see
   // handlePlayerDiscard/executeComputerDiscard).
+  // Also validates two DEEPER invariants beyond the raw total (either of which
+  // could hide behind a total that still happens to add up to 112):
+  // 1. No single physical card (by id) appears in more than one pile at once —
+  //    this is the specific "double-booked" bug class this project has hit
+  //    before (a card shown both in a meld and still lingering in hand/discard).
+  // 2. Every revealed meld has the right card count for the mode (2 for a
+  //    10-card pair, 3 for a 15-card trio) and is an actually-valid grouping
+  //    (matching color+character for a pair; classifyTrio non-null for a
+  //    trio) — catches a meld having been assembled from the wrong cards even
+  //    when the total count still happens to balance out.
   const assertCardTotal = (label: string, overrides: {
     deck?: Card[];
     playerHand?: Card[];
@@ -436,6 +455,44 @@ export default function App() {
       const detail = `牌庫=${d.length} 玩家手牌=${ph.length} 玩家露牌=${revealedCount(pr)} 電腦手牌=${ch.length} 電腦露牌=${revealedCount(cr)} 棄牌堆=${dp.length} 待定摸牌=${pd ? 1 : 0} 總計=${total}`;
       console.warn(`[牌數異常/${label}] 總牌數應為112，實際為${total}。${detail}`);
       addLog(`⚠️ [系統偵測/${label}] 牌數異常！總數應為112，目前為 ${total} 張。${detail}`);
+    }
+
+    const allCards = [...d, ...ph, ...pr.flatMap(m => m.cards), ...ch, ...cr.flatMap(m => m.cards), ...dp, ...(pd ? [pd] : [])];
+    const idCounts = new Map<string, number>();
+    allCards.forEach(c => idCounts.set(c.id, (idCounts.get(c.id) ?? 0) + 1));
+    const dupes = [...idCounts.entries()].filter(([, n]) => n > 1);
+    if (dupes.length > 0) {
+      const names = dupes.map(([id, n]) => `${allCards.find(c => c.id === id)?.name ?? id}×${n}`).join('、');
+      console.warn(`[牌卡重複/${label}] 同一張牌出現在多個位置：${names}`);
+      addLog(`⚠️ [系統偵測/${label}] 發現重複的牌：${names}（同一張牌被算在兩個地方）`);
+    }
+
+    if (mode === 'pairs') {
+      const expectedMeldSize = pairsHandSize === 10 ? 2 : 3;
+      const checkMelds = (side: string, revealed: RevealedMeld[]) => {
+        revealed.forEach(meld => {
+          if (meld.cards.length !== expectedMeldSize) {
+            console.warn(`[露牌張數錯誤/${label}] ${side}「${meld.name}」有 ${meld.cards.length} 張`);
+            addLog(`⚠️ [系統偵測/${label}] ${side}的露牌「${meld.name}」有 ${meld.cards.length} 張，${pairsHandSize}張玩法應為 ${expectedMeldSize} 張！`);
+            return;
+          }
+          if (pairsHandSize === 10) {
+            const [a, b] = meld.cards;
+            if (a.color !== b.color || a.character !== b.character) {
+              console.warn(`[露牌型態錯誤/${label}] ${side}「${meld.name}」不是有效對子`);
+              addLog(`⚠️ [系統偵測/${label}] ${side}的露牌「${meld.name}」兩張牌花色不同，不是有效對子！`);
+            }
+          } else {
+            const [a, b, c] = meld.cards;
+            if (classifyTrio(a, b, c) === null) {
+              console.warn(`[露牌型態錯誤/${label}] ${side}「${meld.name}」不是有效組子`);
+              addLog(`⚠️ [系統偵測/${label}] ${side}的露牌「${meld.name}」不符合任何有效組子型態！`);
+            }
+          }
+        });
+      };
+      checkMelds('玩家', pr);
+      checkMelds('電腦', cr);
     }
   };
 
@@ -585,7 +642,10 @@ export default function App() {
   // Player Manual Trigger to Draw card from Deck
   const handlePlayerDraw = () => {
     if (gamePhase !== 'playing' || curPlayerId !== 'player' || lastDrawnCard !== null || hasDrawn) return;
-    
+    if (playerActionLockRef.current) return;
+    playerActionLockRef.current = true;
+    setTimeout(() => { playerActionLockRef.current = false; }, 0);
+
     if (deck.length === 0) {
       handleDrawGame();
       return;
@@ -714,6 +774,9 @@ export default function App() {
   // Player Manual Touch to Discard a selected Card
   const handlePlayerDiscard = (cardId: string) => {
     if (gamePhase !== 'playing' || curPlayerId !== 'player' || !canDiscard) return;
+    if (playerActionLockRef.current) return;
+    playerActionLockRef.current = true;
+    setTimeout(() => { playerActionLockRef.current = false; }, 0);
 
     const cardToDiscard = player.hand.find(c => c.id === cardId);
     if (!cardToDiscard) return;
@@ -1256,6 +1319,9 @@ export default function App() {
   const handlePlayerAction = (actionType: 'eat' | 'pong' | 'quad' | 'hu', eatOption?: any) => {
     const trigger = lastDrawnCard || lastDiscardedCard;
     if (!trigger) return;
+    if (playerActionLockRef.current) return;
+    playerActionLockRef.current = true;
+    setTimeout(() => { playerActionLockRef.current = false; }, 0);
 
     // Claiming a card straight out of the discard pile (as opposed to a self-drawn
     // trigger) must remove it from discardPile — otherwise it stays double-booked:
@@ -1458,6 +1524,9 @@ export default function App() {
   const handlePlayerTrioAction = (option: TrioClaimOption) => {
     const trigger = lastDrawnCard || lastDiscardedCard;
     if (!trigger) return;
+    if (playerActionLockRef.current) return;
+    playerActionLockRef.current = true;
+    setTimeout(() => { playerActionLockRef.current = false; }, 0);
 
     // Claiming straight out of the discard pile must remove the card from
     // discardPile — otherwise it stays double-booked (still shown in 回收牌
@@ -1527,6 +1596,9 @@ export default function App() {
 
   // Player skips matching option trigger
   const handlePlayerSkip = () => {
+    if (playerActionLockRef.current) return;
+    playerActionLockRef.current = true;
+    setTimeout(() => { playerActionLockRef.current = false; }, 0);
     playSound('click');
     addLog(`您的回合判定：您選擇【過 (跳過行動)】。`);
 

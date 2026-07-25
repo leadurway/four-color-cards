@@ -101,7 +101,7 @@ export type TrioType = 'sameChar' | 'sequence' | 'rainbow';
 // engine (`scorePairsWin`) both build on this single source of truth so the
 // win-condition check and the scoring breakdown can never disagree on what counts
 // as a valid/typed trio.
-function classifyTrio(a: Card, b: Card, c: Card): TrioType | null {
+export function classifyTrio(a: Card, b: Card, c: Card): TrioType | null {
   // Type 1 (sameChar): same color, same character (3 identical)
   if (a.color === b.color && b.color === c.color &&
       a.character === b.character && b.character === c.character) return 'sameChar';
