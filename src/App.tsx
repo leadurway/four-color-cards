@@ -73,6 +73,30 @@ export default function App() {
   });
   
   const [discardPile, setDiscardPile] = useState<Card[]>([]);
+  // Mirror deck/player/computer/discardPile into refs, kept in sync every
+  // render. runComputerTurn/executeComputerDiscard are ALWAYS invoked via
+  // setTimeout (never directly from a click), so the closure they capture is
+  // frozen to whichever render scheduled that timeout — if a card-moving
+  // handler (e.g. handlePlayerDiscard) updates one of these AND THEN
+  // schedules the timeout in that same render, the callback's own closure
+  // over that state is one render stale by the time it fires. That's
+  // deterministic, not a maybe: handlePlayerDiscard always updates
+  // discardPile immediately before scheduling runComputerTurn, so the
+  // discard the player just made was silently missing from what the
+  // computer's turn saw — showing briefly in 回收牌, then getting wiped out
+  // the moment the computer's own discard applied its (also stale, one
+  // render behind) view of the pile. Refs are mutable and read synchronously,
+  // immune to this gap; both functions rebind these names to `X.current` at
+  // their very top (see below) so every read for the rest of each function
+  // resolves to the live values instead of the stale closure.
+  const deckRef = useRef(deck);
+  const playerRef = useRef(player);
+  const computerRef = useRef(computer);
+  const discardPileRef = useRef(discardPile);
+  useEffect(() => { deckRef.current = deck; }, [deck]);
+  useEffect(() => { playerRef.current = player; }, [player]);
+  useEffect(() => { computerRef.current = computer; }, [computer]);
+  useEffect(() => { discardPileRef.current = discardPile; }, [discardPile]);
   const [curPlayerId, setCurPlayerId] = useState<'player' | 'computer'>('player');
   const [gamePhase, setGamePhase] = useState<GameState['gamePhase']>('setup');
   const [winnerId, setWinnerId] = useState<GameState['winnerId']>(null);
@@ -176,6 +200,7 @@ export default function App() {
   const [huCelebShowContinue, setHuCelebShowContinue] = useState(false);
   const [huAnimWho, setHuAnimWho] = useState<'player' | 'computer'>('player');
   const [huAnimCards, setHuAnimCards] = useState<Card[]>([]);
+  const [huAnimSelfDraw, setHuAnimSelfDraw] = useState(false);
   const [backConfirmPending, setBackConfirmPending] = useState(false);
   const fireworksCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -862,6 +887,16 @@ export default function App() {
 
   // Computes Computer reaction and self-play logic
   const runComputerTurn = (playerDiscard: Card | null) => {
+    // This function is always scheduled via setTimeout from a prior render,
+    // so its closure over deck/player/computer/discardPile would otherwise be
+    // frozen to that render. Rebind to the refs' live values so every read
+    // below sees state as of right now, not as of whichever render queued
+    // this timeout.
+    const deck = deckRef.current;
+    const player = playerRef.current;
+    const computer = computerRef.current;
+    const discardPile = discardPileRef.current;
+
     if (gamePhase !== 'playing') {
       setIsComputerThinking(false);
       return;
@@ -1207,6 +1242,14 @@ export default function App() {
 
   // Perform computer automatic discard evaluation
   const executeComputerDiscard = (handBeforeDicard: Card[]) => {
+    // Same stale-closure risk as runComputerTurn (this is always reached via
+    // setTimeout, as a separate top-level function that does not inherit
+    // runComputerTurn's local rebinding) — rebind to the refs' live values.
+    const deck = deckRef.current;
+    const player = playerRef.current;
+    const computer = computerRef.current;
+    const discardPile = discardPileRef.current;
+
     let discardIndex = -1;
 
     if (mode === 'pairs' && pairsHandSize === 15) {
@@ -1715,6 +1758,7 @@ export default function App() {
     addLog(`📢 牌局終止！【${winner === 'player' ? '玩家' : '電腦 AI'}】宣佈贏得本盤勝利！理由：${explanation}${breakdown ? `（共 ${breakdown.totalTai} 台）` : ''}`);
     setHuAnimWho(winner);
     setHuAnimCards(winCards);
+    setHuAnimSelfDraw(!!scoring?.wasSelfDraw);
     setShowHuCelebration(true);
     setHuCelebShowContinue(false);
     setTimeout(() => setHuCelebShowContinue(true), 5000);
@@ -2899,7 +2943,7 @@ export default function App() {
               }}
             >
               <span>{huAnimWho === 'player' ? '玩家' : '電腦'}</span>
-              <span>胡牌</span>
+              <span>{huAnimSelfDraw ? '自摸' : '胡牌'}</span>
             </div>
 
             {/* Sub-label */}
