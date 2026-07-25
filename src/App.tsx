@@ -167,29 +167,22 @@ export default function App() {
     logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [logs]);
 
-  // Card size, width set to exactly fit HAND_REFERENCE_COLS (6) cards across
-  // the row — the SAME reference constant for every device — height derived
-  // from width via the same fixed aspect ratio iPhone's own layout naturally
-  // lands on.
+  // Card size, height derived from width via the fixed aspect ratio iPhone's
+  // own layout naturally lands on.
   //
-  // Phone-sized devices (portrait OR landscape) always size off the phone's
-  // own inherent narrow dimension (Math.min(innerWidth, innerHeight), which
-  // doesn't change when the phone rotates), completely independent of
-  // however much space happens to be available right now. That's
-  // deliberate: rotating to landscape gives a phone MUCH less height to work
-  // with, and letting the card shrink to fit that (as an earlier version of
-  // this did) produced near-invisible cards. Instead landscape keeps
-  // iPhone-portrait's exact card size and the page becomes scrollable to
-  // accommodate it (see the page-layout changes below) — rotating a phone
-  // never changes how big the cards look.
+  // iPhone portrait is the one fixed-formula case: width is set to exactly
+  // fit HAND_REFERENCE_COLS_PORTRAIT (6) cards across the row, 2 rows tall.
   //
-  // iPad / desktop web (tablet-or-wider, always landscape-shaped in
-  // practice) instead FIT to the actual measured available space, scaling
-  // up through this same formula/ratio for a bigger — but still
-  // proportionally iPhone-shaped — card. That's the "enlarge to fill the
-  // wider screen while keeping iPhone's exact ratio" mechanism: same
-  // formula, same reference constant, just a bigger input.
-  const HAND_REFERENCE_COLS = 6;
+  // Every other device (iPhone landscape, iPad portrait/landscape, PC web)
+  // instead FITS to the actual measured available space, single row,
+  // referenced against HAND_REFERENCE_COLS_WIDE (15) cards — scaling up
+  // through this same formula/ratio for a bigger, but still proportionally
+  // iPhone-shaped, card. That's the "enlarge to fill the wider screen while
+  // keeping iPhone's exact ratio" mechanism: same formula, same aspect
+  // constant, just a bigger input and a reference sized for a full 15-card
+  // hand instead of 6.
+  const HAND_REFERENCE_COLS_PORTRAIT = 6;
+  const HAND_REFERENCE_COLS_WIDE = 15;
   const HAND_CARD_ASPECT = 32 / 84; // iPhone's natural xs card W/H ratio
   useEffect(() => {
     const el = handContainerRef.current;
@@ -199,25 +192,20 @@ export default function App() {
     const calc = () => {
       let w: number, h: number;
 
-      if (isPhoneSized) {
-        // The wrapper's width already correctly excludes every layer of
-        // horizontal padding/border between it and the viewport edge (the
-        // panel's px-3, the wrapper's own px-1, the panel border, etc.) —
-        // exactly like the non-phone branch below relies on. That chrome is
-        // fixed-pixel (not percentage-based), so it's identical regardless
-        // of orientation: measuring window.innerWidth - wrapperWidth right
-        // now (whichever orientation we're actually in) gives the same
-        // overhead portrait would. Applying that overhead to the phone's
-        // narrow dimension reconstructs exactly what the wrapper would
-        // measure if it were portrait — without hardcoding the padding as a
-        // magic number, and without needing to cache a real portrait
-        // measurement from before the phone rotated.
-        const containerW = wrapperEl.getBoundingClientRect().width;
+      // The wrapper's measured box still includes ITS OWN horizontal
+      // padding (px-1) — the grid inside it has less room than that raw
+      // measurement suggests. Reading the real applied padding via
+      // getComputedStyle (rather than hardcoding it) keeps this correct
+      // even if that class ever changes.
+      const wrapperPadX = (() => {
+        const cs = window.getComputedStyle(wrapperEl);
+        return parseFloat(cs.paddingLeft || '0') + parseFloat(cs.paddingRight || '0');
+      })();
+
+      if (isIphonePortrait) {
+        const containerW = wrapperEl.getBoundingClientRect().width - wrapperPadX;
         if (containerW < 10) return;
-        const chromeOverhead = Math.max(0, window.innerWidth - containerW);
-        const narrowDim = Math.min(window.innerWidth, window.innerHeight);
-        const equivalentContainerW = Math.max(10, narrowDim - chromeOverhead);
-        w = equivalentContainerW / HAND_REFERENCE_COLS;
+        w = containerW / HAND_REFERENCE_COLS_PORTRAIT;
         h = w / HAND_CARD_ASPECT;
       } else {
         // Measure against the OUTER (non-scrolling) wrapper, not the grid
@@ -228,7 +216,7 @@ export default function App() {
         // card drawn. The wrapper's size is fixed by the surrounding flex
         // layout and never depends on the grid's own content, so it's a
         // stable reference.
-        const containerW = wrapperEl.getBoundingClientRect().width;
+        const containerW = wrapperEl.getBoundingClientRect().width - wrapperPadX;
         const containerH = wrapperEl.getBoundingClientRect().height;
         // Guard against measuring before layout has settled (e.g. mid
         // page-transition): an invalid 0/near-0 reading would otherwise
@@ -237,8 +225,8 @@ export default function App() {
         if (containerW < 10 || containerH < 10) return;
         const colGap = 1;
         const rowGap = 10; // gap-y-2.5
-        const rows = 1; // every non-phone device shows the hand as a single row
-        const maxCardW = (containerW - colGap * (HAND_REFERENCE_COLS - 1)) / HAND_REFERENCE_COLS;
+        const rows = 1; // every non-portrait device shows the hand as a single row
+        const maxCardW = (containerW - colGap * (HAND_REFERENCE_COLS_WIDE - 1)) / HAND_REFERENCE_COLS_WIDE;
 
         // The wrapper's box holds the grid AND the action bar AND the guide
         // bar together (they live inside it so controls sit snugly under
@@ -272,7 +260,7 @@ export default function App() {
       window.removeEventListener('resize', calc);
       window.removeEventListener('orientationchange', calc);
     };
-  }, [activePage, useWideLayout, isPhoneSized]);
+  }, [activePage, useWideLayout]);
 
   // Fireworks canvas animation
   useEffect(() => {
