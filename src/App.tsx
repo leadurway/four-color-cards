@@ -178,11 +178,10 @@ export default function App() {
   // own layout naturally lands on.
   //
   // Portrait orientation (showTwoRowHand — iPhone OR iPad) is the
-  // fixed-formula case: width is set to exactly fit
-  // HAND_REFERENCE_COLS_PORTRAIT (6) cards across the row, 2 rows tall. The
-  // reference stays 6 on every portrait device; only the actual measured
-  // width differs (iPad portrait is simply wider than iPhone, so its 6
-  // cards come out proportionally bigger — same formula, bigger input).
+  // fixed-formula case: width is set to exactly fit a reference card count
+  // across the row, 2 rows tall — 6 for iPhone, 10 for iPad (see
+  // portraitReferenceCols below). Only the reference count and the actual
+  // measured width differ between them; the formula itself is identical.
   //
   // Landscape orientation (iPhone, iPad, or PC web) instead FITS to the
   // actual measured available space, single row, referenced against
@@ -192,7 +191,7 @@ export default function App() {
   // iPhone's exact ratio" mechanism: same formula, same aspect constant,
   // just a bigger input and a reference sized for a full 15-card hand
   // instead of 6.
-  const HAND_REFERENCE_COLS_PORTRAIT = 6;
+  const portraitReferenceCols = isPhoneSized ? 6 : 10;
   const HAND_REFERENCE_COLS_WIDE = 15;
   const HAND_CARD_ASPECT = 32 / 84; // iPhone's natural xs card W/H ratio
   useEffect(() => {
@@ -216,7 +215,7 @@ export default function App() {
       if (showTwoRowHand) {
         const containerW = wrapperEl.getBoundingClientRect().width - wrapperPadX;
         if (containerW < 10) return;
-        w = containerW / HAND_REFERENCE_COLS_PORTRAIT;
+        w = containerW / portraitReferenceCols;
         h = w / HAND_CARD_ASPECT;
       } else {
         // Measure against the OUTER (non-scrolling) wrapper, not the grid
@@ -1622,16 +1621,20 @@ export default function App() {
     ...player15TrioGroups.flat(),
     ...player.hand.filter(c => !player15TrioIds.has(c.id)),
   ];
-  // Row-1 capacity (columns before wrapping to row 2, portrait only): 10-card
-  // mode's normal hand fills row 1 with 6 cards exactly (matching the fixed
-  // card width above, so 10-card mode never needs to scroll); 15-card mode's
-  // larger hand prioritizes filling row 1 with 9 before wrapping to row 2 —
-  // since card width stays fixed for 6, those extra 3 columns overflow past
-  // the visible width and the hand scrolls horizontally to reach them. In
-  // landscape the hand is a single row instead, so the column count is
-  // simply however many cards are actually displayed.
+  // Row-1 capacity (columns before wrapping to row 2, portrait only). iPhone:
+  // 10-card mode's normal hand fills row 1 with 6 cards exactly (matching
+  // the fixed 6-card width reference, so 10-card mode never needs to
+  // scroll); 15-card mode's larger hand prioritizes filling row 1 with 9
+  // before wrapping to row 2 — since card width stays fixed for 6, those
+  // extra 3 columns overflow past the visible width and the hand scrolls
+  // horizontally to reach them. iPad: both modes prioritize filling row 1
+  // with 10 cards, matching its own 10-card width reference exactly (see
+  // portraitReferenceCols above), so 10-card mode never scrolls and 15-card
+  // mode only scrolls for its last few cards. In landscape the hand is a
+  // single row instead, so the column count is simply however many cards
+  // are actually displayed.
   const handRowCapacity = showTwoRowHand
-    ? (mode === 'pairs' && pairsHandSize === 15 ? 9 : 6)
+    ? (isPhoneSized ? (mode === 'pairs' && pairsHandSize === 15 ? 9 : 6) : 10)
     : (playerHandDisplay.length || 1);
 
   // 桌面牌 discard/drawn card size: mirrors handCardDims's proportions but capped independently
