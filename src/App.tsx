@@ -200,9 +200,24 @@ export default function App() {
       let w: number, h: number;
 
       if (isPhoneSized) {
+        // The wrapper's width already correctly excludes every layer of
+        // horizontal padding/border between it and the viewport edge (the
+        // panel's px-3, the wrapper's own px-1, the panel border, etc.) —
+        // exactly like the non-phone branch below relies on. That chrome is
+        // fixed-pixel (not percentage-based), so it's identical regardless
+        // of orientation: measuring window.innerWidth - wrapperWidth right
+        // now (whichever orientation we're actually in) gives the same
+        // overhead portrait would. Applying that overhead to the phone's
+        // narrow dimension reconstructs exactly what the wrapper would
+        // measure if it were portrait — without hardcoding the padding as a
+        // magic number, and without needing to cache a real portrait
+        // measurement from before the phone rotated.
+        const containerW = wrapperEl.getBoundingClientRect().width;
+        if (containerW < 10) return;
+        const chromeOverhead = Math.max(0, window.innerWidth - containerW);
         const narrowDim = Math.min(window.innerWidth, window.innerHeight);
-        if (narrowDim < 10) return;
-        w = narrowDim / HAND_REFERENCE_COLS;
+        const equivalentContainerW = Math.max(10, narrowDim - chromeOverhead);
+        w = equivalentContainerW / HAND_REFERENCE_COLS;
         h = w / HAND_CARD_ASPECT;
       } else {
         // Measure against the OUTER (non-scrolling) wrapper, not the grid
