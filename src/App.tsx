@@ -144,6 +144,7 @@ export default function App() {
     };
   }, []);
   const isIphonePortrait = isPhoneSized && !isLandscape;
+  const isPhoneLandscape = isPhoneSized && isLandscape;
   const useWideLayout = !isIphonePortrait;
 
   // Animation overlays
@@ -166,80 +167,97 @@ export default function App() {
     logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [logs]);
 
-  // Card size is fixed, independent of how many cards are actually in hand:
-  // width is set to exactly fit HAND_REFERENCE_COLS (6) cards across the row
-  // — the SAME reference for every device, never varied by device class —
-  // height is set to exactly fit the row count (2 for iPhone portrait, 1 for
-  // every wider device, which shows the whole hand in a single scrollable
-  // row instead — see useWideLayout/handRowCapacity below). On iPad/PC the
-  // page's max-width cap is also loosened (see the page layout below) so
-  // containerW is simply bigger, which scales w/h up proportionally through
-  // this same math — that's the whole mechanism for "enlarge to fill the
-  // wider screen while keeping iPhone's exact card ratio": same formula,
-  // same reference constant, just a bigger input and a different row count.
-  // Whichever of the width/height constraints is tighter wins, and the OTHER
-  // dimension is derived from it via the same card aspect ratio the iPhone
-  // layout naturally lands on (narrow width is always the binding constraint
-  // there). Without deriving one from the other via a fixed ratio, a
-  // wide-but-not-tall container would size height independently off a
-  // generous containerH, producing cards far taller/narrower than iPhone's.
+  // Card size, width set to exactly fit HAND_REFERENCE_COLS (6) cards across
+  // the row — the SAME reference constant for every device — height derived
+  // from width via the same fixed aspect ratio iPhone's own layout naturally
+  // lands on.
+  //
+  // Phone-sized devices (portrait OR landscape) always size off the phone's
+  // own inherent narrow dimension (Math.min(innerWidth, innerHeight), which
+  // doesn't change when the phone rotates), completely independent of
+  // however much space happens to be available right now. That's
+  // deliberate: rotating to landscape gives a phone MUCH less height to work
+  // with, and letting the card shrink to fit that (as an earlier version of
+  // this did) produced near-invisible cards. Instead landscape keeps
+  // iPhone-portrait's exact card size and the page becomes scrollable to
+  // accommodate it (see the page-layout changes below) — rotating a phone
+  // never changes how big the cards look.
+  //
+  // iPad / desktop web (tablet-or-wider, always landscape-shaped in
+  // practice) instead FIT to the actual measured available space, scaling
+  // up through this same formula/ratio for a bigger — but still
+  // proportionally iPhone-shaped — card. That's the "enlarge to fill the
+  // wider screen while keeping iPhone's exact ratio" mechanism: same
+  // formula, same reference constant, just a bigger input.
   const HAND_REFERENCE_COLS = 6;
   const HAND_CARD_ASPECT = 32 / 84; // iPhone's natural xs card W/H ratio
   useEffect(() => {
     const el = handContainerRef.current;
     if (!el) return;
-
-    // Measure against the OUTER (non-scrolling) wrapper, not the grid element
-    // itself. The grid has an explicit gridTemplateRows height and its own
-    // overflow-x-auto; measuring it directly can create a feedback loop on
-    // some WebKit layouts (notably iPad landscape) where each recompute reads
-    // a slightly inflated size, making hand cards visibly grow taller with
-    // every card drawn. The wrapper's size is fixed by the surrounding flex
-    // layout and never depends on the grid's own content, so it's a stable
-    // reference — combined with only recomputing once per page visit (deps
-    // below) rather than on every hand change, this keeps the size locked.
     const wrapperEl = el.parentElement ?? el;
-    const rows = useWideLayout ? 1 : 2;
 
-    const calc = (containerW: number, containerH: number) => {
-      // Guard against measuring before layout has settled (e.g. mid page-transition):
-      // an invalid 0/near-0 reading would otherwise collapse cards to ~0px wide
-      // until something else forces a fresh measurement.
-      if (containerW < 10 || containerH < 10) return;
-      const colGap = 1;
-      const rowGap = 10; // gap-y-2.5
-      const maxCardW = (containerW - colGap * (HAND_REFERENCE_COLS - 1)) / HAND_REFERENCE_COLS;
-
-      // The wrapper's box holds the grid AND the action bar AND the guide bar
-      // together (they live inside it so controls sit snugly under the cards
-      // instead of stretching the whole panel). The action bar's own height
-      // is set equal to the card width by design; the guide bar's height is
-      // measured directly (plain text/icon content, independent of card
-      // size, so reading it here is safe — no circular dependency). Both
-      // need to be subtracted before dividing what's left by the row count,
-      // or the grid would be sized as if it alone owned the whole wrapper —
-      // overflowing past what's actually available and clipping the result,
-      // which is what made single-row cards on iPad/PC look off-ratio: the
-      // box itself was still 32:84, just partly cut off by overflow-hidden.
-      const guideBarH = guideBarRef.current?.getBoundingClientRect().height ?? 0;
-      const chromeH = maxCardW + guideBarH;
-      const maxCardH = Math.max(10, containerH - chromeH - rowGap * (rows - 1)) / rows;
+    const calc = () => {
       let w: number, h: number;
-      if (maxCardW / HAND_CARD_ASPECT <= maxCardH) {
-        w = maxCardW; h = maxCardW / HAND_CARD_ASPECT;
+
+      if (isPhoneSized) {
+        const narrowDim = Math.min(window.innerWidth, window.innerHeight);
+        if (narrowDim < 10) return;
+        w = narrowDim / HAND_REFERENCE_COLS;
+        h = w / HAND_CARD_ASPECT;
       } else {
-        h = maxCardH; w = maxCardH * HAND_CARD_ASPECT;
+        // Measure against the OUTER (non-scrolling) wrapper, not the grid
+        // element itself. The grid has an explicit gridTemplateRows height
+        // and its own overflow-x-auto; measuring it directly can create a
+        // feedback loop on some WebKit layouts where each recompute reads a
+        // slightly inflated size, making hand cards visibly grow with every
+        // card drawn. The wrapper's size is fixed by the surrounding flex
+        // layout and never depends on the grid's own content, so it's a
+        // stable reference.
+        const containerW = wrapperEl.getBoundingClientRect().width;
+        const containerH = wrapperEl.getBoundingClientRect().height;
+        // Guard against measuring before layout has settled (e.g. mid
+        // page-transition): an invalid 0/near-0 reading would otherwise
+        // collapse cards to ~0px wide until something else forces a fresh
+        // measurement.
+        if (containerW < 10 || containerH < 10) return;
+        const colGap = 1;
+        const rowGap = 10; // gap-y-2.5
+        const rows = 1; // every non-phone device shows the hand as a single row
+        const maxCardW = (containerW - colGap * (HAND_REFERENCE_COLS - 1)) / HAND_REFERENCE_COLS;
+
+        // The wrapper's box holds the grid AND the action bar AND the guide
+        // bar together (they live inside it so controls sit snugly under
+        // the cards instead of stretching the whole panel). The action
+        // bar's own height is set equal to the card width by design; the
+        // guide bar's height is measured directly (plain text/icon content,
+        // independent of card size, so reading it here is safe — no
+        // circular dependency). Both need to be subtracted before dividing
+        // what's left by the row count, or the grid would be sized as if it
+        // alone owned the whole wrapper — overflowing past what's actually
+        // available and clipping the result.
+        const guideBarH = guideBarRef.current?.getBoundingClientRect().height ?? 0;
+        const chromeH = maxCardW + guideBarH;
+        const maxCardH = Math.max(10, containerH - chromeH - rowGap * (rows - 1)) / rows;
+        if (maxCardW / HAND_CARD_ASPECT <= maxCardH) {
+          w = maxCardW; h = maxCardW / HAND_CARD_ASPECT;
+        } else {
+          h = maxCardH; w = maxCardH * HAND_CARD_ASPECT;
+        }
       }
       setHandCardDims({ w: Math.floor(w), h: Math.floor(h), fs: Math.round(w * 19 / 32) });
     };
 
-    calc(wrapperEl.getBoundingClientRect().width, wrapperEl.getBoundingClientRect().height);
-    const obs = new ResizeObserver(([entry]) => {
-      calc(entry.contentRect.width, entry.contentRect.height);
-    });
+    calc();
+    const obs = new ResizeObserver(() => calc());
     obs.observe(wrapperEl);
-    return () => obs.disconnect();
-  }, [activePage, useWideLayout]);
+    window.addEventListener('resize', calc);
+    window.addEventListener('orientationchange', calc);
+    return () => {
+      obs.disconnect();
+      window.removeEventListener('resize', calc);
+      window.removeEventListener('orientationchange', calc);
+    };
+  }, [activePage, useWideLayout, isPhoneSized]);
 
   // Fireworks canvas animation
   useEffect(() => {
@@ -1782,7 +1800,10 @@ export default function App() {
 
           {/* 2. Game Play Page (遊戲頁面) */}
           {activePage === 'game' && (
-            <div className="flex-1 flex flex-col h-full w-full select-none text-white overflow-hidden relative">
+            <div
+              className={`flex-1 flex flex-col h-full w-full select-none text-white relative ${isPhoneLandscape ? 'overflow-y-auto' : 'overflow-hidden'}`}
+              style={isPhoneLandscape ? { paddingLeft: 'env(safe-area-inset-left, 0px)', paddingRight: 'env(safe-area-inset-right, 0px)' } : undefined}
+            >
               
               {/* Compact header — paddingTop fills behind the notch */}
               <header
@@ -1828,15 +1849,20 @@ export default function App() {
 
               </header>
 
-              {/* GAME SPACE FLOW */}
-              <div className="flex-1 min-h-0 flex overflow-hidden">
+              {/* GAME SPACE FLOW. On phone-landscape this (and the layers below, down to
+                  the hand wrapper) drop min-h-0 so they size to their actual content
+                  instead of being squeezed to fit — since the card size there is fixed
+                  (not fitted to available space, see the effect above), letting them
+                  overflow their flex-allocated space and be revealed via the game page
+                  root's scroll is what keeps the cards from shrinking to near-nothing. */}
+              <div className={`flex-1 flex overflow-hidden ${isPhoneLandscape ? '' : 'min-h-0'}`}>
               {/* iPhone portrait keeps its original max-w-lg cap untouched. Every other
                   device (useWideLayout) fills the full width available inside the outer
                   max-w-7xl console instead — the hand-sizing effect above reads this
                   wider containerW and scales every card/button up proportionally through
                   the exact same iPhone formula, so the whole screen enlarges to fill the
                   space while staying pixel-ratio-identical to iPhone. */}
-              <div className={`flex-1 flex flex-col min-h-0 overflow-hidden mx-auto ${useWideLayout ? 'w-full' : 'max-w-lg'}`}>
+              <div className={`flex-1 flex flex-col overflow-hidden mx-auto ${isPhoneLandscape ? '' : 'min-h-0'} ${useWideLayout ? 'w-full' : 'max-w-lg'}`}>
 
                 {/* ① 遊戲頁面 — Game Display Panel */}
                 <div className="shrink-0 flex flex-col px-3 pt-2 pb-1.5 space-y-1.5 border-b-2 border-white/10">
@@ -1972,11 +1998,12 @@ export default function App() {
 
                 </div>{/* end 遊戲頁面 */}
 
-                {/* ② 控制頁面 — Control Panel (no vertical scroll — everything fits) */}
-                <div className="flex-1 flex flex-col min-h-0 px-3 pt-1.5 gap-1.5 overflow-hidden">
+                {/* ② 控制頁面 — Control Panel (no vertical scroll — everything fits, except
+                    on phone-landscape where the whole page scrolls instead — see above) */}
+                <div className={`flex-1 flex flex-col px-3 pt-1.5 gap-1.5 overflow-hidden ${isPhoneLandscape ? '' : 'min-h-0'}`}>
 
                 {/* ELDER ACTION CONTROLLER AID — flex-1 fills remaining height */}
-                <div className="flex-1 flex flex-col min-h-0 bg-black/35 rounded-2xl border border-white/10 select-none overflow-hidden">
+                <div className={`flex-1 flex flex-col bg-black/35 rounded-2xl border border-white/10 select-none overflow-hidden ${isPhoneLandscape ? '' : 'min-h-0'}`}>
 
                   {/* User profile banner */}
                   <div className="flex flex-col gap-1 bg-[#0c2852] py-2 px-3 border-b border-white/5 shrink-0">
@@ -2040,7 +2067,7 @@ export default function App() {
                       stack snugly right below each other; only the truly leftover space
                       (if any) collects at the very bottom of this box, instead of
                       appearing as a gap between the cards and the action buttons. */}
-                  <div className="flex-1 min-h-0 flex flex-col px-1 pt-1 pb-0 overflow-hidden">
+                  <div className={`flex-1 flex flex-col px-1 pt-1 pb-0 overflow-hidden ${isPhoneLandscape ? '' : 'min-h-0'}`}>
                     <div
                       ref={handContainerRef}
                       className="shrink-0 grid justify-start content-start gap-x-[1px] gap-y-2.5 overflow-x-auto overflow-y-hidden py-1"
