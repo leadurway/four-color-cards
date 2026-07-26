@@ -1901,19 +1901,19 @@ export default function App() {
   // the four suit colors, used in place of decorative icons/emoji on the
   // lobby title and launch button.
   const renderFourColorLogo = (height: number) => (
-    <div className="flex items-center shrink-0" style={{ height }}>
-      {(['yellow', 'green', 'red', 'white'] as const).map((color, i) => (
+    <div className="flex items-center shrink-0" style={{ height, gap: Math.max(1, height * 0.08) }}>
+      {(['yellow', 'green', 'red', 'white'] as const).map((color) => (
         <div
           key={color}
-          className="rounded-[2px] border border-black/40 shadow-sm"
+          className="relative rounded-[2px] border border-black/40 shadow-sm shrink-0"
           style={{
-            width: height * 0.56,
+            width: height * 0.4,
             height,
             background: color === 'yellow' ? '#ffd300' : color === 'green' ? '#299c42' : color === 'red' ? '#ff5511' : '#ffffff',
-            marginLeft: i === 0 ? 0 : -height * 0.22,
-            zIndex: i,
           }}
-        />
+        >
+          <div className="absolute inset-[1.5px] border border-black/35 rounded-[1px] pointer-events-none" />
+        </div>
       ))}
     </div>
   );
