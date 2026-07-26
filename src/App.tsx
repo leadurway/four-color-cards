@@ -574,6 +574,45 @@ export default function App() {
     }
   };
 
+  // Safety-net watcher: assertCardTotal above only fires at the checkpoints
+  // this file explicitly calls it from. If a hand ever changes through some
+  // OTHER path — one not yet identified/instrumented — this catches it on
+  // the very next render regardless of cause, by diffing this render's hand
+  // against the previous one. A normal single step in pairs mode never
+  // changes a hand by more than 2 cards (a 15-card 組 claim removes 2; every
+  // other step removes/adds exactly 1), so anything bigger is a real
+  // anomaly — logged with the exact card names so the next report has hard
+  // evidence instead of a memory of what was on screen.
+  const prevHandSnapshotRef = useRef<{ player: Card[]; computer: Card[]; wasMidRound: boolean }>({ player: [], computer: [], wasMidRound: false });
+  useEffect(() => {
+    const prevSnap = prevHandSnapshotRef.current;
+    const isMidRound = mode === 'pairs' && (gamePhase === 'playing' || gamePhase === 'waiting_player_action');
+    // Only compare two consecutive mid-round renders — the render where a
+    // fresh round is first dealt (previous render was still 'setup' /
+    // 'game_over') is a legitimate large jump, not an anomaly.
+    if (isMidRound && prevSnap.wasMidRound) {
+      const describe = (cards: Card[]) => (cards.length ? cards.map(c => c.name).join('、') : '（無）');
+      const added = (before: Card[], after: Card[]) => {
+        const beforeIds = new Set(before.map(c => c.id));
+        return after.filter(c => !beforeIds.has(c.id));
+      };
+      const removed = (before: Card[], after: Card[]) => added(after, before);
+
+      const checkSide = (sideName: string, before: Card[], after: Card[]) => {
+        const gained = added(before, after);
+        const lost = removed(before, after);
+        if (gained.length > 2 || lost.length > 2) {
+          const msg = `⚠️ [系統偵測/手牌突變] ${sideName}的手牌在一個畫面更新內變化過大：新增 ${gained.length} 張（${describe(gained)}），消失 ${lost.length} 張（${describe(lost)}）。變動前：${describe(before)}；變動後：${describe(after)}`;
+          console.warn(msg);
+          addLog(msg);
+        }
+      };
+      checkSide('玩家', prevSnap.player, player.hand);
+      checkSide('電腦', prevSnap.computer, computer.hand);
+    }
+    prevHandSnapshotRef.current = { player: player.hand, computer: computer.hand, wasMidRound: isMidRound };
+  }, [player.hand, computer.hand, mode, gamePhase]);
+
   // Setup/Initialize core gaming deck & distribute hands.
   // `isNewSession` distinguishes the lobby's "開始遊戲" (a brand-new session) from
   // "重新發牌，再開一局"/"繼續下局" (continuing the current session): only a new
