@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import liangGameLogo from './assets/liang-game-logo.png';
 import {
   createDeck,
   shuffle,
@@ -1896,6 +1897,27 @@ export default function App() {
     </div>
   );
 
+  // Small fanned four-color-cards logo (no text) — one blank card in each of
+  // the four suit colors, used in place of decorative icons/emoji on the
+  // lobby title and launch button.
+  const renderFourColorLogo = (height: number) => (
+    <div className="flex items-center shrink-0" style={{ height }}>
+      {(['yellow', 'green', 'red', 'white'] as const).map((color, i) => (
+        <div
+          key={color}
+          className="rounded-[2px] border border-black/40 shadow-sm"
+          style={{
+            width: height * 0.56,
+            height,
+            background: color === 'yellow' ? '#ffd300' : color === 'green' ? '#299c42' : color === 'red' ? '#ff5511' : '#ffffff',
+            marginLeft: i === 0 ? 0 : -height * 0.22,
+            zIndex: i,
+          }}
+        />
+      ))}
+    </div>
+  );
+
   return (
     <div className="min-h-screen w-full bg-[#0a1628] text-slate-100 flex justify-center relative font-sans select-none">
       
@@ -1919,11 +1941,11 @@ export default function App() {
               {/* Grand compact title */}
               <div className="text-center space-y-1.5 py-2 shrink-0">
                 <div className="flex items-center justify-center gap-3">
-                  <Sparkles className="w-6 h-6 text-yellow-500 animate-pulse shrink-0" />
-                  <h1 className="text-3xl md:text-4xl font-serif font-black tracking-widest text-yellow-500 italic select-none">
+                  {renderFourColorLogo(28)}
+                  <h1 className="text-3xl md:text-4xl font-serif font-black tracking-widest text-yellow-500 select-none">
                     四色牌-吃一隻
                   </h1>
-                  <Sparkles className="w-6 h-6 text-yellow-500 animate-pulse shrink-0" />
+                  <img src={liangGameLogo} alt="LIANG GAME" className="w-9 h-9 rounded-full object-cover shrink-0" />
                 </div>
                 <p className="text-sm tracking-widest text-blue-200 font-extrabold uppercase font-mono">
                   — 專為銀髮長輩特製 · 護腦防失智 —
@@ -2039,7 +2061,7 @@ export default function App() {
                   className="w-full py-5 bg-yellow-500 hover:brightness-105 active:scale-98 transition-all font-black text-slate-950 text-2xl rounded-xl border-4 border-red-500 flex items-center justify-center gap-2 select-none"
                   style={{ animation: 'bounceSmall 1.4s ease-in-out infinite, huBoxGlow 1s ease-in-out infinite alternate' }}
                 >
-                  開始遊戲 🀄
+                  開始遊戲 {renderFourColorLogo(26)}
                 </button>
               </div>
 
@@ -2078,6 +2100,7 @@ export default function App() {
                     >
                       {soundEnabled ? <Volume2 className="w-5 h-5 text-blue-400" /> : <VolumeX className="w-5 h-5 text-red-400" />}
                     </button>
+                    <img src={liangGameLogo} alt="LIANG GAME" className="w-8 h-8 rounded-full object-cover shrink-0" />
                     <button
                       onClick={() => setShowLogDrawer(!showLogDrawer)}
                       className="p-2 bg-white/5 border border-white/10 text-slate-300 hover:text-white rounded-full transition-colors"
