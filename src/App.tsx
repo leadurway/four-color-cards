@@ -98,6 +98,28 @@ export default function App() {
   useEffect(() => { playerRef.current = player; }, [player]);
   useEffect(() => { computerRef.current = computer; }, [computer]);
   useEffect(() => { discardPileRef.current = discardPile; }, [discardPile]);
+
+  // Every turn-continuation step (draw → auto-pair reveal → computer's
+  // reaction check → computer's own draw/discard → player's reaction check
+  // ...) is chained together with setTimeout, often several deep. If the
+  // player quits to the lobby or hits 「繼續下局」while a chain from the
+  // PREVIOUS round is still in flight, those old callbacks don't know the
+  // round changed — they still fire, still read (now current-round) state
+  // through the refs above, and blindly setPlayer/setComputer/handleWin with
+  // values computed for a hand that no longer exists. That's how a fresh
+  // round's hand could suddenly gain several extra cards or have its
+  // contents replaced: leftover turn logic from an abandoned round landing
+  // on top of the new one. scheduleTurnTimeout tracks every such pending
+  // timer so initGame can cancel all of them before dealing a new round.
+  const pendingTurnTimeoutsRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+  const scheduleTurnTimeout = (fn: () => void, delay: number) => {
+    const id = setTimeout(() => {
+      pendingTurnTimeoutsRef.current.delete(id);
+      fn();
+    }, delay);
+    pendingTurnTimeoutsRef.current.add(id);
+    return id;
+  };
   const [curPlayerId, setCurPlayerId] = useState<'player' | 'computer'>('player');
   const [gamePhase, setGamePhase] = useState<GameState['gamePhase']>('setup');
   const [winnerId, setWinnerId] = useState<GameState['winnerId']>(null);
@@ -559,6 +581,13 @@ export default function App() {
   // computer's score back to the default — within one session both scores carry
   // over round to round so the running tally stays meaningful.
   const initGame = (isNewSession: boolean = true) => {
+    // Cancel any turn-continuation timers still pending from the round being
+    // left behind (see pendingTurnTimeoutsRef above) — otherwise a leftover
+    // computer-turn step could fire moments later and mutate the brand-new
+    // hand this call is about to deal.
+    pendingTurnTimeoutsRef.current.forEach(id => clearTimeout(id));
+    pendingTurnTimeoutsRef.current.clear();
+
     const fullDeck = createDeck();
     const shuffled = shuffle(fullDeck);
     
@@ -758,7 +787,7 @@ export default function App() {
         setDrawnCardPreview(drawn);
         addLog(`【自摸】摸到 [${drawn.name}]，正好與手中 [${matchedCard.name}] 配對！`);
 
-        setTimeout(() => {
+        scheduleTurnTimeout(() => {
           // Step 2: execute pair + show 吃對 for 3s
           setDrawnCardPreview(null);
           const nextHand = player.hand.filter(c => c.id !== matchedCard.id);
@@ -780,7 +809,7 @@ export default function App() {
 
           const autoCheck = groupPairsMode(nextHand);
           if (autoCheck.strays.length === 0) {
-            setTimeout(() => {
+            scheduleTurnTimeout(() => {
               setShowEatPairAnim(false);
               handleWin('player', 'pairs', '恭喜！自摸配對完成所有散牌，宣告勝出！', [drawn, matchedCard], { hand: nextHand, revealed: newRevealed, wasSelfDraw: true });
             }, 3000);
@@ -788,7 +817,7 @@ export default function App() {
           }
           setHasDrawn(true);
           setCanDiscard(false);
-          setTimeout(() => {
+          scheduleTurnTimeout(() => {
             setShowEatPairAnim(false);
             setCanDiscard(true);
             setGuideMessage('配對成功！請選牌打出。');
@@ -881,7 +910,7 @@ export default function App() {
     setIsComputerThinking(true);
     setGuideMessage('等待電腦...');
 
-    setTimeout(() => {
+    scheduleTurnTimeout(() => {
       runComputerTurn(cardToDiscard);
     }, 1200);
   };
@@ -937,13 +966,13 @@ export default function App() {
 
           const nextGroup = groupPairsMode(newHand);
           if (nextGroup.strays.length === 0) {
-            setTimeout(() => {
+            scheduleTurnTimeout(() => {
               setShowEatPairAnim(false);
               handleWin('computer', 'pairs', '電腦配對抓完手牌散牌徹底歸零，取得勝利！', [playerDiscard, matchesStray], { hand: newHand, revealed: newRevealed, wasSelfDraw: false });
             }, 3000);
             return;
           }
-          setTimeout(() => {
+          scheduleTurnTimeout(() => {
             setShowEatPairAnim(false);
             executeComputerDiscard(newHand);
           }, 3000);
@@ -978,13 +1007,13 @@ export default function App() {
           setIsComputerThinking(false);
 
           if (newHand.length === 0 || checkTriosWin(newHand)) {
-            setTimeout(() => {
+            scheduleTurnTimeout(() => {
               setShowEatPairAnim(false);
               handleWin('computer', 'pairs', '電腦的15張牌湊成5組三張，電腦勝出！', option.resultCards, { hand: newHand, revealed: newRevealed, wasSelfDraw: false });
             }, 3000);
             return;
           }
-          setTimeout(() => {
+          scheduleTurnTimeout(() => {
             setShowEatPairAnim(false);
             executeComputerDiscard(newHand);
           }, 3000);
@@ -1037,7 +1066,7 @@ export default function App() {
             effectiveHand = sortHandForDisplay([...effectiveHand, repCard]);
             setComputer(prev => ({ ...prev, hand: effectiveHand, revealed: effectiveRevealed }));
           }
-          setTimeout(() => { executeComputerDiscard(effectiveHand); }, 900);
+          scheduleTurnTimeout(() => { executeComputerDiscard(effectiveHand); }, 900);
           return;
         }
 
@@ -1057,7 +1086,7 @@ export default function App() {
           addLog(`🤖 電腦 AI 碰牌成功！亮明碰出了您的 [${playerDiscard.name}]。`);
           setLastDiscardedCard(null);
           setDiscardPile(prev => prev.filter(c => c.id !== playerDiscard.id));
-          setTimeout(() => { executeComputerDiscard(newHand); }, 900);
+          scheduleTurnTimeout(() => { executeComputerDiscard(newHand); }, 900);
           return;
         }
       }
@@ -1107,14 +1136,14 @@ export default function App() {
         setShowEatPairAnim(true);
 
         if (newHand.length === 0 || checkTriosWin(newHand)) {
-          setTimeout(() => {
+          scheduleTurnTimeout(() => {
             setShowEatPairAnim(false);
             handleWin('computer', 'pairs', '電腦的15張牌湊成5組三張，電腦勝出！', option.resultCards, { hand: newHand, revealed: newRevealed, wasSelfDraw: true });
           }, 3000);
           setIsComputerThinking(false);
           return;
         }
-        setTimeout(() => {
+        scheduleTurnTimeout(() => {
           setShowEatPairAnim(false);
           executeComputerDiscard(newHand);
         }, 3000);
@@ -1132,7 +1161,7 @@ export default function App() {
         return;
       }
       setComputer(prev => ({ ...prev, hand: newHand15 }));
-      setTimeout(() => { executeComputerDiscard(newHand15); }, 900);
+      scheduleTurnTimeout(() => { executeComputerDiscard(newHand15); }, 900);
     } else if (mode === 'pairs') {
       // 10-card: auto-pair strays
       const cGroup = groupPairsMode(computer.hand);
@@ -1161,14 +1190,14 @@ export default function App() {
 
         const nextGroup = groupPairsMode(newHand);
         if (nextGroup.strays.length === 0) {
-          setTimeout(() => {
+          scheduleTurnTimeout(() => {
             setShowEatPairAnim(false);
             handleWin('computer', 'pairs', '電腦自摸對子成功，手中散牌宣告配對歸零，斬獲勝利！', [drawn, matched], { hand: newHand, revealed: newRevealed, wasSelfDraw: true });
           }, 3000);
           setIsComputerThinking(false);
           return;
         }
-        setTimeout(() => {
+        scheduleTurnTimeout(() => {
           setShowEatPairAnim(false);
           executeComputerDiscard(newHand);
         }, 3000);
@@ -1177,7 +1206,7 @@ export default function App() {
         setComputer(prev => ({ ...prev, hand: updatedHand }));
         setLastDrawnCard(null);
         assertCardTotal('電腦摸牌-加入手牌', { computerHand: updatedHand, pendingDrawn: null }, { side: 'computer', kind: 'draw' });
-        setTimeout(() => { executeComputerDiscard(updatedHand); }, 900);
+        scheduleTurnTimeout(() => { executeComputerDiscard(updatedHand); }, 900);
       }
     } else {
       // Standard AI decision-making when drawing card
@@ -1224,7 +1253,7 @@ export default function App() {
             finalHand = sortHandForDisplay([...quadHand, repCard]);
             setComputer(prev => ({ ...prev, hand: finalHand, revealed: quadRevealed }));
           }
-          setTimeout(() => { executeComputerDiscard(finalHand); }, 900);
+          scheduleTurnTimeout(() => { executeComputerDiscard(finalHand); }, 900);
           return;
         }
       }
@@ -1235,7 +1264,7 @@ export default function App() {
       const appendedHand = sortHandForDisplay([...computer.hand, drawn]);
       setComputer(prev => ({ ...prev, hand: appendedHand }));
       setLastDrawnCard(null);
-      setTimeout(() => {
+      scheduleTurnTimeout(() => {
         executeComputerDiscard(appendedHand);
       }, 900);
     }
@@ -1335,7 +1364,7 @@ export default function App() {
     // (and possibly popping up) the player's reaction options — keeps the
     // discard → table display → reaction-check → radar sequence readable instead
     // of everything landing in the same instant.
-    setTimeout(() => {
+    scheduleTurnTimeout(() => {
       // Let the player react to computer's discard!
       const playerMoves = checkAvailableMoves(player.hand, player.revealed, discarded, false);
 
@@ -1449,7 +1478,7 @@ export default function App() {
 
           const checkGroup = groupPairsMode(nextHand);
           if (checkGroup.strays.length === 0) {
-            setTimeout(() => {
+            scheduleTurnTimeout(() => {
               setShowEatPairAnim(false);
               handleWin('player', 'pairs', '恭喜！您成功配對了手中所有單張散牌，解鎖大勝！', [trigger, matchCard], { hand: nextHand, revealed: updatedRevealed, wasSelfDraw: !claimedFromDiscard });
             }, 3000);
@@ -1460,7 +1489,7 @@ export default function App() {
           setCurPlayerId('player');
           setHasDrawn(true);
           setCanDiscard(false);
-          setTimeout(() => {
+          scheduleTurnTimeout(() => {
             setShowEatPairAnim(false);
             setCanDiscard(true);
             setGuideMessage('配對成功！請選牌打出。');
@@ -1638,7 +1667,7 @@ export default function App() {
     setShowEatPairAnim(true);
 
     if (nextHand.length === 0 || checkTriosWin(nextHand)) {
-      setTimeout(() => {
+      scheduleTurnTimeout(() => {
         setShowEatPairAnim(false);
         handleWin('player', 'pairs', '恭喜！您的15張牌已湊成5組三張，宣告勝出！', option.resultCards, { hand: nextHand, revealed: newRevealed, wasSelfDraw });
       }, 3000);
@@ -1648,7 +1677,7 @@ export default function App() {
     setCurPlayerId('player');
     setHasDrawn(true);
     setCanDiscard(false);
-    setTimeout(() => {
+    scheduleTurnTimeout(() => {
       setShowEatPairAnim(false);
       setCanDiscard(true);
       setGuideMessage('組合成功！請選牌打出。');
@@ -1707,7 +1736,7 @@ export default function App() {
       setIsComputerThinking(true);
       setGuideMessage('電腦摸牌中...');
       
-      setTimeout(() => {
+      scheduleTurnTimeout(() => {
         runComputerTurn(null);
       }, 1000);
     }
