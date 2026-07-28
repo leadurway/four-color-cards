@@ -3072,22 +3072,28 @@ export default function App() {
 
       {/* 胡牌 CELEBRATION OVERLAY — stamp + cards + 繼續下局 button (fireworks for player only) */}
       {showHuCelebration && (
-        <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center select-none overflow-hidden">
+        <div className="fixed inset-0 z-[200] flex flex-col items-center select-none overflow-y-auto">
           {/* Fireworks canvas — player wins only */}
           {huAnimWho === 'player' && (
             <canvas
               ref={fireworksCanvasRef}
-              className="absolute inset-0 w-full h-full"
+              className="fixed inset-0 w-full h-full pointer-events-none"
               style={{ background: 'rgba(6,14,30,0.82)' }}
             />
           )}
           {/* Plain dark overlay — computer wins */}
           {huAnimWho === 'computer' && (
-            <div className="absolute inset-0" style={{ background: 'rgba(6,14,30,0.88)' }} />
+            <div className="fixed inset-0 pointer-events-none" style={{ background: 'rgba(6,14,30,0.88)' }} />
           )}
 
-          {/* Content on top */}
-          <div className="relative z-10 flex flex-col items-center px-6 text-center" style={{ gap: 10 }}>
+          {/* Content on top — margin:auto (not the parent's justify-center) is what
+              centers this when it's shorter than the viewport, since centering via
+              justify-content clips the top of any overflow beyond it and makes that
+              part unreachable even with overflow-y-auto on the parent. This is most
+              visible on iPhone landscape, where the viewport is short and this whole
+              block (cards + badge + score breakdown + 繼續下局 button) is routinely
+              taller than it — margin:auto keeps it scrollable end to end instead. */}
+          <div className="relative z-10 flex flex-col items-center px-6 py-8 text-center m-auto" style={{ gap: 10 }}>
             {/* Cards above badge */}
             {huAnimCards.length > 0 && (
               <div className="flex items-end" style={{ gap: 3, animation: 'cardReveal 0.4s cubic-bezier(0.34,1.56,0.64,1) both' }}>
