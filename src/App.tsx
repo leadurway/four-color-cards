@@ -146,6 +146,20 @@ export default function App() {
   const [pendingTrioOptions, setPendingTrioOptions] = useState<TrioClaimOption[]>([]);
   const [canDiscard, setCanDiscard] = useState(false);
   const [hasDrawn, setHasDrawn] = useState(false);
+
+  // 15-card mode's "組" hint grouping for hand display — deliberately NOT
+  // recomputed from scratch on every render. find15TrioHints resolves the 3
+  // valid trio shapes by a fixed priority order (同色同字 → 同色序列 →
+  // 同階異色); a freshly-drawn card can push some key over the 同色同字
+  // threshold and get greedily claimed by that pass, STEALING a card away
+  // from a completely different, already-locked-in group from a prior render
+  // — which flips that other group's other 1-2 members back to "stray" even
+  // though the draw never touched them. Freezing this grouping until the
+  // turn actually resolves (a discard or a claim, not a bare draw) means the
+  // just-drawn card simply shows as an extra ungrouped card until then,
+  // instead of reshuffling everything already grouped.
+  const [playerTrioHints, setPlayerTrioHints] = useState<Card[][]>([]);
+  const [computerTrioHints, setComputerTrioHints] = useState<Card[][]>([]);
   
   // Quick tutorial navigation tabs
   const [activeTutorialTab, setActiveTutorialTab] = useState<'ranks' | 'pairs'>('ranks');
@@ -574,15 +588,36 @@ export default function App() {
     }
   };
 
+  // 10-card 對子 mode: groupPairsMode groups strictly by 同色同字 key, and
+  // drawing ONE card can only ever change ITS OWN key's stray count by
+  // exactly 1 (0→1 adds a stray; 1→2 completes a pair and removes a stray;
+  // 2→3 adds a new stray on top of the now-complete pair; 3→4 completes a
+  // second pair). No other key is touched by that draw, so a single draw
+  // mathematically cannot move the TOTAL stray count by more than 1 — this
+  // holds regardless of which specific cards end up called "the pair" vs
+  // "the stray" within a group. If it ever does move by more than 1, that's
+  // not a grouping-logic choice to fix — it means the hand itself gained or
+  // lost more cards than this one draw accounts for.
+  const logStrayDelta = (label: string, before: number, after: number) => {
+    if (Math.abs(after - before) > 1) {
+      const msg = `⚠️ [系統偵測/散牌異常變動] ${label}：散牌數從 ${before} 張變成 ${after} 張，單次摸牌照理最多只會變動 1 張！`;
+      console.warn(msg);
+      addLog(msg);
+    }
+  };
+
   // Safety-net watcher: assertCardTotal above only fires at the checkpoints
   // this file explicitly calls it from. If a hand ever changes through some
   // OTHER path — one not yet identified/instrumented — this catches it on
   // the very next render regardless of cause, by diffing this render's hand
-  // against the previous one. A normal single step in pairs mode never
-  // changes a hand by more than 2 cards (a 15-card 組 claim removes 2; every
-  // other step removes/adds exactly 1), so anything bigger is a real
-  // anomaly — logged with the exact card names so the next report has hard
-  // evidence instead of a memory of what was on screen.
+  // against the previous one. The max LEGITIMATE single-step change differs
+  // by hand size: 10-card mode never moves more than 1 card at a time (draw
+  // adds 1 / discard removes 1 / an auto-pair reveal removes exactly the 1
+  // matched stray — the drawn card that completed the pair never touched
+  // hand at all); 15-card mode's 組 claim is the one path that moves 2 at
+  // once. Anything past that is a real anomaly — logged with the exact card
+  // names so the next report has hard evidence instead of a memory of what
+  // was on screen.
   const prevHandSnapshotRef = useRef<{ player: Card[]; computer: Card[]; wasMidRound: boolean }>({ player: [], computer: [], wasMidRound: false });
   useEffect(() => {
     const prevSnap = prevHandSnapshotRef.current;
@@ -591,6 +626,7 @@ export default function App() {
     // fresh round is first dealt (previous render was still 'setup' /
     // 'game_over') is a legitimate large jump, not an anomaly.
     if (isMidRound && prevSnap.wasMidRound) {
+      const maxLegitDelta = pairsHandSize === 15 ? 2 : 1;
       const describe = (cards: Card[]) => (cards.length ? cards.map(c => c.name).join('、') : '（無）');
       const added = (before: Card[], after: Card[]) => {
         const beforeIds = new Set(before.map(c => c.id));
@@ -601,7 +637,7 @@ export default function App() {
       const checkSide = (sideName: string, before: Card[], after: Card[]) => {
         const gained = added(before, after);
         const lost = removed(before, after);
-        if (gained.length > 2 || lost.length > 2) {
+        if (gained.length > maxLegitDelta || lost.length > maxLegitDelta) {
           const msg = `⚠️ [系統偵測/手牌突變] ${sideName}的手牌在一個畫面更新內變化過大：新增 ${gained.length} 張（${describe(gained)}），消失 ${lost.length} 張（${describe(lost)}）。變動前：${describe(before)}；變動後：${describe(after)}`;
           console.warn(msg);
           addLog(msg);
@@ -611,7 +647,7 @@ export default function App() {
       checkSide('電腦', prevSnap.computer, computer.hand);
     }
     prevHandSnapshotRef.current = { player: player.hand, computer: computer.hand, wasMidRound: isMidRound };
-  }, [player.hand, computer.hand, mode, gamePhase]);
+  }, [player.hand, computer.hand, mode, gamePhase, pairsHandSize]);
 
   // Setup/Initialize core gaming deck & distribute hands.
   // `isNewSession` distinguishes the lobby's "開始遊戲" (a brand-new session) from
@@ -739,6 +775,8 @@ export default function App() {
       revealed: computerRevealed,
       score: newComputerScore
     });
+    setPlayerTrioHints(mode === 'pairs' && pairsHandSize === 15 ? find15TrioHints(playerHand) : []);
+    setComputerTrioHints(mode === 'pairs' && pairsHandSize === 15 ? find15TrioHints(computerHand) : []);
 
     setDiscardPile([]);
     setCurPlayerId('player');
@@ -824,7 +862,11 @@ export default function App() {
         setLastDrawnCard(null);
         setLastDiscardedCard(null);
         setDrawnCardPreview(drawn);
-        addLog(`【自摸】摸到 [${drawn.name}]，正好與手中 [${matchedCard.name}] 配對！`);
+        {
+          const afterStrayCount = groupPairsMode(player.hand.filter(c => c.id !== matchedCard.id)).strays.length;
+          addLog(`【自摸】摸到 [${drawn.name}]，正好與手中 [${matchedCard.name}] 配對！（散牌由 ${pGroup.strays.length} 張變為 ${afterStrayCount} 張）`);
+          logStrayDelta('玩家自摸配對', pGroup.strays.length, afterStrayCount);
+        }
 
         scheduleTurnTimeout(() => {
           // Step 2: execute pair + show 吃對 for 3s
@@ -872,6 +914,11 @@ export default function App() {
         assertCardTotal('玩家摸牌-加入手牌', { playerHand: nextHand, pendingDrawn: null }, { side: 'player', kind: 'draw' });
         setCanDiscard(true);
         setGuideMessage(`[${drawn.name}] 未配對，已加入手牌。`);
+        {
+          const afterStrayCount = groupPairsMode(nextHand).strays.length;
+          addLog(`【摸牌】摸到 [${drawn.name}]，未能配對，已加入手牌。（散牌由 ${pGroup.strays.length} 張變為 ${afterStrayCount} 張）`);
+          logStrayDelta('玩家摸牌-加入手牌', pGroup.strays.length, afterStrayCount);
+        }
       }
     } else {
       // Standard Mahjong-like rules check when drawing from deck
@@ -933,6 +980,11 @@ export default function App() {
 
     addLog(`【您打牌】打出了一張棄牌：[${cardToDiscard.name}]`);
     assertCardTotal('玩家丟牌', { playerHand: updatedHand, discardPile: newDiscardPile, pendingDrawn: null }, { side: 'player', kind: 'discard' });
+    // The turn has now resolved (drawn card either discarded or absorbed) —
+    // this is the one point where re-deriving the 組 hint grouping from
+    // scratch is safe; see playerTrioHints's declaration for why it's NOT
+    // refreshed right after the draw itself.
+    if (mode === 'pairs' && pairsHandSize === 15) setPlayerTrioHints(find15TrioHints(updatedHand));
 
     // 10-card pairs mode: check if discarding leaves hand with no strays → win
     if (mode === 'pairs' && pairsHandSize === 10) {
@@ -1034,6 +1086,7 @@ export default function App() {
           };
           const newRevealed = [...computer.revealed, newMeld];
           setComputer(prev => ({ ...prev, hand: newHand, revealed: newRevealed }));
+          setComputerTrioHints(find15TrioHints(newHand));
           setLastDiscardedCard(null);
           const newDiscardPile = discardPile.filter(c => c.id !== playerDiscard.id);
           setDiscardPile(newDiscardPile);
@@ -1166,6 +1219,7 @@ export default function App() {
         };
         const newRevealed = [...computer.revealed, newMeld];
         setComputer(prev => ({ ...prev, hand: newHand, revealed: newRevealed }));
+        setComputerTrioHints(find15TrioHints(newHand));
         setLastDrawnCard(null);
         addLog(`🤖 電腦 AI 自摸【${option.actionLabel}】，湊成${option.meldName}。`);
         assertCardTotal(`電腦自摸${option.actionLabel}`, { computerHand: newHand, computerRevealed: newRevealed, pendingDrawn: null }, { side: 'computer', kind: 'draw' });
@@ -1220,7 +1274,15 @@ export default function App() {
         const newRevealed = [...computer.revealed, newMeld];
         setComputer(prev => ({ ...prev, hand: newHand, revealed: newRevealed }));
         setLastDrawnCard(null);
-        addLog(`🤖 電腦 AI 自我配對成功！亮出明對：[${drawn.name}]。`);
+        // Logs the stray count both before (cGroup, computed off the pre-draw
+        // hand above) and after this single draw — a real record of "did it
+        // only move by 1", instead of relying on memory next time someone
+        // reports the stray count jumping by several.
+        {
+          const afterStrayCount = groupPairsMode(newHand).strays.length;
+          addLog(`🤖 電腦 AI 自我配對成功！亮出明對：[${drawn.name}]。（散牌由 ${cGroup.strays.length} 張變為 ${afterStrayCount} 張）`);
+          logStrayDelta('電腦自摸配對', cGroup.strays.length, afterStrayCount);
+        }
         assertCardTotal('電腦自摸配對', { computerHand: newHand, computerRevealed: newRevealed, pendingDrawn: null }, { side: 'computer', kind: 'draw' });
         setEatPairAnimWho('computer');
         setEatPairAnimCards([drawn, matched]);
@@ -1244,6 +1306,11 @@ export default function App() {
         const updatedHand = sortHandForDisplay([...computer.hand, drawn]);
         setComputer(prev => ({ ...prev, hand: updatedHand }));
         setLastDrawnCard(null);
+        {
+          const afterStrayCount = groupPairsMode(updatedHand).strays.length;
+          addLog(`🤖 電腦 AI 摸到 [${drawn.name}]，未能配對，已加入手牌。（散牌由 ${cGroup.strays.length} 張變為 ${afterStrayCount} 張）`);
+          logStrayDelta('電腦摸牌-加入手牌', cGroup.strays.length, afterStrayCount);
+        }
         assertCardTotal('電腦摸牌-加入手牌', { computerHand: updatedHand, pendingDrawn: null }, { side: 'computer', kind: 'draw' });
         scheduleTurnTimeout(() => { executeComputerDiscard(updatedHand); }, 900);
       }
@@ -1386,6 +1453,10 @@ export default function App() {
     addLog(`🤖 電腦 AI 思考後打出了拋牌：[${discarded.name}]`);
     setGuideMessage(`電腦打出了 [${discarded.name}]，正在判斷您是否能配對...`);
     assertCardTotal('電腦丟牌', { computerHand: finalHand, discardPile: newDiscardPile }, { side: 'computer', kind: 'discard' });
+    // Turn resolved — safe point to re-derive the 組 hint grouping from
+    // scratch (see computerTrioHints's declaration for why it's frozen
+    // during the draw-then-decide window instead of refreshed every render).
+    if (mode === 'pairs' && pairsHandSize === 15) setComputerTrioHints(find15TrioHints(finalHand));
 
     // Pairs mode: check if computer's hand is all-paired after discarding (10-card only)
     if (mode === 'pairs' && pairsHandSize === 10) {
@@ -1693,6 +1764,7 @@ export default function App() {
     };
     const newRevealed = [...player.revealed, newMeld];
     setPlayer(prev => ({ ...prev, hand: nextHand, revealed: newRevealed }));
+    setPlayerTrioHints(find15TrioHints(nextHand));
     addLog(`【${option.actionLabel}】您用 [${trigger.name}] 湊成${option.meldName}，鎖定亮出。`);
     assertCardTotal(`玩家${option.actionLabel}`, { playerHand: nextHand, playerRevealed: newRevealed, discardPile: newDiscardPile, pendingDrawn: null }, { side: 'player', kind: 'draw' });
     setLastDrawnCard(null);
@@ -1885,11 +1957,13 @@ export default function App() {
   // inline in the computer's own hand-fan (cheat mode) instead.
   const computerClaimedMelds = computer.revealed.filter(m => m.origin === 'discard');
 
-  // 15-card mode: "組" hint (all 3 valid trio types) — locked from discard, seated together in display
-  const player15TrioGroups = mode === 'pairs' && pairsHandSize === 15 ? find15TrioHints(player.hand) : [];
+  // 15-card mode: "組" hint (all 3 valid trio types) — locked from discard, seated together in display.
+  // Read from the frozen playerTrioHints/computerTrioHints state (see above),
+  // NOT recomputed here — that's what makes it stable across a bare draw.
+  const player15TrioGroups = mode === 'pairs' && pairsHandSize === 15 ? playerTrioHints : [];
   const player15TrioIds = new Set(player15TrioGroups.flat().map(c => c.id));
   const computer15TrioIds = new Set(
-    (mode === 'pairs' && pairsHandSize === 15 ? find15TrioHints(computer.hand) : []).flat().map(c => c.id)
+    (mode === 'pairs' && pairsHandSize === 15 ? computerTrioHints : []).flat().map(c => c.id)
   );
   // 散牌 = 手裡牌扣除掉已標示對子/組子的牌。10張玩法看的是「對」（同色同字在
   // 手牌裡有沒有搭檔，即 groupPairsMode 的配對邏輯，跟手牌格線裡「對」徽章用的

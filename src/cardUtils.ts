@@ -68,7 +68,15 @@ export function groupPairsMode(hand: Card[]): PairsGrouping {
   const pairs: Card[][] = [];
   const strays: Card[] = [];
 
-  Object.values(groupsMap).forEach(cards => {
+  Object.values(groupsMap).forEach(rawCards => {
+    // Which specific physical card ends up "the pair" vs "the stray" within a
+    // 3-of-a-kind group must depend only on WHICH cards are in the group, never
+    // on where they happen to sit in `hand` — hand gets re-sorted after every
+    // draw/discard (sortHandForDisplay), so grouping off raw array order would
+    // let an unrelated draw/discard reshuffle which card of an EXISTING,
+    // untouched group gets called the stray. Sorting by id first makes the
+    // pair/stray assignment a pure function of the card set.
+    const cards = [...rawCards].sort((a, b) => a.id.localeCompare(b.id));
     const n = cards.length;
     if (n >= 4) {
       pairs.push([cards[0], cards[1]]);
