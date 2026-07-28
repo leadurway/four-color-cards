@@ -181,6 +181,11 @@ export default function App() {
   // and both run. A ref updates synchronously and is immune to that gap; it
   // self-releases on the next tick (setTimeout 0) so it can never get stuck.
   const playerActionLockRef = useRef(false);
+  // Tracks the last hand-card tapped and when, so a second tap on the SAME
+  // card within the window below is treated as "連點兩次丟出該牌" (double-tap
+  // to discard) instead of just toggling selection again.
+  const lastHandCardTapRef = useRef<{ id: string; time: number } | null>(null);
+  const DOUBLE_TAP_DISCARD_MS = 400;
   const [handCardDims, setHandCardDims] = useState({ w: 32, h: 84, fs: 19 });
   // Device/orientation classification: iPhone portrait is the ONE reference
   // design (isPhoneSized && !isLandscape) — its 2-row hand layout, 6-card-
@@ -2512,6 +2517,17 @@ export default function App() {
                               isSelected={isSelected}
                               onClick={() => {
                                 if (isLocked) return;
+                                const now = Date.now();
+                                const lastTap = lastHandCardTapRef.current;
+                                if (lastTap && lastTap.id === card.id && now - lastTap.time < DOUBLE_TAP_DISCARD_MS) {
+                                  // Second tap on the same card within the window — discard it directly.
+                                  // handlePlayerDiscard re-checks canDiscard/gamePhase/curPlayerId itself,
+                                  // so this is a no-op if discarding isn't actually allowed right now.
+                                  lastHandCardTapRef.current = null;
+                                  handlePlayerDiscard(card.id);
+                                  return;
+                                }
+                                lastHandCardTapRef.current = { id: card.id, time: now };
                                 playSound('click');
                                 setSelectedCardId(isSelected ? null : card.id);
                               }}
