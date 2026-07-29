@@ -243,6 +243,12 @@ export default function App() {
   const [huAnimWho, setHuAnimWho] = useState<'player' | 'computer'>('player');
   const [huAnimCards, setHuAnimCards] = useState<Card[]>([]);
   const [huAnimSelfDraw, setHuAnimSelfDraw] = useState(false);
+  // Winner's complete final hand (concealed hand + every revealed meld's
+  // cards flattened together) — all 10 or 15 cards, shown as small square
+  // mini-cards across the top of the celebration screen. Separate from
+  // huAnimCards, which stays scoped to just the specific card(s) that
+  // completed the win.
+  const [huAnimFullHand, setHuAnimFullHand] = useState<Card[]>([]);
   const [backConfirmPending, setBackConfirmPending] = useState(false);
   const fireworksCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -1904,6 +1910,7 @@ export default function App() {
     addLog(`📢 牌局終止！【${winner === 'player' ? '玩家' : '電腦 AI'}】宣佈贏得本盤勝利！理由：${explanation}${breakdown ? `（共 ${breakdown.totalTai} 台）` : ''}`);
     setHuAnimWho(winner);
     setHuAnimCards(winCards);
+    setHuAnimFullHand(scoring ? [...scoring.hand, ...scoring.revealed.flatMap(m => m.cards)] : winCards);
     setHuAnimSelfDraw(!!scoring?.wasSelfDraw);
     setShowHuCelebration(true);
     setHuCelebShowContinue(false);
@@ -3094,6 +3101,20 @@ export default function App() {
               block (cards + badge + score breakdown + 繼續下局 button) is routinely
               taller than it — margin:auto keeps it scrollable end to end instead. */}
           <div className="relative z-10 flex flex-col items-center px-6 py-8 text-center m-auto" style={{ gap: 10 }}>
+            {/* Winner's full final hand (concealed + all revealed melds), small square
+                mini-cards — the complete 10/15 張, not just the cards that completed
+                the win (those stay highlighted below via huAnimCards). */}
+            {huAnimFullHand.length > 0 && (
+              <div className="flex flex-col items-center" style={{ gap: 4, animation: 'fadeInUp 0.4s ease both' }}>
+                <span className="text-[11px] font-bold tracking-wide text-slate-300">
+                  {huAnimWho === 'player' ? '您的' : '電腦的'}手牌＋露牌（共 {huAnimFullHand.length} 張）
+                </span>
+                <div className="flex flex-wrap justify-center bg-black/40 border border-white/10 rounded-xl p-1.5" style={{ gap: 2, maxWidth: 320 }}>
+                  {huAnimFullHand.map((c, i) => renderMiniCard(c, `hu-full-${c.id}-${i}`))}
+                </div>
+              </div>
+            )}
+
             {/* Cards above badge */}
             {huAnimCards.length > 0 && (
               <div className="flex items-end" style={{ gap: 3, animation: 'cardReveal 0.4s cubic-bezier(0.34,1.56,0.64,1) both' }}>
