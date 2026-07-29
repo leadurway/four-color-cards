@@ -358,19 +358,39 @@ export default function App() {
     if (!showHuCelebration) return;
     const canvas = fireworksCanvasRef.current;
     if (!canvas) return;
-
-    const resize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
-    resize();
-    window.addEventListener('resize', resize);
-
     const ctx = canvas.getContext('2d')!;
+
+    // Size the drawing buffer in DEVICE pixels (CSS size × devicePixelRatio)
+    // and scale the context to match — iPhones are retina displays (dpr 2-3),
+    // so sizing the buffer 1:1 with CSS pixels (the old behavior) rendered
+    // every particle visibly soft/blurry instead of crisp.
+    const dpr = window.devicePixelRatio || 1;
+    const resize = () => {
+      canvas.width = window.innerWidth * dpr;
+      canvas.height = window.innerHeight * dpr;
+      canvas.style.width = `${window.innerWidth}px`;
+      canvas.style.height = `${window.innerHeight}px`;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      // Existing particle positions were computed against the PRE-resize CSS
+      // size; keeping them would misplace them after a mid-animation rotate.
+      particles.length = 0;
+    };
+
     const colors = ['#f0b329','#ff5511','#f5c218','#5ed07a','#60a5fa','#e8541a','#ff6b9d','#c084fc','#ffffff'];
     type Particle = { x: number; y: number; vx: number; vy: number; color: string; life: number; size: number };
     const particles: Particle[] = [];
 
+    resize();
+    window.addEventListener('resize', resize);
+    window.addEventListener('orientationchange', resize);
+
+    // Bursts are placed in CSS-pixel space (not device pixels) since the
+    // context is already scaled by dpr above.
     const burst = () => {
-      const x = 0.15 * canvas.width + Math.random() * canvas.width * 0.7;
-      const y = 0.1 * canvas.height + Math.random() * canvas.height * 0.45;
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      const x = 0.15 * w + Math.random() * w * 0.7;
+      const y = 0.1 * h + Math.random() * h * 0.45;
       const count = 55 + Math.floor(Math.random() * 30);
       const color = colors[Math.floor(Math.random() * colors.length)];
       for (let i = 0; i < count; i++) {
@@ -385,7 +405,7 @@ export default function App() {
     const animate = (t: number) => {
       if (t - lastBurst > 420) { burst(); if (Math.random() > 0.5) burst(); lastBurst = t; }
       ctx.fillStyle = 'rgba(6,14,30,0.18)';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
       for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
         p.x += p.vx; p.y += p.vy; p.vy += 0.13; p.vx *= 0.99; p.life -= 0.016;
@@ -401,7 +421,11 @@ export default function App() {
     };
     animId = requestAnimationFrame(animate);
 
-    return () => { cancelAnimationFrame(animId); window.removeEventListener('resize', resize); };
+    return () => {
+      cancelAnimationFrame(animId);
+      window.removeEventListener('resize', resize);
+      window.removeEventListener('orientationchange', resize);
+    };
   }, [showHuCelebration]);
 
   // Clear selected card if it becomes paired (e.g. after draw-and-pair)
