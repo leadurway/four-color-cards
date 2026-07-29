@@ -3105,12 +3105,27 @@ export default function App() {
                 mini-cards — the complete 10/15 張, not just the cards that completed
                 the win (those stay highlighted below via huAnimCards). */}
             {huAnimFullHand.length > 0 && (
-              <div className="flex flex-col items-center" style={{ gap: 4, animation: 'fadeInUp 0.4s ease both' }}>
+              <div className="flex flex-col items-center" style={{ gap: 4, animation: 'fadeInUp 0.4s ease both', width: '92vw', maxWidth: 560 }}>
                 <span className="text-[11px] font-bold tracking-wide text-slate-300">
                   {huAnimWho === 'player' ? '您的' : '電腦的'}手牌＋露牌（共 {huAnimFullHand.length} 張）
                 </span>
-                <div className="flex flex-wrap justify-center bg-black/40 border border-white/10 rounded-xl p-1.5" style={{ gap: 2, maxWidth: 320 }}>
-                  {huAnimFullHand.map((c, i) => renderMiniCard(c, `hu-full-${c.id}-${i}`))}
+                {/* flex-1 + aspect-square (no flex-wrap) spreads all 10/15 cards across
+                    one full-width row instead of the old fixed 320px box, which wrapped
+                    15 cards onto a second line. */}
+                <div className="flex w-full justify-center bg-black/40 border border-white/10 rounded-xl p-2" style={{ gap: 3 }}>
+                  {huAnimFullHand.map((c, i) => (
+                    <div
+                      key={`hu-full-${c.id}-${i}`}
+                      className="aspect-square flex-1 min-w-0 rounded-sm flex items-center justify-center font-black overflow-visible"
+                      style={{
+                        fontSize: 'clamp(10px, 4.5vw, 22px)',
+                        backgroundColor: c.color === 'yellow' ? '#ffd300' : c.color === 'green' ? '#299c42' : c.color === 'red' ? '#ff5511' : '#ffffff',
+                        color: c.color === 'yellow' ? '#ab1313' : '#111111',
+                      }}
+                    >
+                      {c.character}
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
