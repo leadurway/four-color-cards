@@ -2559,28 +2559,8 @@ export default function App() {
                       })}
                     </div>
 
-                  {/* ACTION BAR — 摸牌 and 打出這張牌 share the same size/color scheme */}
-                  <div className="bg-black/30 px-3 py-2 flex items-center gap-2 border-t border-white/5 shrink-0">
-                    <button
-                      onClick={handlePlayerDraw}
-                      disabled={gamePhase !== 'playing' || curPlayerId !== 'player' || lastDrawnCard !== null || hasDrawn || deck.length === 0}
-                      style={{
-                        height: handCardDims.w,
-                        ...(gamePhase === 'playing' && curPlayerId === 'player' && lastDrawnCard === null && !hasDrawn && deck.length > 0
-                          ? { animation: 'bounceSmall 1s ease-in-out infinite' }
-                          : {}),
-                      }}
-                      className={`flex-1 rounded-xl transition-all flex items-center justify-center ${
-                        gamePhase === 'playing' && curPlayerId === 'player' && lastDrawnCard === null && !hasDrawn && deck.length > 0
-                          ? 'bg-red-600 border-2 border-red-400 text-white active:scale-95 ring-2 ring-red-300 shadow-lg'
-                          : 'bg-white/5 border-2 border-white/10 text-slate-500 cursor-not-allowed'
-                      }`}
-                    >
-                      <span className="font-black leading-none whitespace-nowrap" style={{ fontSize: 'clamp(1rem, 5vw, 1.5rem)' }}>
-                        {deck.length > 0 ? `摸牌 ${deck.length}張` : '牌庫空'}
-                      </span>
-                    </button>
-
+                  {/* ACTION BAR — 打出這張牌 and 摸牌 share the same size/color scheme */}
+                  <div className="bg-black/30 px-1.5 py-2 flex items-center gap-1 border-t border-white/5 shrink-0">
                     <button
                       onClick={() => handlePlayerDiscard(selectedCardId!)}
                       disabled={!selectedCardId || !canDiscard || gamePhase !== 'playing' || curPlayerId !== 'player'}
@@ -2598,6 +2578,26 @@ export default function App() {
                     >
                       <span className="font-black leading-none whitespace-nowrap" style={{ fontSize: 'clamp(1rem, 5vw, 1.5rem)' }}>
                         打出這張牌
+                      </span>
+                    </button>
+
+                    <button
+                      onClick={handlePlayerDraw}
+                      disabled={gamePhase !== 'playing' || curPlayerId !== 'player' || lastDrawnCard !== null || hasDrawn || deck.length === 0}
+                      style={{
+                        height: handCardDims.w,
+                        ...(gamePhase === 'playing' && curPlayerId === 'player' && lastDrawnCard === null && !hasDrawn && deck.length > 0
+                          ? { animation: 'bounceSmall 1s ease-in-out infinite' }
+                          : {}),
+                      }}
+                      className={`flex-1 rounded-xl transition-all flex items-center justify-center ${
+                        gamePhase === 'playing' && curPlayerId === 'player' && lastDrawnCard === null && !hasDrawn && deck.length > 0
+                          ? 'bg-red-600 border-2 border-red-400 text-white active:scale-95 ring-2 ring-red-300 shadow-lg'
+                          : 'bg-white/5 border-2 border-white/10 text-slate-500 cursor-not-allowed'
+                      }`}
+                    >
+                      <span className="font-black leading-none whitespace-nowrap" style={{ fontSize: 'clamp(1rem, 5vw, 1.5rem)' }}>
+                        {deck.length > 0 ? `摸牌 ${deck.length}張` : '牌庫空'}
                       </span>
                     </button>
                   </div>
