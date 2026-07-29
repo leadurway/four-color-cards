@@ -239,7 +239,6 @@ export default function App() {
   const [eatPairAnimSource, setEatPairAnimSource] = useState('');
   const [drawnCardPreview, setDrawnCardPreview] = useState<import('./types').Card | null>(null);
   const [showHuCelebration, setShowHuCelebration] = useState(false);
-  const [huCelebShowContinue, setHuCelebShowContinue] = useState(false);
   const [huAnimWho, setHuAnimWho] = useState<'player' | 'computer'>('player');
   const [huAnimCards, setHuAnimCards] = useState<Card[]>([]);
   const [huAnimSelfDraw, setHuAnimSelfDraw] = useState(false);
@@ -1913,8 +1912,6 @@ export default function App() {
     setHuAnimFullHand(scoring ? [...scoring.hand, ...scoring.revealed.flatMap(m => m.cards)] : winCards);
     setHuAnimSelfDraw(!!scoring?.wasSelfDraw);
     setShowHuCelebration(true);
-    setHuCelebShowContinue(false);
-    setTimeout(() => setHuCelebShowContinue(true), 5000);
   };
 
   // Triggers draw game when remaining cards hit zero
@@ -3213,38 +3210,35 @@ export default function App() {
               </div>
             )}
 
-            {/* 繼續下局 button — appears after 5s, styled like 吃對 badge */}
-            {huCelebShowContinue && (
-              <button
-                onClick={() => {
-                  setShowHuCelebration(false);
-                  setHuCelebShowContinue(false);
-                  playSound('click');
-                  initGame(false);
-                }}
-                style={{
-                  width: handCardDims.h * 1.7,
-                  height: handCardDims.w * 1.3,
-                  background: '#f5c218',
-                  color: '#0a1628',
-                  display: 'flex',
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 4,
-                  fontSize: Math.min(handCardDims.w * 0.88, handCardDims.h * 0.38),
-                  fontWeight: 900,
-                  borderRadius: '0.6rem',
-                  lineHeight: 1.1,
-                  border: '3px solid #fff59d',
-                  cursor: 'pointer',
-                  animation: 'fadeInUp 0.6s ease both, continuePulse 1.2s ease-in-out infinite alternate',
-                }}
-              >
-                <span>繼續</span>
-                <span>下局</span>
-              </button>
-            )}
+            {/* 繼續下局 button — shown immediately alongside the win info, styled like 吃對 badge */}
+            <button
+              onClick={() => {
+                setShowHuCelebration(false);
+                playSound('click');
+                initGame(false);
+              }}
+              style={{
+                width: handCardDims.h * 1.7,
+                height: handCardDims.w * 1.3,
+                background: '#f5c218',
+                color: '#0a1628',
+                display: 'flex',
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 4,
+                fontSize: Math.min(handCardDims.w * 0.88, handCardDims.h * 0.38),
+                fontWeight: 900,
+                borderRadius: '0.6rem',
+                lineHeight: 1.1,
+                border: '3px solid #fff59d',
+                cursor: 'pointer',
+                animation: 'fadeInUp 0.6s ease both, continuePulse 1.2s ease-in-out infinite alternate',
+              }}
+            >
+              <span>繼續</span>
+              <span>下局</span>
+            </button>
           </div>
         </div>
       )}
