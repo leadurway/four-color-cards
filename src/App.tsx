@@ -332,7 +332,11 @@ export default function App() {
         const guideBarH = guideBarRef.current?.getBoundingClientRect().height ?? 0;
         const chromeH = maxCardW + guideBarH;
         const maxCardH = Math.max(10, containerH - chromeH - rowGap * (rows - 1)) / rows;
-        if (maxCardW / HAND_CARD_ASPECT <= maxCardH) {
+        // iPad landscape / PC web (tablet+ width, not iPhone landscape) always
+        // size off the full available WIDTH so all 15 cards fill the row
+        // edge-to-edge — these screens have plenty of height to spare, unlike
+        // iPhone landscape where the height comparison below still matters.
+        if (!isPhoneSized || maxCardW / HAND_CARD_ASPECT <= maxCardH) {
           w = maxCardW; h = maxCardW / HAND_CARD_ASPECT;
         } else {
           h = maxCardH; w = maxCardH * HAND_CARD_ASPECT;
@@ -351,7 +355,7 @@ export default function App() {
       window.removeEventListener('resize', calc);
       window.removeEventListener('orientationchange', calc);
     };
-  }, [activePage, showTwoRowHand]);
+  }, [activePage, showTwoRowHand, isPhoneSized]);
 
   // Fireworks canvas animation
   useEffect(() => {
@@ -2046,9 +2050,13 @@ export default function App() {
     : (playerHandDisplay.length || 1);
 
   // 桌面牌 discard/drawn card size: mirrors handCardDims's proportions but capped independently
-  // of the (fixed-height) table row, so it never feeds back into the hand container's ResizeObserver.
+  // of the (fixed-height) table row, so it never feeds back into the hand container's
+  // ResizeObserver. The cap itself is keyed off isPhoneSized (a stable device
+  // classification, not a measured/computed size) — never off handCardDims — so
+  // raising it for iPad landscape/PC web can't create that feedback loop either.
+  const tableRowHeight = isPhoneSized ? 110 : 150;
   const tableCardDims = (() => {
-    const maxH = 90;
+    const maxH = isPhoneSized ? 90 : 125;
     const h = Math.min(handCardDims.h, maxH);
     const aspect = handCardDims.h > 0 ? handCardDims.w / handCardDims.h : 32 / 84;
     return { w: Math.round(h * aspect), h, fs: Math.round(handCardDims.fs * (h / (handCardDims.h || h))) };
@@ -2392,12 +2400,15 @@ export default function App() {
                 </div>
 
                 {/* THE PORTRAIT RIVER / TABLE (Middle) — 桌面牌(左半) | 回收牌(右半)。摸牌按鈕已移至下方 ACTION BAR，跟打出這張牌並排 */}
-                {/* Fixed row height — must NOT derive from handCardDims: this row is a shrink-0 sibling of
+                {/* Row height — must NOT derive from handCardDims: this row is a shrink-0 sibling of
                     the flex-1 hand container below, so a handCardDims-derived height here would create a
                     layout feedback loop (row height <-> hand container's measured available height),
                     which occasionally left the hand grid mis-sized until an unrelated re-render (e.g. drawing
-                    a card) forced the ResizeObserver to settle. The table card is capped independently instead. */}
-                <div className="p-2 bg-black/20 rounded-2xl border border-white/5 flex gap-1.5 items-stretch select-none" style={{ height: 110 }}>
+                    a card) forced the ResizeObserver to settle. tableRowHeight is keyed off isPhoneSized
+                    instead (stable device classification, not a measured size) so iPad landscape/PC web can
+                    get a taller row — to match their larger hand cards — without that risk. The table card
+                    itself is capped independently too (tableCardDims above). */}
+                <div className="p-2 bg-black/20 rounded-2xl border border-white/5 flex gap-1.5 items-stretch select-none" style={{ height: tableRowHeight }}>
 
                   {/* Left half: 桌面牌 — text left (enlarged), card right (matches hand card size, capped) */}
                   <div className="flex-1 basis-1/2 min-w-0 flex gap-2 py-1 px-1 border-r border-white/10 overflow-hidden">
@@ -2511,7 +2522,12 @@ export default function App() {
                       stack snugly right below each other; only the truly leftover space
                       (if any) collects at the very bottom of this box, instead of
                       appearing as a gap between the cards and the action buttons. */}
-                  <div className={`flex-1 flex flex-col px-1 pt-1 pb-0 overflow-hidden ${isPhoneLandscape ? '' : 'min-h-0'}`}>
+                  {/* iPad landscape/PC web now size hand cards by width alone (see the
+                      sizing effect above) to fill all 15 columns edge to edge, which can
+                      make them taller than this box's height budget on an unusually short
+                      window — overflow-y-auto (instead of -hidden) is a safety net so that
+                      edge case scrolls instead of silently clipping the bottom of the hand. */}
+                  <div className={`flex-1 flex flex-col px-1 pt-1 pb-0 ${isPhoneSized ? 'overflow-hidden' : 'overflow-y-auto overflow-x-hidden'} ${isPhoneLandscape ? '' : 'min-h-0'}`}>
                     <div
                       ref={handContainerRef}
                       className="shrink-0 grid justify-start content-start gap-x-[1px] gap-y-2.5 overflow-x-auto overflow-y-hidden py-1"
