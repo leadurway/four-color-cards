@@ -2119,7 +2119,12 @@ export default function App() {
           
           {/* 1. Lobby/Setup Page (遊戲開始設定頁面) */}
           {activePage === 'lobby' && (
-            <div className="flex-1 px-5 lg:px-16 xl:px-32 flex flex-col gap-3 select-none text-white overflow-y-auto min-h-0" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)', paddingBottom: '1rem' }}>
+            // justify-center on tablet/PC only: this page's content is a fixed,
+            // shrink-0 stack sized for iPhone's shorter viewport — on iPad/PC's
+            // much taller one it used to leave a large dead gap below the 開始
+            // 遊戲 button instead of looking centered. iPhone (both orientations)
+            // keeps its original top-aligned/scrolling behavior untouched.
+            <div className={`flex-1 px-5 lg:px-16 xl:px-32 flex flex-col gap-3 select-none text-white overflow-y-auto min-h-0 ${isPhoneSized ? '' : 'justify-center'}`} style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)', paddingBottom: '1rem' }}>
               
               {/* Grand compact title */}
               <div className="text-center space-y-1.5 py-2 shrink-0">
@@ -2526,8 +2531,13 @@ export default function App() {
                       sizing effect above) to fill all 15 columns edge to edge, which can
                       make them taller than this box's height budget on an unusually short
                       window — overflow-y-auto (instead of -hidden) is a safety net so that
-                      edge case scrolls instead of silently clipping the bottom of the hand. */}
-                  <div className={`flex-1 flex flex-col px-1 pt-1 pb-0 ${isPhoneSized ? 'overflow-hidden' : 'overflow-y-auto overflow-x-hidden'} ${isPhoneLandscape ? '' : 'min-h-0'}`}>
+                      edge case scrolls instead of silently clipping the bottom of the hand.
+                      justify-center (tablet/PC only): the grid+action-bar+guide-bar block is
+                      shrink-0/content-sized, so any slack this flex-1 box has left over used
+                      to collect as a big dead gap below the guide bar — most visible on iPad
+                      portrait, where the 10/15-column width reference leaves a lot of unused
+                      height. Centering distributes that slack evenly above/below instead. */}
+                  <div className={`flex-1 flex flex-col px-1 pt-1 pb-0 ${isPhoneSized ? 'overflow-hidden' : 'overflow-y-auto overflow-x-hidden justify-center'} ${isPhoneLandscape ? '' : 'min-h-0'}`}>
                     <div
                       ref={handContainerRef}
                       className="shrink-0 grid justify-start content-start gap-x-[1px] gap-y-2.5 overflow-x-auto overflow-y-hidden py-1"
