@@ -2268,11 +2268,14 @@ export default function App() {
             </div>
           )}
 
-          {/* 2. Game Play Page (遊戲頁面) */}
+          {/* 2. Game Play Page (遊戲頁面). isPhoneLandscape padding: a little extra
+              breathing room beyond the raw notch/camera-housing boundary itself —
+              sitting text/score badges exactly flush against it still reads as
+              cramped, especially for the elderly players this app is designed for. */}
           {activePage === 'game' && (
             <div
               className={`flex-1 flex flex-col h-full w-full select-none text-white relative ${isPhoneLandscape ? 'overflow-y-auto' : 'overflow-hidden'}`}
-              style={isPhoneLandscape ? { paddingLeft: 'env(safe-area-inset-left, 0px)', paddingRight: 'env(safe-area-inset-right, 0px)' } : undefined}
+              style={isPhoneLandscape ? { paddingLeft: 'calc(env(safe-area-inset-left, 0px) + 0.5rem)', paddingRight: 'calc(env(safe-area-inset-right, 0px) + 0.5rem)' } : undefined}
             >
               
               {/* Compact header — paddingTop fills behind the notch */}
