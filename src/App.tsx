@@ -199,17 +199,29 @@ export default function App() {
   // differently-referenced layout for wider devices, which kept producing
   // subtly wrong card proportions — reusing the exact same formula at a
   // larger input size is simpler and guaranteed to match.
-  // "Phone-sized" is judged by the SHORTER of the two viewport dimensions (the
-  // phone's portrait-width even while it's held sideways), so a rotated iPhone
-  // doesn't get misclassified as tablet-sized.
+  //
+  // isPhoneSized is device detection (iPhone vs iPad vs PC web), decided ONCE
+  // when the app first loads and never re-evaluated afterward — resizing a PC
+  // browser window down to a narrow width, or an iPad entering split-view,
+  // must NOT flip it over to phone treatment mid-session the way a pure
+  // viewport-width check would. Only isLandscape stays continuously live,
+  // since rotating an actual device should still reflow the same device's
+  // layout. iPadOS 13+'s Safari reports as a Mac UA, so it's told apart from
+  // real desktop Safari by touch support (`maxTouchPoints`); any other touch
+  // device (e.g. Android) falls back to the same short-side-under-768
+  // heuristic this file always used, applied once instead of on every resize.
   const [isLandscape, setIsLandscape] = useState(false);
-  const [isPhoneSized, setIsPhoneSized] = useState(true);
+  const [isPhoneSized] = useState(() => {
+    const ua = navigator.userAgent;
+    if (/iPhone|iPod/.test(ua)) return true;
+    const isTouchMac = /Macintosh/.test(ua) && navigator.maxTouchPoints > 1; // iPadOS 13+ Safari
+    if (/iPad/.test(ua) || isTouchMac) return false;
+    const isTouchDevice = navigator.maxTouchPoints > 0 || 'ontouchstart' in window;
+    if (isTouchDevice) return Math.min(window.innerWidth, window.innerHeight) < 768;
+    return false; // PC web
+  });
   useEffect(() => {
-    const update = () => {
-      const w = window.innerWidth, h = window.innerHeight;
-      setIsLandscape(w > h);
-      setIsPhoneSized(Math.min(w, h) < 768);
-    };
+    const update = () => setIsLandscape(window.innerWidth > window.innerHeight);
     update();
     window.addEventListener('resize', update);
     window.addEventListener('orientationchange', update);
