@@ -2268,14 +2268,11 @@ export default function App() {
             </div>
           )}
 
-          {/* 2. Game Play Page (遊戲頁面). isPhoneLandscape padding: a little extra
-              breathing room beyond the raw notch/camera-housing boundary itself —
-              sitting text/score badges exactly flush against it still reads as
-              cramped, especially for the elderly players this app is designed for. */}
+          {/* 2. Game Play Page (遊戲頁面) */}
           {activePage === 'game' && (
             <div
               className={`flex-1 flex flex-col h-full w-full select-none text-white relative ${isPhoneLandscape ? 'overflow-y-auto' : 'overflow-hidden'}`}
-              style={isPhoneLandscape ? { paddingLeft: 'calc(env(safe-area-inset-left, 0px) + 0.5rem)', paddingRight: 'calc(env(safe-area-inset-right, 0px) + 0.5rem)' } : undefined}
+              style={isPhoneLandscape ? { paddingLeft: 'env(safe-area-inset-left, 0px)', paddingRight: 'env(safe-area-inset-right, 0px)' } : undefined}
             >
               
               {/* Compact header — paddingTop fills behind the notch */}
@@ -2341,47 +2338,28 @@ export default function App() {
                 {/* ① 遊戲頁面 — Game Display Panel */}
                 <div className="shrink-0 flex flex-col px-3 pt-2 pb-1.5 space-y-1.5 border-b-2 border-white/10">
 
-                {/* AI / OPPONENT STATUS (Top). Camera-cutout avoidance on iPhone landscape
-                    is done with a fixed offset (one hand-card's width), not env(safe-area-
-                    inset-*) — env() can't be checked with a screenshot/simulator (neither
-                    renders the physical cutout) and isn't reliable in every WebView/host
-                    context, so a fixed, always-applied shift is used instead: info (icon
-                    + name) moves right, score moves left, converging away from whichever
-                    edge the notch/Dynamic Island lands on after rotation. */}
+                {/* AI / OPPONENT STATUS (Top) */}
                 <div className="bg-black/35 p-2 rounded-2xl border border-white/5 space-y-1 text-sm relative select-none">
                   <div className="flex items-center justify-between">
-                    <div
-                      className="flex items-center gap-1.5 text-cyan-400 font-black"
-                      style={isPhoneLandscape ? { transform: `translateX(${handCardDims.w}px)` } : undefined}
-                    >
+                    <div className="flex items-center gap-1.5 text-cyan-400 font-black">
                       <Cpu className="w-4 h-4 animate-pulse text-cyan-400" />
                       <span>{computer.name}</span>
+                      <span className="text-[11px] font-bold bg-cyan-400/10 border border-cyan-400/30 rounded-full px-2 py-0.5 tabular-nums">{computer.score.toLocaleString()}</span>
                     </div>
 
-                    {/* Score sits with the right-side group (not immediately after the
-                        name) so its own left-shift below has room to move without
-                        overlapping the name/icon. */}
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="text-[11px] font-bold bg-cyan-400/10 border border-cyan-400/30 rounded-full px-2 py-0.5 tabular-nums"
-                        style={isPhoneLandscape ? { transform: `translateX(-${handCardDims.w}px)` } : undefined}
-                      >
-                        {computer.score.toLocaleString()}
-                      </span>
-                      {mode === 'pairs' ? (
-                        <div className="flex items-center gap-1 text-xs text-cyan-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full font-bold">
-                          <span>散牌:</span>
-                          <strong className="text-cyan-400 text-sm">{computerStrayCount}</strong>
-                          <span>張</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-1 text-xs text-cyan-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full font-bold">
-                          <span>賸餘牌:</span>
-                          <strong className="text-cyan-400 text-sm">{computer.hand.length}</strong>
-                          <span>張</span>
-                        </div>
-                      )}
-                    </div>
+                    {mode === 'pairs' ? (
+                      <div className="flex items-center gap-1 text-xs text-cyan-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full font-bold">
+                        <span>散牌:</span>
+                        <strong className="text-cyan-400 text-sm">{computerStrayCount}</strong>
+                        <span>張</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1 text-xs text-cyan-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full font-bold">
+                        <span>賸餘牌:</span>
+                        <strong className="text-cyan-400 text-sm">{computer.hand.length}</strong>
+                        <span>張</span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Robot's 露牌: only melds claimed from the player's discard (碰/吃) —
@@ -2500,45 +2478,29 @@ export default function App() {
                 {/* ELDER ACTION CONTROLLER AID — flex-1 fills remaining height */}
                 <div className={`flex-1 flex flex-col bg-black/35 rounded-2xl border border-white/10 select-none overflow-hidden ${isPhoneLandscape ? '' : 'min-h-0'}`}>
 
-                  {/* User profile banner (score lives here) — same fixed one-hand-card-
-                      width shift as the AI status bar above, see the comment there for
-                      why a fixed offset is used instead of env(safe-area-inset-*). */}
+                  {/* User profile banner */}
                   <div className="flex flex-col gap-1 bg-[#0c2852] py-2 px-3 border-b border-white/5 shrink-0">
                     <div className="flex justify-between items-center">
-                      <div
-                        className="flex items-center gap-2"
-                        style={isPhoneLandscape ? { transform: `translateX(${handCardDims.w}px)` } : undefined}
-                      >
+                      <div className="flex items-center gap-2">
                         <span className="text-xl leading-none">{playerAvatar}</span>
                         <span className="text-sm font-black text-yellow-300">{playerName}</span>
+                        <span className="text-[11px] font-bold bg-yellow-300/10 border border-yellow-300/30 rounded-full px-2 py-0.5 tabular-nums">{player.score.toLocaleString()}</span>
                       </div>
-
-                      {/* Score sits with the right-side group (not immediately after the
-                          name) so its own left-shift below has room to move without
-                          overlapping the name/avatar. */}
-                      <div className="flex items-center gap-2">
-                        <span
-                          className="text-[11px] font-bold bg-yellow-300/10 border border-yellow-300/30 rounded-full px-2 py-0.5 tabular-nums"
-                          style={isPhoneLandscape ? { transform: `translateX(-${handCardDims.w}px)` } : undefined}
-                        >
-                          {player.score.toLocaleString()}
-                        </span>
-                        {mode === 'pairs' ? (
-                          <div className="flex items-center gap-1 text-xs text-yellow-300 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full font-bold">
-                            <span>散牌:</span>
-                            <strong className="text-yellow-300 text-sm">{playerStrayCount}</strong>
-                            <span>張</span>
-                          </div>
-                        ) : (
-                          <div className="text-xs font-bold leading-none text-yellow-300">
-                            {activeHuCheck.canHu ? (
-                              <span className="text-yellow-300 font-black">✔ 可胡牌！</span>
-                            ) : (
-                              <span>{activeHuCheck.totalHoo} / 10 胡</span>
-                            )}
-                          </div>
-                        )}
-                      </div>
+                      {mode === 'pairs' ? (
+                        <div className="flex items-center gap-1 text-xs text-yellow-300 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full font-bold">
+                          <span>散牌:</span>
+                          <strong className="text-yellow-300 text-sm">{playerStrayCount}</strong>
+                          <span>張</span>
+                        </div>
+                      ) : (
+                        <div className="text-xs font-bold leading-none text-yellow-300">
+                          {activeHuCheck.canHu ? (
+                            <span className="text-yellow-300 font-black">✔ 可胡牌！</span>
+                          ) : (
+                            <span>{activeHuCheck.totalHoo} / 10 胡</span>
+                          )}
+                        </div>
+                      )}
                     </div>
                     {mode === 'pairs' && (
                       <div className="flex items-center gap-1.5 p-1 bg-black/25 rounded-xl border border-white/5">
