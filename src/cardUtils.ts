@@ -795,6 +795,9 @@ function finalizeScore(items: ScoreItem[]): ScoreBreakdown {
  *                       這局才剛上莊，還沒連過莊）。由呼叫端維護莊家輪替
  *                       狀態並傳入；只和電腦兩人對戰，不論這局是莊家自己
  *                       胡牌、或是被對方胡走（放槍），都一律加計這個台數。
+ * @param wasLastTileDraw 這把胡牌的最後一張牌，是不是牌庫剛好摸完（見牌局
+ *                       規則手冊的「海底撈月」）；只有自摸時才有意義，由
+ *                       呼叫端在「摸完這張牌後牌庫是否已空」的當下算好傳入。
  */
 export function scorePairsWin(
   remainingHand: Card[],
@@ -803,12 +806,19 @@ export function scorePairsWin(
   wasSelfDraw: boolean,
   wasMenqing: boolean,
   dealerStreak: number = 0,
+  wasLastTileDraw: boolean = false,
 ): ScoreBreakdown {
   const items: ScoreItem[] = [{ label: '底台', tai: 1 }];
   if (wasSelfDraw) items.push({ label: '自摸', tai: 1 });
   if (wasMenqing) items.push({ label: '門清', tai: 1 });
+  // 門清一摸三：門清狀態下自摸胡牌，除了門清、自摸各自的 1 台，規則手冊另外
+  // 再給 1 台組合獎勵，三者合計 3 台（不是門清+自摸單純相加的 2 台）。
+  if (wasSelfDraw && wasMenqing) items.push({ label: '門清自摸加成', tai: 1 });
 
   if (dealerStreak > 0) items.push({ label: '連莊', tai: dealerStreak });
+
+  // 海底撈月：自摸的那張牌剛好是牌庫最後一張。
+  if (wasSelfDraw && wasLastTileDraw) items.push({ label: '海底撈月', tai: 1 });
 
   const allCards = [...remainingHand, ...revealedMelds.flatMap(m => m.cards)];
 
@@ -836,39 +846,72 @@ export function scorePairsWin(
       items.push({ label: '全將', tai: 1 });
     }
   } else {
-    const revealedGroups = revealedMelds.map(m => m.cards);
-    const remainingGroups = partitionTriosWithGroups(remainingHand) ?? [];
-    const allGroups = [...revealedGroups, ...remainingGroups];
+    // concealed = 自然湊成、從未經過碰一隻/吃一隻明鎖的組（remainingGroups
+    // 全部算，revealedMelds 只有 origin==='draw' 的算）——「暗」對應這裡的
+    // concealed，「明」則是 origin==='discard' 的碰/吃鎖定組，用來判斷
+    // 三暗刻/四暗刻。
+    const revealedGroups = revealedMelds.map(m => ({ cards: m.cards, concealed: m.origin === 'draw' }));
+    const remainingGroups = (partitionTriosWithGroups(remainingHand) ?? []).map(cards => ({ cards, concealed: true }));
+    const allGroupsWithConcealment = [...revealedGroups, ...remainingGroups];
 
     let sameCharCount = 0; // 三張同色同字（崁）每組 +1
+    let concealedSameCharCount = 0; // 三暗刻/四暗刻判斷用
     let sequenceCount = 0; // 同色將士象/車馬包 每組 +1
-    allGroups.forEach(group => {
+    allGroupsWithConcealment.forEach(({ cards: group, concealed }) => {
       if (group.length !== 3) return;
       const type = classifyTrio(group[0], group[1], group[2]);
-      if (type === 'sameChar') sameCharCount++;
-      else if (type === 'sequence') sequenceCount++;
-      // 'rainbow'型（同階不同色）不逐組計台，由下面「四色兵/卒」與「四大將/
-      // 四大帥」的整手牌檢查涵蓋，避免重複計分。
+      if (type === 'sameChar') {
+        sameCharCount++;
+        if (concealed) concealedSameCharCount++;
+      } else if (type === 'sequence') sequenceCount++;
+      // 'rainbow'型（同階不同色）不逐組計台，由下面「四色同字」的整手牌檢查
+      // 涵蓋，避免重複計分。
     });
     if (sameCharCount > 0) items.push({ label: '三張同色同字(崁)', tai: sameCharCount });
     if (sequenceCount > 0) items.push({ label: '同色將士象/車馬包', tai: sequenceCount });
 
+    // 三暗刻/四暗刻：5 組裡有 3 組或 4 組是「暗」的三張同色同字。5 組全部
+    // 都命中的極端情況也算四暗刻（>= 4，不用剛好等於 4）。
+    if (concealedSameCharCount >= 4) {
+      items.push({ label: '四暗刻', tai: 5 });
+    } else if (concealedSameCharCount === 3) {
+      items.push({ label: '三暗刻', tai: 2 });
+    }
+
     // 四張同色同字（槓）：目前 15 張引擎每組固定湊 3 張，結構上不會出現 4 張
     // 鎖在同一組的情況，這項台數在目前規則下結構上恆為 0，不列入計算。
 
-    // 四色兵/卒：紅黃綠白四色的 order=7 牌（兵/卒）各恰好集滿 1 張。
-    if (new Set(allCards.filter(c => c.order === 7).map(c => c.color)).size === 4) {
-      items.push({ label: '四色兵/卒', tai: 1 });
+    // 四色同字：某個階級（帥/將、仕/士、相/象、俥/車、傌/馬、炮/包、兵/卒）
+    // 紅黃綠白四色恰好各集滿 1 張，每個階級 +2 台（一手牌裡理論上可以同時
+    // 湊到不只一個階級，逐一累加）。order=1（帥/將）另外還有「四大將/四大
+    // 帥」的加成，兩者不互斥、會疊加，呼應規則手冊裡「將帥」向來享有更高
+    // 台數的慣例。
+    for (let order = 1; order <= 7; order++) {
+      if (new Set(allCards.filter(c => c.order === order).map(c => c.color)).size === 4) {
+        const sample = allCards.find(c => c.order === order)!;
+        items.push({ label: `四色同字（${sample.character}）`, tai: 2 });
+      }
     }
 
     // 清一色：15 張全同色 +4 台。
     if (new Set(allCards.map(c => c.color)).size === 1) items.push({ label: '清一色', tai: 4 });
 
-    // 四大將/四大帥：紅黃綠白四色的 order=1 牌（將/帥）各恰好集滿 1 張。
+    // 四大將/四大帥：紅黃綠白四色的 order=1 牌（將/帥）各恰好集滿 1 張。額外
+    // 疊加在上面的「四色同字（帥/將）」之上，是這個階級專屬的加成。
     if (new Set(allCards.filter(c => c.order === 1).map(c => c.color)).size === 4) {
       items.push({ label: '四大將/四大帥', tai: 2 });
     }
   }
+
+  // 槓上開花／天胡／地胡：這三項規則手冊裡的台數，在目前的遊戲設計下結構上
+  // 不會出現，未列入計算：
+  // - 槓上開花：需要「開槓」（4張同字明鎖 + 補牌）機制，這個遊戲的配對引擎
+  //   完全沒有開槓這個概念（見上面兩處「目前XX張引擎結構上不會出現」的說明）。
+  // - 天胡：規則手冊的起手牌數莊家比閒家多1張（例如10張仔莊家直接拿10張），
+  //   讓莊家有機會開局就湊滿胡牌；這個遊戲目前不分莊閒，起手都發
+  //   pairsHandSize-1 張，沒有「一開局就胡」的可能。
+  // - 地胡：閒家第一巡自摸胡牌——理論上可能發生，但呼叫端目前沒有追蹤「這是
+  //   本局第幾次摸牌」，尚未接上這個判斷。
 
   return finalizeScore(items);
 }

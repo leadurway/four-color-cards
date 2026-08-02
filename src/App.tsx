@@ -911,7 +911,7 @@ export default function App() {
       assertCardTotal('玩家摸牌-加入手牌(15張)', { playerHand: newHand15, pendingDrawn: null }, { side: 'player', kind: 'draw' });
       if (checkTriosWin(newHand15)) {
         setPlayer(prev => ({ ...prev, hand: newHand15 }));
-        handleWin('player', 'pairs', '恭喜！您的15張牌已湊成5組三張，宣告勝出！', [], { hand: newHand15, revealed: player.revealed, wasSelfDraw: true });
+        handleWin('player', 'pairs', '恭喜！您的15張牌已湊成5組三張，宣告勝出！', [], { hand: newHand15, revealed: player.revealed, wasSelfDraw: true, wasLastTileDraw: newDeck.length === 0 });
         return;
       }
       setPlayer(prev => ({ ...prev, hand: newHand15 }));
@@ -957,7 +957,7 @@ export default function App() {
           if (autoCheck.strays.length === 0) {
             scheduleTurnTimeout(() => {
               setShowEatPairAnim(false);
-              handleWin('player', 'pairs', '恭喜！自摸配對完成所有散牌，宣告勝出！', [drawn, matchedCard], { hand: nextHand, revealed: newRevealed, wasSelfDraw: true });
+              handleWin('player', 'pairs', '恭喜！自摸配對完成所有散牌，宣告勝出！', [drawn, matchedCard], { hand: nextHand, revealed: newRevealed, wasSelfDraw: true, wasLastTileDraw: newDeck.length === 0 });
             }, 3000);
             return;
           }
@@ -1296,7 +1296,7 @@ export default function App() {
         if (newHand.length === 0 || checkTriosWin(newHand)) {
           scheduleTurnTimeout(() => {
             setShowEatPairAnim(false);
-            handleWin('computer', 'pairs', '電腦的15張牌湊成5組三張，電腦勝出！', option.resultCards, { hand: newHand, revealed: newRevealed, wasSelfDraw: true });
+            handleWin('computer', 'pairs', '電腦的15張牌湊成5組三張，電腦勝出！', option.resultCards, { hand: newHand, revealed: newRevealed, wasSelfDraw: true, wasLastTileDraw: newDeck.length === 0 });
           }, 3000);
           setIsComputerThinking(false);
           return;
@@ -1314,7 +1314,7 @@ export default function App() {
       assertCardTotal('電腦摸牌-加入手牌(15張)', { computerHand: newHand15, pendingDrawn: null }, { side: 'computer', kind: 'draw' });
       if (checkTriosWin(newHand15)) {
         setComputer(prev => ({ ...prev, hand: newHand15 }));
-        handleWin('computer', 'pairs', '電腦的15張牌湊成5組三張，電腦勝出！', [], { hand: newHand15, revealed: computer.revealed, wasSelfDraw: true });
+        handleWin('computer', 'pairs', '電腦的15張牌湊成5組三張，電腦勝出！', [], { hand: newHand15, revealed: computer.revealed, wasSelfDraw: true, wasLastTileDraw: newDeck.length === 0 });
         setIsComputerThinking(false);
         return;
       }
@@ -1358,7 +1358,7 @@ export default function App() {
         if (nextGroup.strays.length === 0) {
           scheduleTurnTimeout(() => {
             setShowEatPairAnim(false);
-            handleWin('computer', 'pairs', '電腦自摸對子成功，手中散牌宣告配對歸零，斬獲勝利！', [drawn, matched], { hand: newHand, revealed: newRevealed, wasSelfDraw: true });
+            handleWin('computer', 'pairs', '電腦自摸對子成功，手中散牌宣告配對歸零，斬獲勝利！', [drawn, matched], { hand: newHand, revealed: newRevealed, wasSelfDraw: true, wasLastTileDraw: newDeck.length === 0 });
           }, 3000);
           setIsComputerThinking(false);
           return;
@@ -1898,7 +1898,7 @@ export default function App() {
       assertCardTotal('玩家跳過-摸牌加入手牌', { playerHand: appendedHand, pendingDrawn: null }, { side: 'player', kind: 'draw' });
       if (mode === 'pairs' && pairsHandSize === 15 && checkTriosWin(appendedHand)) {
         setPlayer(prev => ({ ...prev, hand: appendedHand }));
-        handleWin('player', 'pairs', '恭喜！您的15張牌已湊成5組三張，宣告勝出！', [], { hand: appendedHand, revealed: player.revealed, wasSelfDraw: true });
+        handleWin('player', 'pairs', '恭喜！您的15張牌已湊成5組三張，宣告勝出！', [], { hand: appendedHand, revealed: player.revealed, wasSelfDraw: true, wasLastTileDraw: deck.length === 0 });
         return;
       }
       setPlayer(prev => ({ ...prev, hand: appendedHand }));
@@ -1931,7 +1931,7 @@ export default function App() {
     type: 'pairs' | 'hu',
     explanation: string,
     winCards: Card[] = [],
-    scoring?: { hand: Card[]; revealed: RevealedMeld[]; wasSelfDraw: boolean }
+    scoring?: { hand: Card[]; revealed: RevealedMeld[]; wasSelfDraw: boolean; wasLastTileDraw?: boolean }
   ) => {
     playSound(winner === 'player' ? 'win' : 'lose');
     setGamePhase('game_over');
@@ -1945,7 +1945,7 @@ export default function App() {
       // Self-formed melds (origin 'draw') never break it, matching the rule that
       // 露牌 only counts discard-claimed melds.
       const wasMenqing = !scoring.revealed.some(m => m.origin === 'discard');
-      breakdown = scorePairsWin(scoring.hand, scoring.revealed, pairsHandSize, scoring.wasSelfDraw, wasMenqing, dealerStreak);
+      breakdown = scorePairsWin(scoring.hand, scoring.revealed, pairsHandSize, scoring.wasSelfDraw, wasMenqing, dealerStreak, !!scoring.wasLastTileDraw);
     }
     setWinExplanation(explanation);
     setWinScore(breakdown);
@@ -3013,6 +3013,8 @@ export default function App() {
                             <li>底台：<strong className="text-white">1台</strong></li>
                             <li>自摸：<strong className="text-white">+1台</strong></li>
                             <li>門清（全程沒吃碰對方棄牌）：<strong className="text-white">+1台</strong></li>
+                            <li>門清自摸加成（門清＋自摸同時成立）：<strong className="text-white">+1台</strong></li>
+                            <li>海底撈月（摸走牌庫最後一張自摸）：<strong className="text-white">+1台</strong></li>
                             <li>連莊（莊家連續蟬聯，贏或被贏都算）：每局 <strong className="text-white">+1台</strong></li>
                             <li>每組將/帥對：<strong className="text-white">+1台</strong></li>
                             <li>無將（沒有半張將/帥）：<strong className="text-white">+1台</strong></li>
@@ -3026,10 +3028,15 @@ export default function App() {
                             <li>底台：<strong className="text-white">1台</strong></li>
                             <li>自摸：<strong className="text-white">+1台</strong></li>
                             <li>門清（全程沒吃碰對方棄牌）：<strong className="text-white">+1台</strong></li>
+                            <li>門清自摸加成（門清＋自摸同時成立）：<strong className="text-white">+1台</strong></li>
+                            <li>海底撈月（摸走牌庫最後一張自摸）：<strong className="text-white">+1台</strong></li>
                             <li>連莊（莊家連續蟬聯，贏或被贏都算）：每局 <strong className="text-white">+1台</strong></li>
                             <li>每組三張同色同字（崁）：<strong className="text-white">+1台</strong></li>
+                            <li>三暗刻（5組中3組是暗崁）：<strong className="text-white">+2台</strong></li>
+                            <li>四暗刻（5組中4組是暗崁）：<strong className="text-white">+5台</strong></li>
                             <li>每組同色將士象/車馬包：<strong className="text-white">+1台</strong></li>
                             <li>四色兵/卒（四色各一張）：<strong className="text-white">+1台</strong></li>
+                            <li>其他階級四色同字（仕/士、相/象、俥/車、傌/馬、炮/包，四色各一張）：每階 <strong className="text-white">+2台</strong></li>
                             <li>四大將/四大帥（四色各一張）：<strong className="text-white">+2台</strong></li>
                             <li>清一色（15張同色）：<strong className="text-white">+4台</strong></li>
                           </ul>
@@ -3037,7 +3044,7 @@ export default function App() {
                       </div>
 
                       <p className="text-slate-500 text-[11px] font-medium leading-snug">
-                        ※ 只有玩家/電腦兩人對戰，沒有獨立的「莊家」身分加台，只計算「連莊」——莊家連續蟬聯的局數，不論這局是莊家胡牌或被胡，都算進台數；三隻／四隻／開槓等「刻子、槓」相關台數在本遊戲配對規則下不會出現，故未列入計算。
+                        ※ 只有玩家/電腦兩人對戰，沒有獨立的「莊家」身分加台，只計算「連莊」——莊家連續蟬聯的局數，不論這局是莊家胡牌或被胡，都算進台數。「槓上開花」（需要開槓機制）、「天胡」（起手就發滿整副胡牌牌組）、「地胡」（首巡自摸）在本遊戲設計下不會出現，故未列入計算；10張玩法的三隻/四隻同字，牌局規則下也一律會拆成對子，不會鎖成獨立的刻子/槓。
                       </p>
                     </div>
                   </div>
