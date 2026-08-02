@@ -2372,6 +2372,11 @@ export default function App() {
                       <Cpu className="w-4 h-4 animate-pulse text-cyan-400" />
                       <span>{computer.name}</span>
                       <span className="text-[11px] font-bold bg-cyan-400/10 border border-cyan-400/30 rounded-full px-2 py-0.5 tabular-nums">{computer.score.toLocaleString()}</span>
+                      {mode === 'pairs' && dealerId === 'computer' && (
+                        <span className="text-[11px] font-bold bg-red-500/20 border border-red-400/40 text-red-300 rounded-full px-2 py-0.5 shrink-0">
+                          莊{dealerStreak > 0 ? `連${dealerStreak}莊` : ''}
+                        </span>
+                      )}
                     </div>
 
                     {mode === 'pairs' ? (
@@ -2512,6 +2517,11 @@ export default function App() {
                         <span className="text-xl leading-none">{playerAvatar}</span>
                         <span className="text-sm font-black text-yellow-300">{playerName}</span>
                         <span className="text-[11px] font-bold bg-yellow-300/10 border border-yellow-300/30 rounded-full px-2 py-0.5 tabular-nums">{player.score.toLocaleString()}</span>
+                        {mode === 'pairs' && dealerId === 'player' && (
+                          <span className="text-[11px] font-bold bg-red-500/20 border border-red-400/40 text-red-300 rounded-full px-2 py-0.5 shrink-0">
+                            莊{dealerStreak > 0 ? `連${dealerStreak}莊` : ''}
+                          </span>
+                        )}
                       </div>
                       {mode === 'pairs' ? (
                         <div className="flex items-center gap-1 text-xs text-yellow-300 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full font-bold">
