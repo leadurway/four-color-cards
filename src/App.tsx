@@ -168,7 +168,14 @@ export default function App() {
   // instead of reshuffling everything already grouped.
   const [playerTrioHints, setPlayerTrioHints] = useState<Card[][]>([]);
   const [computerTrioHints, setComputerTrioHints] = useState<Card[][]>([]);
-  
+  // Same staleness risk as deck/player/computer/discardPile above: runComputerTurn
+  // and executeComputerDiscard only ever run via a setTimeout scheduled by a prior
+  // render, so reading computerTrioHints (state) directly inside them would resolve
+  // to whichever render scheduled that timeout, not the latest value — these refs
+  // mirror it so the 散牌 diagnostic logging inside those two functions is accurate.
+  const computerTrioHintsRef = useRef(computerTrioHints);
+  useEffect(() => { computerTrioHintsRef.current = computerTrioHints; }, [computerTrioHints]);
+
   // Quick tutorial navigation tabs
   const [activeTutorialTab, setActiveTutorialTab] = useState<'ranks' | 'pairs'>('ranks');
   
@@ -747,11 +754,19 @@ export default function App() {
       remainingDeck = shuffled.slice(40);
     }
 
-    // Auto-Group quads and triples for simple mode to make it easy for seniors
+    // Auto-Group quads and triples for simple mode to make it easy for seniors.
+    // 10-card pair-logic ONLY — groupPairsMode groups by 同色同字 count, which
+    // is exactly the 10-card 對子 concept; 15-card mode's grouping concept
+    // (find15TrioHints's 3 trio shapes) is unrelated, and running the initial
+    // 14-card deal through 10-card pair logic here was harmless in practice
+    // (groupPairsMode.quads/triples are always empty so nothing gets
+    // auto-revealed, and pairs+strays reconstitutes the same 14 cards — just
+    // reordered, which sortHandForDisplay below immediately re-sorts anyway)
+    // but conceptually wrong and worth not doing at all.
     let playerRevealed: RevealedMeld[] = [];
     let computerRevealed: RevealedMeld[] = [];
 
-    if (mode === 'pairs') {
+    if (mode === 'pairs' && pairsHandSize === 10) {
       const pGroup = groupPairsMode(playerHand);
       // Auto move Quads to revealed
       pGroup.quads.forEach(q => {
@@ -917,6 +932,15 @@ export default function App() {
       setPlayer(prev => ({ ...prev, hand: newHand15 }));
       setCanDiscard(true);
       setGuideMessage(`[${drawn.name}] 已加入手牌。`);
+      // 15張玩法的散牌數同樣記錄逐步變化（沿用玩家組別在丟牌前是凍結的，
+      // 所以「之前」「之後」都用同一份 player15TrioIds 計算，如實反映畫面
+      // 上實際看到的數字）。
+      {
+        const beforeStray15 = player.hand.length - player15TrioIds.size;
+        const afterStray15 = newHand15.length - player15TrioIds.size;
+        addLog(`【摸牌】摸到 [${drawn.name}]，未能湊組，已加入手牌。（散牌由 ${beforeStray15} 張變為 ${afterStray15} 張）`);
+        logStrayDelta('玩家摸牌-加入手牌(15張)', beforeStray15, afterStray15);
+      }
     } else if (mode === 'pairs') {
       // ── 10-card mode: auto-pair strays ──
       const pGroup = groupPairsMode(player.hand);
@@ -1319,6 +1343,16 @@ export default function App() {
         return;
       }
       setComputer(prev => ({ ...prev, hand: newHand15 }));
+      {
+        // computerTrioHintsRef (not the render-derived computer15TrioIds below)
+        // — this function only ever runs via a setTimeout scheduled by a prior
+        // render, so the render-scoped value would be stale here.
+        const frozenIds = new Set(computerTrioHintsRef.current.flat().map(c => c.id));
+        const beforeStray15 = computer.hand.length - frozenIds.size;
+        const afterStray15 = newHand15.length - frozenIds.size;
+        addLog(`🤖 電腦 AI 摸到 [${drawn.name}]，未能湊組，已加入手牌。（散牌由 ${beforeStray15} 張變為 ${afterStray15} 張）`);
+        logStrayDelta('電腦摸牌-加入手牌(15張)', beforeStray15, afterStray15);
+      }
       scheduleTurnTimeout(() => { executeComputerDiscard(newHand15); }, 900);
     } else if (mode === 'pairs') {
       // 10-card: auto-pair strays
