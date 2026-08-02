@@ -756,10 +756,9 @@ export function checkAvailableMoves(
 
 // ── 台數計分 (tai scoring) for pairs mode ──
 // Reference: 《四色牌的 台數計分法》— separate 10-card (五對胡) and 15-card
-// (五組三張) tai tables. 「莊家/連莊」加台目前固定為 0 台：這個遊戲還沒有跨局
-// 莊家輪替的 session 概念（每次「開始遊戲」都是全新的一局），等之後加入該
-// 功能，只需要把 DEALER_BONUS_TAI 換成真實的莊家/連莊狀態即可，不需要更動
-// 這裡其餘的計分邏輯。
+// (五組三張) tai tables. 只有玩家/電腦兩人對戰，沒有實作獨立的「莊家 1台」
+// 身分加成，只計算「連莊」：莊家連續蟬聯的局數，不論這局是莊家贏還是被贏
+// （放槍），都算進台數（見 scorePairsWin 的 dealerStreak 參數）。
 const BASE_PAYOUT = 200; // 底
 const TAI_VALUE = 100;   // 每台
 
@@ -792,6 +791,10 @@ function finalizeScore(items: ScoreItem[]): ScoreBreakdown {
  * @param wasMenqing    這整局從頭到尾是否都沒有吃碰過對方的棄牌（純自己摸牌
  *                       湊對/組）；由呼叫端在每次碰一隻/吃一隻等「吃對方棄牌」
  *                       的動作發生當下即時翻成 false 並持續追蹤。
+ * @param dealerStreak  莊家在「這一局之前」已經連續蟬聯的局數（0 表示莊家
+ *                       這局才剛上莊，還沒連過莊）。由呼叫端維護莊家輪替
+ *                       狀態並傳入；只和電腦兩人對戰，不論這局是莊家自己
+ *                       胡牌、或是被對方胡走（放槍），都一律加計這個台數。
  */
 export function scorePairsWin(
   remainingHand: Card[],
@@ -799,14 +802,13 @@ export function scorePairsWin(
   pairsHandSize: 10 | 15,
   wasSelfDraw: boolean,
   wasMenqing: boolean,
+  dealerStreak: number = 0,
 ): ScoreBreakdown {
   const items: ScoreItem[] = [{ label: '底台', tai: 1 }];
   if (wasSelfDraw) items.push({ label: '自摸', tai: 1 });
   if (wasMenqing) items.push({ label: '門清', tai: 1 });
 
-  // 莊家/連莊：見檔案頂部註解，尚未建置跨局莊家輪替，固定 0 台。
-  const dealerBonusTai = 0;
-  if (dealerBonusTai > 0) items.push({ label: '莊家', tai: dealerBonusTai });
+  if (dealerStreak > 0) items.push({ label: '連莊', tai: dealerStreak });
 
   const allCards = [...remainingHand, ...revealedMelds.flatMap(m => m.cards)];
 

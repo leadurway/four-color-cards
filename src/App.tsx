@@ -126,7 +126,15 @@ export default function App() {
   const [winType, setWinType] = useState<GameState['winType']>(null);
   const [winExplanation, setWinExplanation] = useState('');
   const [winScore, setWinScore] = useState<ScoreBreakdown | null>(null);
-  
+  // 莊家連莊：只有玩家/電腦兩人對戰，不設獨立的「莊家」身分加台，只計算
+  // 「連莊」——目前這位莊家已經連續蟬聯幾局（見 handleWin 底部的莊家輪替
+  // 邏輯）。dealerStreak 在莊家「這一局之前」已經連莊的局數，例如莊家第一次
+  // 上莊時是 0（尚未連過莊)，之後每連續衛冕一局就 +1，用於「連N莊記N台」；
+  // 這局結束後才會依輸贏結果更新到下一局要用的值（贏家連任則 +1，換莊則
+  // 歸零）。
+  const [dealerId, setDealerId] = useState<'player' | 'computer'>('player');
+  const [dealerStreak, setDealerStreak] = useState(0);
+
   const [lastDrawnCard, setLastDrawnCard] = useState<Card | null>(null);
   const [lastDiscardedCard, setLastDiscardedCard] = useState<Card | null>(null);
   const [drawnFromDeck, setDrawnFromDeck] = useState(false);
@@ -809,6 +817,13 @@ export default function App() {
 
     const newPlayerScore = isNewSession ? loadPlayerScore(playerName) : player.score;
     const newComputerScore = isNewSession ? 10000 : computer.score;
+    // A brand-new session starts the dealer/streak fresh; continuing within the
+    // same session (下一局/重新發牌) carries the dealer rotation forward — it's
+    // updated at the end of handleWin based on that round's winner.
+    if (isNewSession) {
+      setDealerId('player');
+      setDealerStreak(0);
+    }
 
     setDeck(remainingDeck);
     setPlayer({
@@ -1930,10 +1945,22 @@ export default function App() {
       // Self-formed melds (origin 'draw') never break it, matching the rule that
       // 露牌 only counts discard-claimed melds.
       const wasMenqing = !scoring.revealed.some(m => m.origin === 'discard');
-      breakdown = scorePairsWin(scoring.hand, scoring.revealed, pairsHandSize, scoring.wasSelfDraw, wasMenqing);
+      breakdown = scorePairsWin(scoring.hand, scoring.revealed, pairsHandSize, scoring.wasSelfDraw, wasMenqing, dealerStreak);
     }
     setWinExplanation(explanation);
     setWinScore(breakdown);
+
+    // 莊家輪替：贏家是現任莊家 → 連莊（下一局的 dealerStreak 加 1）；贏家是
+    // 挑戰者 → 換莊，挑戰者成為新莊家，下一局從「連零莊」重新開始。只有
+    // pairs 玩法才有莊家/連莊概念。
+    if (type === 'pairs') {
+      if (winner === dealerId) {
+        setDealerStreak(prev => prev + 1);
+      } else {
+        setDealerId(winner);
+        setDealerStreak(0);
+      }
+    }
 
     // 贏家得分、輸家扣分；玩家分數同時寫回 localStorage 做跨 session 持久化
     // （電腦分數只在記憶體中，於 initGame(isNewSession=true) 時重設）。
@@ -2986,6 +3013,7 @@ export default function App() {
                             <li>底台：<strong className="text-white">1台</strong></li>
                             <li>自摸：<strong className="text-white">+1台</strong></li>
                             <li>門清（全程沒吃碰對方棄牌）：<strong className="text-white">+1台</strong></li>
+                            <li>連莊（莊家連續蟬聯，贏或被贏都算）：每局 <strong className="text-white">+1台</strong></li>
                             <li>每組將/帥對：<strong className="text-white">+1台</strong></li>
                             <li>無將（沒有半張將/帥）：<strong className="text-white">+1台</strong></li>
                             <li>全將（5對都是將/帥）：<strong className="text-white">+1台</strong></li>
@@ -2998,6 +3026,7 @@ export default function App() {
                             <li>底台：<strong className="text-white">1台</strong></li>
                             <li>自摸：<strong className="text-white">+1台</strong></li>
                             <li>門清（全程沒吃碰對方棄牌）：<strong className="text-white">+1台</strong></li>
+                            <li>連莊（莊家連續蟬聯，贏或被贏都算）：每局 <strong className="text-white">+1台</strong></li>
                             <li>每組三張同色同字（崁）：<strong className="text-white">+1台</strong></li>
                             <li>每組同色將士象/車馬包：<strong className="text-white">+1台</strong></li>
                             <li>四色兵/卒（四色各一張）：<strong className="text-white">+1台</strong></li>
@@ -3008,7 +3037,7 @@ export default function App() {
                       </div>
 
                       <p className="text-slate-500 text-[11px] font-medium leading-snug">
-                        ※ 莊家/連莊加台目前尚未開放（固定 0 台）；三隻／四隻／開槓等「刻子、槓」相關台數在本遊戲配對規則下不會出現，故未列入計算。
+                        ※ 只有玩家/電腦兩人對戰，沒有獨立的「莊家」身分加台，只計算「連莊」——莊家連續蟬聯的局數，不論這局是莊家胡牌或被胡，都算進台數；三隻／四隻／開槓等「刻子、槓」相關台數在本遊戲配對規則下不會出現，故未列入計算。
                       </p>
                     </div>
                   </div>
