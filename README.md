@@ -33,7 +33,16 @@ npm run build   # 產生 dist/
 npm run lint    # TypeScript 型別檢查
 ```
 
-推送至 `main` 分支會自動觸發 Cloudflare Pages 部署。
+推送至 `main` 分支會自動觸發 Cloudflare Pages 部署（由 Cloudflare Pages 直接連接
+本 GitHub repo 負責建置與發布；GitHub Actions 只負責型別檢查與建置把關，不參與部署）。
+
+建置設定（Cloudflare Pages → 專案 → Settings → Builds & deployments）：
+
+| 項目 | 值 |
+| --- | --- |
+| Build command | `npm run build` |
+| Build output directory | `dist` |
+| Production branch | `main` |
 
 ## 技術架構
 
