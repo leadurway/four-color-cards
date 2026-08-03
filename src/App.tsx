@@ -1939,16 +1939,19 @@ export default function App() {
       setCanDiscard(true);
       setGuideMessage('已跳過，請選牌打出。');
     } else {
-      // Skipped reacting to opponent's discard card. Turn becomes computer's active draw turn
+      // Skipped reacting to the opponent's (computer's) discard. The computer
+      // already took its turn (drew, discarded) before offering this claim —
+      // with no claim taken, it's simply the player's turn to draw next, same
+      // as when executeComputerDiscard finds no claim options at all. This
+      // used to hand the turn BACK to the computer (setCurPlayerId('computer')
+      // + runComputerTurn), which made the computer draw a second card in a
+      // row with the player never getting a turn — from the player's side
+      // that read as the game hanging forever on "電腦摸牌中".
       setLastDiscardedCard(null);
       setCanDiscard(false);
-      setCurPlayerId('computer');
-      setIsComputerThinking(true);
-      setGuideMessage('電腦摸牌中...');
-      
-      scheduleTurnTimeout(() => {
-        runComputerTurn(null);
-      }, 1000);
+      setHasDrawn(false);
+      setCurPlayerId('player');
+      setGuideMessage('已跳過，輪到您摸牌。');
     }
   };
 
