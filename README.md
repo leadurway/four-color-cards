@@ -35,6 +35,7 @@ npm run lint    # TypeScript 型別檢查
 
 推送至 `main` 分支會自動觸發 Cloudflare Pages 部署（由 Cloudflare Pages 直接連接
 本 GitHub repo 負責建置與發布；GitHub Actions 只負責型別檢查與建置把關，不參與部署）。
+Cloudflare Pages 的 Git 整合已於 2026-08-04 設定完成。
 
 建置設定（Cloudflare Pages → 專案 → Settings → Builds & deployments）：
 
