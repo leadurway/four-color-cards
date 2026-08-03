@@ -249,13 +249,24 @@ export function find15TrioHints(hand: Card[]): Card[][] {
     if (!byOrder[c.order]) byOrder[c.order] = [];
     byOrder[c.order].push(c);
   });
-  Object.values(byOrder).forEach(cards => {
-    const colorMap = new Map<CardColor, Card>();
-    cards.forEach(c => { if (!colorMap.has(c.color)) colorMap.set(c.color, c); });
-    if (colorMap.size >= 3) {
+  Object.values(byOrder).forEach(cardsForOrder => {
+    // Keep extracting groups from this rank's remaining cards until fewer than
+    // 3 colors are left — a single pass here would stop after the first group
+    // even when there are enough spare copies (e.g. 2 red + 2 yellow + 1
+    // green + 1 white all at the same rank) to form a SECOND, independent
+    // rainbow trio out of what's left over. That gap is exactly what let a
+    // real completable group (e.g. 紅相／黃相／白象) sit unrecognized in the
+    // strays while a different rainbow group at the same rank (紅相／黃相／
+    // 綠象) had already been formed from the other copies.
+    let remaining = cardsForOrder;
+    for (;;) {
+      const colorMap = new Map<CardColor, Card>();
+      remaining.forEach(c => { if (!colorMap.has(c.color)) colorMap.set(c.color, c); });
+      if (colorMap.size < 3) break;
       const group = Array.from(colorMap.values()).slice(0, 3);
       group.forEach(c => used.add(c.id));
       groups.push(group);
+      remaining = remaining.filter(c => !used.has(c.id));
     }
   });
 
