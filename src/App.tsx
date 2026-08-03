@@ -1918,8 +1918,19 @@ export default function App() {
     setPendingMoves(null);
     setPendingTrioOptions([]);
     setGamePhase('playing');
+    // Any turn-continuation timer still queued from the computer's turn is
+    // finished business the moment the player answers this prompt — cancel
+    // them so a late callback can't hand the turn back to the computer (or
+    // re-open a prompt) after this skip has already resolved it.
+    pendingTurnTimeoutsRef.current.forEach(id => clearTimeout(id));
+    pendingTurnTimeoutsRef.current.clear();
 
-    if (curPlayerId === 'player' && lastDrawnCard && drawnFromDeck) {
+    // Whether this prompt came from the player's OWN draw is decided purely by
+    // lastDrawnCard+drawnFromDeck. curPlayerId is deliberately NOT part of the
+    // test: during a reaction prompt it still reads 'computer' (see
+    // executeComputerDiscard), so including it could mis-route a genuine
+    // self-draw skip into the else branch and silently drop the drawn card.
+    if (lastDrawnCard && drawnFromDeck) {
       // Skipped on self-drawn card. Push to hand and prepare discard action.
       // 15-card mode: the drawn card was only withheld from the hand because
       // it could ALSO complete a claimable trio (see handlePlayerDraw) — the
@@ -1940,18 +1951,27 @@ export default function App() {
       setGuideMessage('已跳過，請選牌打出。');
     } else {
       // Skipped reacting to the opponent's (computer's) discard. The computer
-      // already took its turn (drew, discarded) before offering this claim —
-      // with no claim taken, it's simply the player's turn to draw next, same
-      // as when executeComputerDiscard finds no claim options at all. This
-      // used to hand the turn BACK to the computer (setCurPlayerId('computer')
-      // + runComputerTurn), which made the computer draw a second card in a
-      // row with the player never getting a turn — from the player's side
-      // that read as the game hanging forever on "電腦摸牌中".
+      // already took its turn (drew, discarded) before offering this claim, so
+      // with no claim taken it is simply the player's turn to draw next — same
+      // as when executeComputerDiscard finds no claim options at all.
+      //
+      // Every piece of state the 摸牌 button gates on is cleared explicitly
+      // here rather than assumed already-clean. lastDrawnCard in particular
+      // disables both the button and handlePlayerDraw's own guard while it is
+      // non-null, and it doubles as the 桌面牌 "電腦摸牌" label — so a single
+      // leftover value from the computer's turn presents to the player as the
+      // game freezing on "電腦摸牌" with an unclickable 摸牌 button, which is
+      // exactly the hang reported here. It refers to a card the computer has
+      // long since merged into its own hand, so dropping it loses nothing;
+      // assertCardTotal below is the safety net that would flag it otherwise.
+      setLastDrawnCard(null);
       setLastDiscardedCard(null);
+      setSelectedCardId(null);
       setCanDiscard(false);
       setHasDrawn(false);
       setCurPlayerId('player');
       setGuideMessage('已跳過，輪到您摸牌。');
+      assertCardTotal('玩家跳過-交還摸牌權', { pendingDrawn: null });
     }
   };
 
