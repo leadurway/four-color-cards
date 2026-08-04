@@ -17,8 +17,7 @@ import {
   ScoreBreakdown,
   PairsGrouping,
   HuResult,
-  classifyTrio,
-  partitionTriosWithGroups
+  classifyTrio
 } from './cardUtils';
 import { Card, GameMode, GameState, Player, RevealedMeld } from './types';
 import { loadPlayerScore, savePlayerScore } from './scoreStorage';
@@ -2040,7 +2039,16 @@ export default function App() {
     // 明細 below (which counts these same groups) — a bare hand array is just
     // whatever order cards happened to be drawn/sorted in, not grouped.
     const groupHandForDisplay = (hand: Card[]): Card[] => {
-      if (pairsHandSize === 15) return (partitionTriosWithGroups(hand) ?? [hand]).flat();
+      // 15 張模式：只有「贏家的完整胡牌手牌」才會是可以被 partitionTriosWithGroups
+      // 完整分組（沒有餘數）的牌組；非贏家（尤其輸家）手牌通常張數不是 3 的倍數、
+      // 也不會恰好分完，partitionTriosWithGroups 遇到分不完就整組回傳 null，
+      // 導致完全沒分組。改用 find15TrioHints，找出能組的組別、其餘留作散牌，
+      // 兩邊都能正確依組別排序顯示。
+      if (pairsHandSize === 15) {
+        const groups = find15TrioHints(hand);
+        const usedIds = new Set(groups.flat().map(c => c.id));
+        return [...groups.flat(), ...hand.filter(c => !usedIds.has(c.id))];
+      }
       const g = groupPairsMode(hand);
       return [...g.pairs.flat(), ...g.strays];
     };
@@ -3319,8 +3327,8 @@ export default function App() {
                 10/15 張 for EACH side regardless of who won, not just the
                 cards that completed the win (those stay highlighted below
                 via huAnimCards). */}
-            {renderHuFullHandRow(huAnimPlayerFullHand, '您的手牌＋露牌', 'hu-full-player')}
             {renderHuFullHandRow(huAnimComputerFullHand, '電腦的手牌＋露牌', 'hu-full-computer')}
+            {renderHuFullHandRow(huAnimPlayerFullHand, '您的手牌＋露牌', 'hu-full-player')}
 
             {/* Cards above badge */}
             {huAnimCards.length > 0 && (
