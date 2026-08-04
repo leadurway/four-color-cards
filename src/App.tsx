@@ -17,7 +17,8 @@ import {
   ScoreBreakdown,
   PairsGrouping,
   HuResult,
-  classifyTrio
+  classifyTrio,
+  partitionTriosWithGroups
 } from './cardUtils';
 import { Card, GameMode, GameState, Player, RevealedMeld } from './types';
 import { loadPlayerScore, savePlayerScore } from './scoreStorage';
@@ -269,12 +270,13 @@ export default function App() {
   const [huAnimWho, setHuAnimWho] = useState<'player' | 'computer'>('player');
   const [huAnimCards, setHuAnimCards] = useState<Card[]>([]);
   const [huAnimSelfDraw, setHuAnimSelfDraw] = useState(false);
-  // Winner's complete final hand (concealed hand + every revealed meld's
-  // cards flattened together) — all 10 or 15 cards, shown as small square
-  // mini-cards across the top of the celebration screen. Separate from
-  // huAnimCards, which stays scoped to just the specific card(s) that
-  // completed the win.
-  const [huAnimFullHand, setHuAnimFullHand] = useState<Card[]>([]);
+  // Both sides' complete final hand (concealed hand + every revealed meld's
+  // cards flattened together, seated group-by-group) — shown as small square
+  // mini-cards across the top of the celebration screen, always both sides
+  // regardless of who actually won. Separate from huAnimCards, which stays
+  // scoped to just the specific card(s) that completed the win.
+  const [huAnimPlayerFullHand, setHuAnimPlayerFullHand] = useState<Card[]>([]);
+  const [huAnimComputerFullHand, setHuAnimComputerFullHand] = useState<Card[]>([]);
   const [backConfirmPending, setBackConfirmPending] = useState(false);
   const fireworksCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -2033,7 +2035,30 @@ export default function App() {
     addLog(`📢 牌局終止！【${winner === 'player' ? '玩家' : '電腦 AI'}】宣佈贏得本盤勝利！理由：${explanation}${breakdown ? `（共 ${breakdown.totalTai} 台）` : ''}`);
     setHuAnimWho(winner);
     setHuAnimCards(winCards);
-    setHuAnimFullHand(scoring ? [...scoring.hand, ...scoring.revealed.flatMap(m => m.cards)] : winCards);
+    // Seat both sides' hand+revealed display by group instead of raw hand
+    // order, so the celebration screen's top rows visually match the 台數
+    // 明細 below (which counts these same groups) — a bare hand array is just
+    // whatever order cards happened to be drawn/sorted in, not grouped.
+    const groupHandForDisplay = (hand: Card[]): Card[] => {
+      if (pairsHandSize === 15) return (partitionTriosWithGroups(hand) ?? [hand]).flat();
+      const g = groupPairsMode(hand);
+      return [...g.pairs.flat(), ...g.strays];
+    };
+    // The winner's hand/revealed just changed in this very action, so it MUST
+    // come from `scoring` (passed explicitly by the caller) rather than the
+    // `player`/`computer` state closure, which — per this function's own note
+    // above — is frequently one render stale by the time this runs. The OTHER
+    // side didn't just change, but this function can itself be invoked from a
+    // setTimeout scheduled by a prior render (via runComputerTurn), so even a
+    // "didn't just change" read needs the always-current refs, not the plain
+    // state variables.
+    const winnerGrouped = scoring
+      ? [...scoring.revealed.flatMap(m => m.cards), ...groupHandForDisplay(scoring.hand)]
+      : winCards;
+    const otherSide = winner === 'player' ? computerRef.current : playerRef.current;
+    const otherGrouped = [...otherSide.revealed.flatMap(m => m.cards), ...groupHandForDisplay(otherSide.hand)];
+    setHuAnimPlayerFullHand(winner === 'player' ? winnerGrouped : otherGrouped);
+    setHuAnimComputerFullHand(winner === 'computer' ? winnerGrouped : otherGrouped);
     setHuAnimSelfDraw(!!scoring?.wasSelfDraw);
     setShowHuCelebration(true);
   };
@@ -2173,6 +2198,32 @@ export default function App() {
       color: c.color === 'yellow' ? '#ab1313' : '#111111',
     }}>
       {c.character}
+    </div>
+  );
+
+  // 胡牌 celebration screen's full-hand row (both sides, always shown) —
+  // flex-1 + aspect-square (no flex-wrap) spreads all 10/15 cards across one
+  // full-width row instead of wrapping, unlike renderMiniCard's fixed size.
+  const renderHuFullHandRow = (cards: Card[], label: string, keyPrefix: string) => cards.length > 0 && (
+    <div key={keyPrefix} className="flex flex-col items-center" style={{ gap: 4, animation: 'fadeInUp 0.4s ease both', width: '92vw', maxWidth: 560 }}>
+      <span className="text-[11px] font-bold tracking-wide text-slate-300">
+        {label}（共 {cards.length} 張）
+      </span>
+      <div className="flex w-full justify-center bg-black/40 border border-white/10 rounded-xl p-2" style={{ gap: 3 }}>
+        {cards.map((c, i) => (
+          <div
+            key={`${keyPrefix}-${c.id}-${i}`}
+            className="aspect-square flex-1 min-w-0 rounded-sm flex items-center justify-center font-black overflow-visible"
+            style={{
+              fontSize: 'clamp(10px, 4.5vw, 22px)',
+              backgroundColor: c.color === 'yellow' ? '#ffd300' : c.color === 'green' ? '#299c42' : c.color === 'red' ? '#ff5511' : '#ffffff',
+              color: c.color === 'yellow' ? '#ab1313' : '#111111',
+            }}
+          >
+            {c.character}
+          </div>
+        ))}
+      </div>
     </div>
   );
 
@@ -3263,34 +3314,13 @@ export default function App() {
               block (cards + badge + score breakdown + 繼續下局 button) is routinely
               taller than it — margin:auto keeps it scrollable end to end instead. */}
           <div className="relative z-10 flex flex-col items-center px-6 py-8 text-center m-auto" style={{ gap: 10 }}>
-            {/* Winner's full final hand (concealed + all revealed melds), small square
-                mini-cards — the complete 10/15 張, not just the cards that completed
-                the win (those stay highlighted below via huAnimCards). */}
-            {huAnimFullHand.length > 0 && (
-              <div className="flex flex-col items-center" style={{ gap: 4, animation: 'fadeInUp 0.4s ease both', width: '92vw', maxWidth: 560 }}>
-                <span className="text-[11px] font-bold tracking-wide text-slate-300">
-                  {huAnimWho === 'player' ? '您的' : '電腦的'}手牌＋露牌（共 {huAnimFullHand.length} 張）
-                </span>
-                {/* flex-1 + aspect-square (no flex-wrap) spreads all 10/15 cards across
-                    one full-width row instead of the old fixed 320px box, which wrapped
-                    15 cards onto a second line. */}
-                <div className="flex w-full justify-center bg-black/40 border border-white/10 rounded-xl p-2" style={{ gap: 3 }}>
-                  {huAnimFullHand.map((c, i) => (
-                    <div
-                      key={`hu-full-${c.id}-${i}`}
-                      className="aspect-square flex-1 min-w-0 rounded-sm flex items-center justify-center font-black overflow-visible"
-                      style={{
-                        fontSize: 'clamp(10px, 4.5vw, 22px)',
-                        backgroundColor: c.color === 'yellow' ? '#ffd300' : c.color === 'green' ? '#299c42' : c.color === 'red' ? '#ff5511' : '#ffffff',
-                        color: c.color === 'yellow' ? '#ab1313' : '#111111',
-                      }}
-                    >
-                      {c.character}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            {/* Both sides' full final hand (concealed + all revealed melds),
+                small square mini-cards, seated group-by-group — the complete
+                10/15 張 for EACH side regardless of who won, not just the
+                cards that completed the win (those stay highlighted below
+                via huAnimCards). */}
+            {renderHuFullHandRow(huAnimPlayerFullHand, '您的手牌＋露牌', 'hu-full-player')}
+            {renderHuFullHandRow(huAnimComputerFullHand, '電腦的手牌＋露牌', 'hu-full-computer')}
 
             {/* Cards above badge */}
             {huAnimCards.length > 0 && (
