@@ -46,7 +46,7 @@ export default function App() {
   
   // Custom Player Options
   const [playerName, setUserName] = useState('長輩玩家');
-  const [playerAvatar, setUserAvatar] = useState('👵');
+  const [playerAvatar, setUserAvatar] = useState('👨');
   const avatars = ['👵', '👴', '👩', '👨', '🀄', '🏆', '⭐'];
 
   // Sound control
@@ -54,7 +54,7 @@ export default function App() {
 
   // Active Game parameters
   const [mode, setMode] = useState<GameMode>('pairs');
-  const [pairsHandSize, setPairsHandSize] = useState<10 | 15>(10);
+  const [pairsHandSize, setPairsHandSize] = useState<10 | 15>(15);
   
   // Play Space State Variables
   const [deck, setDeck] = useState<Card[]>([]);
