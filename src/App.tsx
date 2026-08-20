@@ -488,16 +488,44 @@ export default function App() {
         // alone owned the whole wrapper — overflowing past what's actually
         // available and clipping the result.
         const guideBarH = guideBarRef.current?.getBoundingClientRect().height ?? 0;
-        const chromeH = maxCardW + guideBarH;
-        const maxCardH = Math.max(10, containerH - chromeH - rowGap * (rows - 1)) / rows;
-        // iPad landscape / PC web (tablet+ width, not iPhone landscape) always
-        // size off the full available WIDTH so all 15 cards fill the row
-        // edge-to-edge — these screens have plenty of height to spare, unlike
-        // iPhone landscape where the height comparison below still matters.
-        if (!isPhoneSized || maxCardW / HAND_CARD_ASPECT <= maxCardH) {
-          w = maxCardW; h = maxCardW / HAND_CARD_ASPECT;
+        if (!isPhoneSized && !isTabletDevice) {
+          // PC web: pick whichever of width- or height-driven sizing gives
+          // the SMALLER card — that's the one that actually fits without
+          // overflowing (a wide-but-short window is width-bound; a
+          // narrow-but-tall one is height-bound), same "contain" reasoning
+          // as the iPhone-landscape branch below, just solved from the
+          // height side. The action bar's own height is set equal to the
+          // card width by design (see the ACTION BAR JSX) — assuming that
+          // height up front (as the other branch does via
+          // chromeH = maxCardW + guideBarH) is only correct when width ends
+          // up being the binding dimension, so height-driven sizing instead
+          // solves h + h·aspect = available directly for h (i.e.
+          // h = available / (1 + aspect)), which accounts for the action
+          // bar's height correctly regardless of which dimension wins.
+          // Previously this branch always used maxCardW alone, so on a wide
+          // desktop monitor the console filled edge to edge (after lifting
+          // its max-w-7xl cap, see above) but a large vertical gap was left
+          // below the guide bar, merely centered rather than actually filled.
+          const available = Math.max(10, containerH - guideBarH - rowGap * (rows - 1));
+          const hFromHeight = available / (1 + HAND_CARD_ASPECT);
+          const wFromHeight = hFromHeight * HAND_CARD_ASPECT;
+          if (wFromHeight < maxCardW) {
+            w = wFromHeight; h = hFromHeight;
+          } else {
+            w = maxCardW; h = maxCardW / HAND_CARD_ASPECT;
+          }
         } else {
-          h = maxCardH; w = maxCardH * HAND_CARD_ASPECT;
+          const chromeH = maxCardW + guideBarH;
+          const maxCardH = Math.max(10, containerH - chromeH - rowGap * (rows - 1)) / rows;
+          // iPad landscape (tablet+ width, not iPhone landscape) always sizes
+          // off the full available WIDTH so all 15 cards fill the row
+          // edge-to-edge — these screens have plenty of height to spare,
+          // unlike iPhone landscape where the height comparison still matters.
+          if (isTabletDevice || maxCardW / HAND_CARD_ASPECT <= maxCardH) {
+            w = maxCardW; h = maxCardW / HAND_CARD_ASPECT;
+          } else {
+            h = maxCardH; w = maxCardH * HAND_CARD_ASPECT;
+          }
         }
       }
       setHandCardDims({ w: Math.floor(w), h: Math.floor(h), fs: Math.round(w * 19 / 32) });
@@ -2623,9 +2651,16 @@ export default function App() {
       {/* BACKGROUND GRADIENT */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_#0d2d6b_0%,_#071020_100%)] opacity-80 z-0 pointer-events-none" />
 
-      {/* FULLSCREEN GAME BOARD CONSOLE */}
+      {/* FULLSCREEN GAME BOARD CONSOLE — capped at max-w-7xl (1280px) for
+          phone/tablet, where it's never the binding constraint anyway (no
+          real iPad exceeds it by much). Pure PC web instead uses the full
+          window width uncapped — the game page's hand cards are sized off
+          this console's measured width (see the sizing effect below), so
+          capping it here was directly why they stayed phone/iPad-sized with
+          large dead margins on either side on a wide desktop monitor instead
+          of filling it. */}
       <div
-        className="w-full max-w-7xl min-h-dvh bg-[#0f2d5c]/95 shadow-2xl flex flex-col relative border-x border-blue-950/40 z-20 animate-fade-in"
+        className={`w-full min-h-dvh bg-[#0f2d5c]/95 shadow-2xl flex flex-col relative border-x border-blue-950/40 z-20 animate-fade-in ${isPhoneSized || isTabletDevice ? 'max-w-7xl' : ''}`}
       >
 
         {/* ========================================== */}
