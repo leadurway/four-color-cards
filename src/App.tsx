@@ -2378,14 +2378,26 @@ export default function App() {
       ? (discardedBy === 'computer' ? '電腦出牌' : '玩家出牌')
       : '';
 
-  const renderMiniCard = (c: Card, key: string) => (
-    <div key={key} className="w-5 h-5 rounded-sm flex items-center justify-center font-black text-base shrink-0 overflow-visible" style={{
-      backgroundColor: c.color === 'yellow' ? '#ffd300' : c.color === 'green' ? '#299c42' : c.color === 'red' ? '#ff5511' : '#ffffff',
-      color: c.color === 'yellow' ? '#ab1313' : '#111111',
-    }}>
-      {c.character}
-    </div>
-  );
+  // 回收牌／玩家露牌／電腦露牌 mini cards. Phone keeps the original tiny
+  // 20px/16px box+font. iPad/PC instead match "打出這張牌"'s 24px text
+  // (gameMinPx(16) === 24 there) with the box scaled up to the same
+  // font/box ratio (16/20 → 24/30) so the character still sits comfortably
+  // inside it rather than overflowing a box sized for the old smaller font.
+  const renderMiniCard = (c: Card, key: string) => {
+    const miniFontPx = gameMinPx(16);
+    const miniBoxPx = isPhoneSized ? 20 : 30;
+    return (
+      <div key={key} className="rounded-sm flex items-center justify-center font-black shrink-0 overflow-visible" style={{
+        width: miniBoxPx,
+        height: miniBoxPx,
+        fontSize: miniFontPx,
+        backgroundColor: c.color === 'yellow' ? '#ffd300' : c.color === 'green' ? '#299c42' : c.color === 'red' ? '#ff5511' : '#ffffff',
+        color: c.color === 'yellow' ? '#ab1313' : '#111111',
+      }}>
+        {c.character}
+      </div>
+    );
+  };
 
   // 胡牌 celebration screen's full-hand row (both sides, always shown) —
   // flex-1 + aspect-square (no flex-wrap) spreads all 10/15 cards across one
