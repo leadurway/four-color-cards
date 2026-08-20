@@ -258,17 +258,18 @@ export default function App() {
   const isIphonePortrait = isPhoneSized && !isLandscape;
   const isPhoneLandscape = isPhoneSized && isLandscape;
   const useWideLayout = !isIphonePortrait;
-  // Lobby (start) page size tier — non-phone devices (which center via
-  // justify-center instead, see the lobby JSX) always use 'compact', the
-  // same tight sizing an iPhone SE needs. iPhone height varies a lot across
-  // real models (iPhone SE 667px vs iPhone 14 Pro Max 932px, a ~40% gap), so
-  // rather than one fixed padding/font-size set that either overflows small
-  // phones or leaves a dead gap on tall ones, three tiers step the whole
-  // page's paddings/gaps/font sizes up together as more height becomes
-  // available — measured empirically against each tier's target devices.
+  // Lobby (start) page size tier — non-phone devices always use 'compact'
+  // (they have ample height to spare regardless, and get true m-auto
+  // centering in the lobby JSX so the tight sizing never looks cramped
+  // there). iPhone height varies a lot across real models (iPhone SE 667px
+  // vs iPhone 14 Pro Max 932px, a ~40% gap), so rather than one fixed
+  // padding/font-size set that either overflows small phones or leaves a
+  // dead gap on tall ones, three tiers step the whole page's paddings/gaps/
+  // font sizes up together as more height becomes available — measured
+  // empirically against each tier's target devices.
   const lobbyTier: 'compact' | 'cozy' | 'roomy' = !isPhoneSized
     ? 'compact'
-    : windowHeight < 700 ? 'compact' : windowHeight < 860 ? 'cozy' : 'roomy';
+    : windowHeight < 700 ? 'compact' : windowHeight < 900 ? 'cozy' : 'roomy';
   const lobbySizes = {
     compact: {
       outerGap: 'gap-2', titlePad: 'py-1', titleSpace: 'space-y-1', titleText: 'text-3xl md:text-4xl', subText: 'text-sm',
@@ -289,10 +290,10 @@ export default function App() {
       smallBtnPad: 'py-2.5', smallBtnText: 'text-[13px]', launcherPad: 'py-4', launcherText: 'text-3xl',
     },
     roomy: {
-      outerGap: 'gap-4', titlePad: 'py-2', titleSpace: 'space-y-2', titleText: 'text-3xl md:text-4xl', subText: 'text-base',
-      gridGap: 'gap-4', cardPad: 'p-5', cardSpace: 'space-y-4', avatarSize: 'h-14 w-14 text-4xl',
-      inputPad: 'py-4', inputText: 'text-xl', modeGap: 'gap-3', modePad: 'py-5', modeTitle: 'text-2xl', modeSub: 'text-sm',
-      smallBtnPad: 'py-3', smallBtnText: 'text-[13px]', launcherPad: 'py-5', launcherText: 'text-3xl',
+      outerGap: 'gap-3', titlePad: 'py-2', titleSpace: 'space-y-2', titleText: 'text-3xl md:text-4xl', subText: 'text-base',
+      gridGap: 'gap-3', cardPad: 'p-4', cardSpace: 'space-y-4', avatarSize: 'h-14 w-14 text-4xl',
+      inputPad: 'py-4', inputText: 'text-xl', modeGap: 'gap-3', modePad: 'py-4', modeTitle: 'text-2xl', modeSub: 'text-sm',
+      smallBtnPad: 'py-3', smallBtnText: 'text-[13px]', launcherPad: 'py-4', launcherText: 'text-3xl',
     },
   }[lobbyTier];
   // Hand layout (2-row fixed size vs single-row fit-to-space) follows
@@ -2369,15 +2370,21 @@ export default function App() {
           
           {/* 1. Lobby/Setup Page (遊戲開始設定頁面) */}
           {activePage === 'lobby' && (
-            <div className="flex-1 px-5 lg:px-16 xl:px-32 flex flex-col select-none text-white overflow-y-auto min-h-0" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.5rem)', paddingBottom: '0.5rem' }}>
-              {/* m-auto (not the parent's justify-center) centers this stack when
-                  it's shorter than the viewport, while still scrolling normally
-                  from the top if it's ever taller — justify-content:center on the
-                  scrollable parent would instead clip the top of any such overflow
-                  out of reach (same reasoning as the 胡牌 celebration screen's
-                  m-auto usage below). lobbySizes' per-tier gap keeps the three
-                  blocks proportionally spaced as they grow across tiers. */}
-              <div className={`flex flex-col w-full ${lobbySizes.outerGap} m-auto`}>
+            <div className="flex-1 px-5 lg:px-16 xl:px-32 flex flex-col select-none text-white overflow-y-auto min-h-0" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.25rem)', paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 0.25rem)' }}>
+              {/* Phones: mb-auto only (no mt-auto) — content sits right below the
+                  safe-area padding instead of splitting leftover space evenly
+                  top/bottom. Pure centering (m-auto both sides) looked top-heavy
+                  on notch/Dynamic-Island phones, since safe-area-inset-top is
+                  already a sizeable fixed offset before any centering slack is
+                  even added — stacking half the slack on top of that pushed the
+                  title much further down than the bottom gap warranted. Non-phone
+                  (PC/tablet, no meaningful safe-area inset) keeps true m-auto
+                  centering. Either way this still scrolls normally from the top
+                  if content is ever taller than the viewport — justify-content:
+                  center on the scrollable parent would instead clip the top of
+                  such overflow out of reach (same reasoning as the 胡牌
+                  celebration screen's m-auto usage below). */}
+              <div className={`flex flex-col w-full ${lobbySizes.outerGap} ${isPhoneSized ? 'mb-auto' : 'm-auto'}`}>
 
               {/* Grand compact title */}
               <div className={`text-center ${lobbySizes.titleSpace} ${lobbySizes.titlePad} shrink-0`}>
@@ -2525,7 +2532,7 @@ export default function App() {
                 <button
                   onClick={() => { playSound('click'); initGame(); }}
                   className={`w-full ${lobbySizes.launcherPad} bg-yellow-500 hover:brightness-105 active:scale-98 transition-all font-black text-slate-950 ${lobbySizes.launcherText} rounded-xl border-4 border-red-500 flex items-center justify-center gap-2 select-none`}
-                  style={{ animation: 'bounceSmall 1.4s ease-in-out infinite, huBoxGlow 1s ease-in-out infinite alternate' }}
+                  style={{ animation: 'bounceSmall 1.4s ease-in-out infinite' }}
                 >
                   開始遊戲 {renderFourColorLogo(26)}
                 </button>
