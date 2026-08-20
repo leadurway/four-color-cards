@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import liangGameLogo from './assets/liang-game-logo.png';
 import {
   createDeck,
@@ -242,6 +242,19 @@ export default function App() {
     if (isTouchDevice) return Math.min(window.innerWidth, window.innerHeight) < 768;
     return false; // PC web
   });
+  // Distinguishes iPad (and other touch tablets) from PC web — both are
+  // !isPhoneSized, but the lobby scales iPad portrait/landscape differently
+  // from a PC browser window (see lobbyScale below). Mirrors isPhoneSized's
+  // classification exactly, just returning true for the tablet branch instead.
+  const [isTabletDevice] = useState(() => {
+    const ua = navigator.userAgent;
+    if (/iPhone|iPod/.test(ua)) return false;
+    const isTouchMac = /Macintosh/.test(ua) && navigator.maxTouchPoints > 1;
+    if (/iPad/.test(ua) || isTouchMac) return true;
+    const isTouchDevice = navigator.maxTouchPoints > 0 || 'ontouchstart' in window;
+    if (isTouchDevice) return Math.min(window.innerWidth, window.innerHeight) >= 768;
+    return false; // PC web
+  });
   useEffect(() => {
     const update = () => {
       setIsLandscape(window.innerWidth > window.innerHeight);
@@ -258,10 +271,12 @@ export default function App() {
   const isIphonePortrait = isPhoneSized && !isLandscape;
   const isPhoneLandscape = isPhoneSized && isLandscape;
   const useWideLayout = !isIphonePortrait;
-  // Lobby (start) page size tier — non-phone devices always use 'compact'
-  // (they have ample height to spare regardless, and get true m-auto
-  // centering in the lobby JSX so the tight sizing never looks cramped
-  // there). iPhone height varies a lot across real models (iPhone SE 667px
+  // Lobby (start) page size tier — non-phone devices always use 'compact'.
+  // On phone this is the tight-vs-roomy padding/font-size step described
+  // below; on tablet/PC 'compact' instead serves as the fixed-size REFERENCE
+  // design that lobbyScale (below) uniformly scales up to fill the device,
+  // so it's still the right tier there too, just scaled rather than
+  // stepped. iPhone height varies a lot across real models (iPhone SE 667px
   // vs iPhone 14 Pro Max 932px, a ~40% gap), so rather than one fixed
   // padding/font-size set that either overflows small phones or leaves a
   // dead gap on tall ones, three tiers step the whole page's paddings/gaps/
@@ -296,6 +311,53 @@ export default function App() {
       smallBtnPad: 'py-3', smallBtnText: 'text-[13px]', launcherPad: 'py-4', launcherText: 'text-3xl',
     },
   }[lobbyTier];
+  // Tablet/PC lobby scaling: renders the exact same iPhone-portrait 'compact'
+  // layout (via lobbySizes above) at a fixed LOBBY_REF_WIDTH reference width,
+  // then uniformly scales the whole block up with CSS transform so it fills
+  // the device instead of looking like a small phone-sized island floating
+  // in a sea of empty tablet/PC screen. lobbyContentRef measures the block's
+  // true natural (unscaled) height — dividing the observed rect height by
+  // whatever scale is currently applied backs out the natural value, so this
+  // works whether or not a previous scale is already in effect, with no
+  // separate hidden measurement copy needed. lobbyOuterRef is the actual
+  // available viewport area to fit into.
+  const LOBBY_REF_WIDTH = 380;
+  const lobbyContentRef = useRef<HTMLDivElement>(null);
+  const lobbyOuterRef = useRef<HTMLDivElement>(null);
+  const [lobbyScale, setLobbyScale] = useState(1);
+  const lobbyScaleRef = useRef(1);
+  useEffect(() => { lobbyScaleRef.current = lobbyScale; }, [lobbyScale]);
+  const [lobbyNaturalH, setLobbyNaturalH] = useState(0);
+  useLayoutEffect(() => {
+    if (isPhoneSized || activePage !== 'lobby') return;
+    const contentEl = lobbyContentRef.current;
+    const outerEl = lobbyOuterRef.current;
+    if (!contentEl || !outerEl) return;
+    const measure = () => {
+      const naturalH = contentEl.getBoundingClientRect().height / lobbyScaleRef.current;
+      const availW = outerEl.clientWidth;
+      const availH = outerEl.clientHeight;
+      // iPad landscape reuses the scale iPad PORTRAIT would compute for this
+      // same physical device (swapping which dimension plays width/height —
+      // exact for an in-place rotation, not just an approximation) instead of
+      // fitting to landscape's own short height, then lets the page scroll —
+      // matching "same size as portrait, scrollable" rather than "shrink to
+      // fit landscape". Every other case (tablet portrait, PC at any window
+      // shape) is a straight letterbox fit to whichever of width/height is
+      // more constraining; on a typical wide desktop window that's always
+      // the height, so PC scaling is height-driven in practice while still
+      // never overflowing width in an unusually narrow/tall browser window.
+      const k = isTabletDevice && isLandscape
+        ? Math.min(availH / LOBBY_REF_WIDTH, availW / naturalH)
+        : Math.min(availW / LOBBY_REF_WIDTH, availH / naturalH);
+      setLobbyNaturalH(naturalH);
+      setLobbyScale(Math.max(0.5, Math.min(k, 3)));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(outerEl);
+    return () => ro.disconnect();
+  }, [isPhoneSized, isTabletDevice, isLandscape, activePage]);
   // Hand layout (2-row fixed size vs single-row fit-to-space) follows
   // orientation alone, regardless of phone vs tablet: any portrait screen
   // (iPhone or iPad) gets the fixed 2-row formula below; any landscape
@@ -2352,6 +2414,169 @@ export default function App() {
     </div>
   );
 
+  // Lobby content — title, the two step cards, and the launch button. Shared
+  // verbatim between phone (rendered at lobbySizes' stepped tier, positioned
+  // via mb-auto) and tablet/PC (rendered at the fixed 'compact' tier inside
+  // the lobbyScale transform wrapper) — see the two call sites below for how
+  // each device class wraps/positions this same content differently.
+  const renderLobbyBody = () => (
+    <>
+      {/* Grand compact title */}
+      <div className={`text-center ${lobbySizes.titleSpace} ${lobbySizes.titlePad} shrink-0`}>
+        <div className="flex items-center justify-center gap-3">
+          {renderFourColorLogo(28)}
+          <h1 className={`${lobbySizes.titleText} font-serif font-black tracking-widest text-yellow-500 select-none`}>
+            四色牌-吃一隻
+          </h1>
+          <img src={liangGameLogo} alt="LIANG GAME" className="w-9 h-9 rounded-full object-cover shrink-0" />
+        </div>
+        <p className={`${lobbySizes.subText} tracking-widest text-blue-200 font-extrabold uppercase font-mono`}>
+          — 專為銀髮長輩特製 · 護腦防失智 —
+        </p>
+      </div>
+
+      {/* Steps stacked single-column — the same iPhone-portrait arrangement
+          on every device class now (tablet/PC reuse it via lobbyScale rather
+          than a separate wider multi-column layout). */}
+      <div className={`grid grid-cols-1 ${lobbySizes.gridGap} select-none min-h-0 shrink-0 items-start`}>
+
+        {/* Step 1: Avatar Selector and username setup */}
+        <div className={`bg-black/35 ${lobbySizes.cardPad} rounded-2xl border border-white/10 flex flex-col justify-center ${lobbySizes.cardSpace}`}>
+          <div className="flex items-center gap-2">
+            <span className="text-sm bg-yellow-500 text-slate-950 font-black px-2.5 py-1 rounded shrink-0">1. 入席編制</span>
+            <p className="text-sm font-extrabold text-yellow-400">入席玩家暱稱與頭像：</p>
+          </div>
+
+          {/* Picker list */}
+          <div className="flex justify-between items-center gap-1 select-none">
+            {avatars.map((av, idx) => (
+              <button
+                key={idx}
+                onClick={() => { playSound('click'); setUserAvatar(av); }}
+                className={`${lobbySizes.avatarSize} flex items-center justify-center rounded-xl transition-all ${
+                  playerAvatar === av
+                    ? 'bg-yellow-500 scale-110 border-2 border-white shadow-lg ring-3 ring-yellow-500/40'
+                    : 'bg-white/10 hover:bg-white/15'
+                }`}
+              >
+                {av}
+              </button>
+            ))}
+          </div>
+
+          <input
+            type="text"
+            maxLength={10}
+            value={playerName}
+            onChange={(e) => setUserName(e.target.value || '長輩玩家')}
+            className={`w-full ${lobbySizes.inputPad} px-4 bg-[#0a1e3d] border border-blue-600 rounded-xl ${lobbySizes.inputText} text-center font-bold text-white placeholder-slate-400 focus:outline-none focus:border-yellow-500`}
+            placeholder="輸入長輩的手遊暱稱"
+          />
+        </div>
+
+        {/* Step 2: Game Mode Picker */}
+        <div className={`bg-black/35 ${lobbySizes.cardPad} rounded-2xl border border-white/10 flex flex-col justify-center ${lobbySizes.cardSpace}`}>
+          <div className="flex items-center gap-2 px-1">
+            <span className="text-sm bg-yellow-500 text-slate-950 font-black px-2.5 py-1 rounded shrink-0">2. 自選玩法</span>
+            <p className="text-sm font-extrabold text-yellow-400">👦 抓對對子簡單對戰</p>
+          </div>
+
+          <div className={`flex flex-col ${lobbySizes.modeGap}`}>
+            <button
+              onClick={() => { playSound('click'); setPairsHandSize(10); }}
+              className={`text-left px-4 ${lobbySizes.modePad} rounded-xl border-2 transition-all font-black ${
+                pairsHandSize === 10
+                  ? 'bg-yellow-500 text-slate-950 border-yellow-300 shadow-lg scale-[1.02]'
+                  : 'bg-white/10 text-slate-200 border-white/10 hover:border-white/20'
+              }`}
+            >
+              <div className={lobbySizes.modeTitle}>10張五對胡（發9張）</div>
+              <div className={`${lobbySizes.modeSub} font-medium ${pairsHandSize === 10 ? 'text-slate-800' : 'text-slate-400'}`}>
+                湊滿 5 對牌即胡，規則最簡單，新手首選
+              </div>
+            </button>
+            <button
+              onClick={() => { playSound('click'); setPairsHandSize(15); }}
+              className={`text-left px-4 ${lobbySizes.modePad} rounded-xl border-2 transition-all font-black ${
+                pairsHandSize === 15
+                  ? 'bg-yellow-500 text-slate-950 border-yellow-300 shadow-lg scale-[1.02]'
+                  : 'bg-white/10 text-slate-200 border-white/10 hover:border-white/20'
+              }`}
+            >
+              <div className={lobbySizes.modeTitle}>15張五組胡（發14張）</div>
+              <div className={`${lobbySizes.modeSub} font-medium ${pairsHandSize === 15 ? 'text-slate-800' : 'text-slate-400'}`}>
+                湊滿 5 組三張即胡，稍具挑戰性
+              </div>
+            </button>
+          </div>
+
+          {/* AI difficulty: compact toggle row attached under 自選玩法 */}
+          <div className="flex items-center gap-2 pt-1 border-t border-white/10">
+            <span className={`${lobbySizes.smallBtnText} font-bold text-slate-400 shrink-0 pl-1`}>電腦難度</span>
+            <button
+              onClick={() => { playSound('click'); setAiDifficulty('easy'); }}
+              className={`flex-1 ${lobbySizes.smallBtnPad} rounded-lg ${lobbySizes.smallBtnText} font-bold transition-all ${
+                aiDifficulty === 'easy'
+                  ? 'bg-yellow-500 text-slate-950'
+                  : 'bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white'
+              }`}
+            >
+              😊 簡單 AI
+            </button>
+            <button
+              onClick={() => { playSound('click'); setAiDifficulty('hard'); }}
+              className={`flex-1 ${lobbySizes.smallBtnPad} rounded-lg ${lobbySizes.smallBtnText} font-bold transition-all ${
+                aiDifficulty === 'hard'
+                  ? 'bg-yellow-500 text-slate-950'
+                  : 'bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white'
+              }`}
+            >
+              🔥 困難 AI
+            </button>
+          </div>
+
+          {/* Extras: sound / computer-hand toggles + rules button */}
+          <div className="flex items-center gap-2 pt-1 border-t border-white/10">
+            <button
+              onClick={() => setSoundEnabled(!soundEnabled)}
+              className={`flex-1 flex items-center gap-1.5 justify-center ${lobbySizes.smallBtnPad} rounded-lg bg-white/5 hover:bg-white/10 ${lobbySizes.smallBtnText} font-bold text-slate-300 hover:text-white`}
+            >
+              {soundEnabled ? <Volume2 className="w-[18px] h-[18px] text-blue-400 shrink-0" /> : <VolumeX className="w-[18px] h-[18px] text-red-400 shrink-0" />}
+              <span>語音</span>
+            </button>
+
+            <button
+              onClick={() => setShowComputerHand(!showComputerHand)}
+              className={`flex-1 flex items-center gap-1.5 justify-center ${lobbySizes.smallBtnPad} rounded-lg bg-white/5 hover:bg-white/10 ${lobbySizes.smallBtnText} font-bold text-slate-300 hover:text-white`}
+            >
+              {showComputerHand ? <Eye className="w-[18px] h-[18px] text-blue-400 shrink-0" /> : <EyeOff className="w-[18px] h-[18px] text-slate-400 shrink-0" />}
+              <span>電腦手牌</span>
+            </button>
+
+            <button
+              onClick={handleOpenRules}
+              className={`flex-1 flex items-center gap-1.5 justify-center ${lobbySizes.smallBtnPad} rounded-lg bg-white/5 hover:bg-white/10 ${lobbySizes.smallBtnText} font-bold text-slate-300 hover:text-white`}
+            >
+              <BookOpen className="w-[18px] h-[18px] text-yellow-500 shrink-0" />
+              <span>說明</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Launcher */}
+      <div className="shrink-0">
+        <button
+          onClick={() => { playSound('click'); initGame(); }}
+          className={`w-full ${lobbySizes.launcherPad} bg-yellow-500 hover:brightness-105 active:scale-98 transition-all font-black text-slate-950 ${lobbySizes.launcherText} rounded-xl border-4 border-red-500 flex items-center justify-center gap-2 select-none`}
+          style={{ animation: 'bounceSmall 1.4s ease-in-out infinite' }}
+        >
+          開始遊戲 {renderFourColorLogo(26)}
+        </button>
+      </div>
+    </>
+  );
+
   return (
     <div className="min-h-screen w-full bg-[#0a1628] text-slate-100 flex justify-center relative font-sans select-none">
       
@@ -2369,175 +2594,57 @@ export default function App() {
         <div className="flex-1 flex flex-col min-h-0 w-full relative bg-[radial-gradient(circle_at_center,_#1a3d7c_0%,_#0a2347_100%)] select-none">
           
           {/* 1. Lobby/Setup Page (遊戲開始設定頁面) */}
-          {activePage === 'lobby' && (
-            <div className="flex-1 px-5 lg:px-16 xl:px-32 flex flex-col select-none text-white overflow-y-auto min-h-0" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.25rem)', paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 0.25rem)' }}>
-              {/* Phones: mb-auto only (no mt-auto) — content sits right below the
-                  safe-area padding instead of splitting leftover space evenly
-                  top/bottom. Pure centering (m-auto both sides) looked top-heavy
-                  on notch/Dynamic-Island phones, since safe-area-inset-top is
-                  already a sizeable fixed offset before any centering slack is
-                  even added — stacking half the slack on top of that pushed the
-                  title much further down than the bottom gap warranted. Non-phone
-                  (PC/tablet, no meaningful safe-area inset) keeps true m-auto
-                  centering. Either way this still scrolls normally from the top
-                  if content is ever taller than the viewport — justify-content:
-                  center on the scrollable parent would instead clip the top of
-                  such overflow out of reach (same reasoning as the 胡牌
-                  celebration screen's m-auto usage below). */}
-              <div className={`flex flex-col w-full ${lobbySizes.outerGap} ${isPhoneSized ? 'mb-auto' : 'm-auto'}`}>
-
-              {/* Grand compact title */}
-              <div className={`text-center ${lobbySizes.titleSpace} ${lobbySizes.titlePad} shrink-0`}>
-                <div className="flex items-center justify-center gap-3">
-                  {renderFourColorLogo(28)}
-                  <h1 className={`${lobbySizes.titleText} font-serif font-black tracking-widest text-yellow-500 select-none`}>
-                    四色牌-吃一隻
-                  </h1>
-                  <img src={liangGameLogo} alt="LIANG GAME" className="w-9 h-9 rounded-full object-cover shrink-0" />
-                </div>
-                <p className={`${lobbySizes.subText} tracking-widest text-blue-200 font-extrabold uppercase font-mono`}>
-                  — 專為銀髮長輩特製 · 護腦防失智 —
-                </p>
+          {activePage === 'lobby' && isPhoneSized && (
+            // Phone: content sized by lobbySizes' stepped tier, positioned via
+            // mb-auto — sits right below the safe-area padding instead of
+            // splitting leftover space evenly top/bottom (pure m-auto looked
+            // top-heavy on notch/Dynamic-Island phones, since safe-area-inset-
+            // top is already a sizeable fixed offset before any centering
+            // slack is even added). Still scrolls normally from the top if
+            // content is ever taller than the viewport — justify-content:
+            // center on the scrollable parent would instead clip the top of
+            // such overflow out of reach (same reasoning as the 胡牌
+            // celebration screen's m-auto usage below).
+            <div className="flex-1 px-5 flex flex-col select-none text-white overflow-y-auto min-h-0" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.25rem)', paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 0.25rem)' }}>
+              <div className={`flex flex-col w-full ${lobbySizes.outerGap} mb-auto`}>
+                {renderLobbyBody()}
               </div>
+            </div>
+          )}
 
-              {/* Steps in a beautiful compact grid to avoid scrolling */}
-              <div className={`grid grid-cols-1 md:grid-cols-2 ${lobbySizes.gridGap} select-none min-h-0 shrink-0 items-start`}>
-
-                {/* Step 1: Avatar Selector and username setup */}
-                <div className={`bg-black/35 ${lobbySizes.cardPad} rounded-2xl border border-white/10 flex flex-col justify-center ${lobbySizes.cardSpace}`}>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm bg-yellow-500 text-slate-950 font-black px-2.5 py-1 rounded shrink-0">1. 入席編制</span>
-                    <p className="text-sm font-extrabold text-yellow-400">入席玩家暱稱與頭像：</p>
-                  </div>
-
-                  {/* Picker list */}
-                  <div className="flex justify-between items-center gap-1 select-none">
-                    {avatars.map((av, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => { playSound('click'); setUserAvatar(av); }}
-                        className={`${lobbySizes.avatarSize} flex items-center justify-center rounded-xl transition-all ${
-                          playerAvatar === av
-                            ? 'bg-yellow-500 scale-110 border-2 border-white shadow-lg ring-3 ring-yellow-500/40'
-                            : 'bg-white/10 hover:bg-white/15'
-                        }`}
-                      >
-                        {av}
-                      </button>
-                    ))}
-                  </div>
-
-                  <input
-                    type="text"
-                    maxLength={10}
-                    value={playerName}
-                    onChange={(e) => setUserName(e.target.value || '長輩玩家')}
-                    className={`w-full ${lobbySizes.inputPad} px-4 bg-[#0a1e3d] border border-blue-600 rounded-xl ${lobbySizes.inputText} text-center font-bold text-white placeholder-slate-400 focus:outline-none focus:border-yellow-500`}
-                    placeholder="輸入長輩的手遊暱稱"
-                  />
-                </div>
-
-                {/* Step 2: Game Mode Picker */}
-                <div className={`bg-black/35 ${lobbySizes.cardPad} rounded-2xl border border-white/10 flex flex-col justify-center ${lobbySizes.cardSpace}`}>
-                  <div className="flex items-center gap-2 px-1">
-                    <span className="text-sm bg-yellow-500 text-slate-950 font-black px-2.5 py-1 rounded shrink-0">2. 自選玩法</span>
-                    <p className="text-sm font-extrabold text-yellow-400">👦 抓對對子簡單對戰</p>
-                  </div>
-
-                  <div className={`flex flex-col ${lobbySizes.modeGap}`}>
-                    <button
-                      onClick={() => { playSound('click'); setPairsHandSize(10); }}
-                      className={`text-left px-4 ${lobbySizes.modePad} rounded-xl border-2 transition-all font-black ${
-                        pairsHandSize === 10
-                          ? 'bg-yellow-500 text-slate-950 border-yellow-300 shadow-lg scale-[1.02]'
-                          : 'bg-white/10 text-slate-200 border-white/10 hover:border-white/20'
-                      }`}
-                    >
-                      <div className={lobbySizes.modeTitle}>10張五對胡（發9張）</div>
-                      <div className={`${lobbySizes.modeSub} font-medium ${pairsHandSize === 10 ? 'text-slate-800' : 'text-slate-400'}`}>
-                        湊滿 5 對牌即胡，規則最簡單，新手首選
-                      </div>
-                    </button>
-                    <button
-                      onClick={() => { playSound('click'); setPairsHandSize(15); }}
-                      className={`text-left px-4 ${lobbySizes.modePad} rounded-xl border-2 transition-all font-black ${
-                        pairsHandSize === 15
-                          ? 'bg-yellow-500 text-slate-950 border-yellow-300 shadow-lg scale-[1.02]'
-                          : 'bg-white/10 text-slate-200 border-white/10 hover:border-white/20'
-                      }`}
-                    >
-                      <div className={lobbySizes.modeTitle}>15張五組胡（發14張）</div>
-                      <div className={`${lobbySizes.modeSub} font-medium ${pairsHandSize === 15 ? 'text-slate-800' : 'text-slate-400'}`}>
-                        湊滿 5 組三張即胡，稍具挑戰性
-                      </div>
-                    </button>
-                  </div>
-
-                  {/* AI difficulty: compact toggle row attached under 自選玩法 */}
-                  <div className="flex items-center gap-2 pt-1 border-t border-white/10">
-                    <span className={`${lobbySizes.smallBtnText} font-bold text-slate-400 shrink-0 pl-1`}>電腦難度</span>
-                    <button
-                      onClick={() => { playSound('click'); setAiDifficulty('easy'); }}
-                      className={`flex-1 ${lobbySizes.smallBtnPad} rounded-lg ${lobbySizes.smallBtnText} font-bold transition-all ${
-                        aiDifficulty === 'easy'
-                          ? 'bg-yellow-500 text-slate-950'
-                          : 'bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white'
-                      }`}
-                    >
-                      😊 簡單 AI
-                    </button>
-                    <button
-                      onClick={() => { playSound('click'); setAiDifficulty('hard'); }}
-                      className={`flex-1 ${lobbySizes.smallBtnPad} rounded-lg ${lobbySizes.smallBtnText} font-bold transition-all ${
-                        aiDifficulty === 'hard'
-                          ? 'bg-yellow-500 text-slate-950'
-                          : 'bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white'
-                      }`}
-                    >
-                      🔥 困難 AI
-                    </button>
-                  </div>
-
-                  {/* Extras: sound / computer-hand toggles + rules button */}
-                  <div className="flex items-center gap-2 pt-1 border-t border-white/10">
-                    <button
-                      onClick={() => setSoundEnabled(!soundEnabled)}
-                      className={`flex-1 flex items-center gap-1.5 justify-center ${lobbySizes.smallBtnPad} rounded-lg bg-white/5 hover:bg-white/10 ${lobbySizes.smallBtnText} font-bold text-slate-300 hover:text-white`}
-                    >
-                      {soundEnabled ? <Volume2 className="w-[18px] h-[18px] text-blue-400 shrink-0" /> : <VolumeX className="w-[18px] h-[18px] text-red-400 shrink-0" />}
-                      <span>語音</span>
-                    </button>
-
-                    <button
-                      onClick={() => setShowComputerHand(!showComputerHand)}
-                      className={`flex-1 flex items-center gap-1.5 justify-center ${lobbySizes.smallBtnPad} rounded-lg bg-white/5 hover:bg-white/10 ${lobbySizes.smallBtnText} font-bold text-slate-300 hover:text-white`}
-                    >
-                      {showComputerHand ? <Eye className="w-[18px] h-[18px] text-blue-400 shrink-0" /> : <EyeOff className="w-[18px] h-[18px] text-slate-400 shrink-0" />}
-                      <span>電腦手牌</span>
-                    </button>
-
-                    <button
-                      onClick={handleOpenRules}
-                      className={`flex-1 flex items-center gap-1.5 justify-center ${lobbySizes.smallBtnPad} rounded-lg bg-white/5 hover:bg-white/10 ${lobbySizes.smallBtnText} font-bold text-slate-300 hover:text-white`}
-                    >
-                      <BookOpen className="w-[18px] h-[18px] text-yellow-500 shrink-0" />
-                      <span>說明</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Launcher */}
-              <div className="shrink-0">
-                <button
-                  onClick={() => { playSound('click'); initGame(); }}
-                  className={`w-full ${lobbySizes.launcherPad} bg-yellow-500 hover:brightness-105 active:scale-98 transition-all font-black text-slate-950 ${lobbySizes.launcherText} rounded-xl border-4 border-red-500 flex items-center justify-center gap-2 select-none`}
-                  style={{ animation: 'bounceSmall 1.4s ease-in-out infinite' }}
+          {activePage === 'lobby' && !isPhoneSized && (
+            // Tablet/PC: the same content rendered at a fixed LOBBY_REF_WIDTH,
+            // uniformly scaled up via lobbyScale to fill the device (see the
+            // effect that computes it, above) instead of sitting phone-sized
+            // in a sea of empty space. lobbyOuterRef measures the available
+            // area; the middle sizing div gets lobbyScale's SCALED dimensions
+            // so normal layout (and margin:auto centering) sees its true
+            // on-screen footprint — a transform alone wouldn't reflow the
+            // parent's layout to match. iPad landscape only centers
+            // horizontally (mx-auto, no my-auto) and stays scrollable, since
+            // it deliberately reuses iPad-portrait's larger scale rather than
+            // shrinking to fit its own shorter viewport.
+            <div
+              className="flex-1 px-5 flex flex-col select-none text-white overflow-y-auto min-h-0"
+              style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.25rem)', paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 0.25rem)' }}
+            >
+              {/* Padding-free — lobbyOuterRef's clientWidth/clientHeight feed
+                  the scale calculation directly, so any padding here would
+                  under-report the true usable space and the scaled content
+                  could run past the shell's px-5/safe-area padding above. */}
+              <div ref={lobbyOuterRef} className="flex-1 flex flex-col min-h-0">
+                <div
+                  className={isTabletDevice && isLandscape ? 'mx-auto my-0' : 'm-auto'}
+                  style={{ width: LOBBY_REF_WIDTH * lobbyScale, height: lobbyNaturalH * lobbyScale }}
                 >
-                  開始遊戲 {renderFourColorLogo(26)}
-                </button>
-              </div>
-
+                  <div
+                    ref={lobbyContentRef}
+                    className={`flex flex-col ${lobbySizes.outerGap}`}
+                    style={{ width: LOBBY_REF_WIDTH, transform: `scale(${lobbyScale})`, transformOrigin: 'top left' }}
+                  >
+                    {renderLobbyBody()}
+                  </div>
+                </div>
               </div>
             </div>
           )}
