@@ -256,17 +256,26 @@ export default function App() {
     return false; // PC web
   });
   useEffect(() => {
-    const update = () => {
-      setIsLandscape(window.innerWidth > window.innerHeight);
-      setWindowHeight(window.innerHeight);
-    };
+    const update = () => setWindowHeight(window.innerHeight);
     update();
     window.addEventListener('resize', update);
-    window.addEventListener('orientationchange', update);
-    return () => {
-      window.removeEventListener('resize', update);
-      window.removeEventListener('orientationchange', update);
-    };
+    return () => window.removeEventListener('resize', update);
+  }, []);
+  // Orientation specifically uses matchMedia rather than comparing
+  // window.innerWidth/innerHeight inside a resize/orientationchange handler —
+  // on iPad Safari, 'orientationchange' can fire before innerWidth/innerHeight
+  // have actually updated to the new orientation, so reading them synchronously
+  // in that handler occasionally captured the stale pre-rotation values. That
+  // showed up as the game page briefly (or sometimes not so briefly) rendering
+  // the portrait 2-row hand layout while the device was actually in landscape.
+  // matchMedia's 'change' event is driven by the same orientation media
+  // feature the CSS engine itself uses, so it can't observe that stale state.
+  useEffect(() => {
+    const mq = window.matchMedia('(orientation: landscape)');
+    const update = () => setIsLandscape(mq.matches);
+    update();
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
   }, []);
   const isIphonePortrait = isPhoneSized && !isLandscape;
   const isPhoneLandscape = isPhoneSized && isLandscape;
@@ -365,6 +374,17 @@ export default function App() {
   // This is independent of useWideLayout (page width), which iPad portrait
   // still shares with the other non-iPhone-portrait cases.
   const showTwoRowHand = !isLandscape;
+
+  // Game page (in-play screen) minimum text size for iPad/PC: never render
+  // smaller than "打出這張牌"'s size — clamp(1rem, 5vw, 1.5rem), which
+  // resolves to a flat 24px (1.5rem) on any tablet/PC-width viewport since
+  // 5vw clears the max well before 480px. A lot of the page's small
+  // badges/labels were sized the same tiny px value on every device; that's
+  // legible on a phone held close, but too small viewed on a tablet/PC
+  // screen from further away. Phone keeps its original (smaller) sizes.
+  const GAME_MIN_TEXT_PX = 24;
+  const gameMinPx = (px: number) => (isPhoneSized ? px : Math.max(px, GAME_MIN_TEXT_PX));
+  const gameMinClass = (phoneClass: string) => (isPhoneSized ? phoneClass : 'text-2xl');
 
   // Animation overlays
   const [showEatPairAnim, setShowEatPairAnim] = useState(false);
@@ -2665,7 +2685,7 @@ export default function App() {
                 <div className="h-12 flex items-center justify-between">
                   <button
                     onClick={handleQuitToLobby}
-                    className={`py-1.5 px-3 border text-sm font-extrabold rounded-xl transition-all ${
+                    className={`py-1.5 px-3 border ${gameMinClass('text-sm')} font-extrabold rounded-xl transition-all ${
                       backConfirmPending
                         ? 'bg-red-600 border-red-400 text-white'
                         : 'bg-red-950/60 hover:bg-red-900/80 border-red-800 text-red-200'
@@ -2692,7 +2712,7 @@ export default function App() {
 
                   <button
                     onClick={handleOpenRules}
-                    className="py-1.5 px-3 bg-yellow-500 text-slate-950 text-sm font-black rounded-xl transition-all flex items-center gap-1 shadow hover:bg-yellow-400"
+                    className={`py-1.5 px-3 bg-yellow-500 text-slate-950 ${gameMinClass('text-sm')} font-black rounded-xl transition-all flex items-center gap-1 shadow hover:bg-yellow-400`}
                   >
                     <HelpCircle className="w-4 h-4 shrink-0" />
                     說明
@@ -2720,29 +2740,29 @@ export default function App() {
                 <div className="shrink-0 flex flex-col px-3 pt-2 pb-1.5 space-y-1.5 border-b-2 border-white/10">
 
                 {/* AI / OPPONENT STATUS (Top) */}
-                <div className="bg-black/35 p-2 rounded-2xl border border-white/5 space-y-1 text-sm relative select-none">
+                <div className={`bg-black/35 p-2 rounded-2xl border border-white/5 space-y-1 ${gameMinClass('text-sm')} relative select-none`}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5 text-cyan-400 font-black">
                       <Cpu className="w-4 h-4 animate-pulse text-cyan-400" />
                       <span>{computer.name}</span>
-                      <span className="text-[11px] font-bold bg-cyan-400/10 border border-cyan-400/30 rounded-full px-2 py-0.5 tabular-nums">{computer.score.toLocaleString()}</span>
+                      <span className={`${gameMinClass('text-[11px]')} font-bold bg-cyan-400/10 border border-cyan-400/30 rounded-full px-2 py-0.5 tabular-nums`}>{computer.score.toLocaleString()}</span>
                       {mode === 'pairs' && dealerId === 'computer' && (
-                        <span className="text-[11px] font-bold bg-red-600 border border-red-400 text-white rounded-full px-2 py-0.5 shrink-0">
+                        <span className={`${gameMinClass('text-[11px]')} font-bold bg-red-600 border border-red-400 text-white rounded-full px-2 py-0.5 shrink-0`}>
                           莊{dealerStreak > 0 ? `連${dealerStreak}莊` : ''}
                         </span>
                       )}
                     </div>
 
                     {mode === 'pairs' ? (
-                      <div className="flex items-center gap-1 text-xs text-cyan-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full font-bold">
+                      <div className={`flex items-center gap-1 ${gameMinClass('text-xs')} text-cyan-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full font-bold`}>
                         <span>散牌:</span>
-                        <strong className="text-cyan-400 text-sm">{computerStrayCount}</strong>
+                        <strong className={`text-cyan-400 ${gameMinClass('text-sm')}`}>{computerStrayCount}</strong>
                         <span>張</span>
                       </div>
                     ) : (
-                      <div className="flex items-center gap-1 text-xs text-cyan-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full font-bold">
+                      <div className={`flex items-center gap-1 ${gameMinClass('text-xs')} text-cyan-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full font-bold`}>
                         <span>賸餘牌:</span>
-                        <strong className="text-cyan-400 text-sm">{computer.hand.length}</strong>
+                        <strong className={`text-cyan-400 ${gameMinClass('text-sm')}`}>{computer.hand.length}</strong>
                         <span>張</span>
                       </div>
                     )}
@@ -2753,8 +2773,8 @@ export default function App() {
                       透視 fan when cheat mode is on) and don't count here. */}
                   {mode === 'pairs' ? (
                     <div className="flex items-center gap-1.5 p-1 bg-black/25 rounded-xl border border-white/5">
-                      <span className="text-xs font-bold text-cyan-400 shrink-0">{pairsHandSize === 15 ? '組' : '對'}</span>
-                      <strong className="text-sm text-cyan-400 shrink-0">{computerClaimedMelds.length}</strong>
+                      <span className={`${gameMinClass('text-xs')} font-bold text-cyan-400 shrink-0`}>{pairsHandSize === 15 ? '組' : '對'}</span>
+                      <strong className={`${gameMinClass('text-sm')} text-cyan-400 shrink-0`}>{computerClaimedMelds.length}</strong>
                       <div className="flex flex-wrap gap-[3px] flex-1 min-w-0">
                         {computerClaimedMelds.length > 0
                           ? computerClaimedMelds.map((meld) => (
@@ -2762,15 +2782,15 @@ export default function App() {
                                 {meld.cards.map((c, i) => renderMiniCard(c, `comp-claim-${meld.id}-${c.id}-${i}`))}
                               </div>
                             ))
-                          : <span className="text-cyan-400/60 text-xs">無</span>}
+                          : <span className={`text-cyan-400/60 ${gameMinClass('text-xs')}`}>無</span>}
                       </div>
                     </div>
                   ) : computer.revealed.length > 0 && (
                     <div className="flex items-center gap-1 p-1 bg-black/40 rounded-xl border border-white/5 mt-0.5 overflow-x-auto whitespace-nowrap scrollbar-none">
-                      <span className="text-xs text-cyan-400 font-bold shrink-0">案前亮相：</span>
+                      <span className={`${gameMinClass('text-xs')} text-cyan-400 font-bold shrink-0`}>案前亮相：</span>
                       <div className="flex gap-1">
                         {computer.revealed.map((meld) => (
-                          <div key={meld.id} className="bg-white/5 px-1.5 py-0.5 rounded border border-white/10 text-xs flex items-center gap-0.5">
+                          <div key={meld.id} className={`bg-white/5 px-1.5 py-0.5 rounded border border-white/10 ${gameMinClass('text-xs')} flex items-center gap-0.5`}>
                             <span className="text-cyan-400 font-bold leading-none">{meld.name}</span>
                           </div>
                         ))}
@@ -2816,15 +2836,15 @@ export default function App() {
                   {/* Left half: 桌面牌 — text left (enlarged), card right (matches hand card size, capped) */}
                   <div className="flex-1 basis-1/2 min-w-0 flex gap-2 py-1 px-1 border-r border-white/10 overflow-hidden">
                     <div className="flex flex-col justify-between shrink-0">
-                      <span className="font-bold text-yellow-300 leading-none" style={{ fontSize: 14 }}>桌面牌</span>
+                      <span className="font-bold text-yellow-300 leading-none" style={{ fontSize: gameMinPx(14) }}>桌面牌</span>
                       <div>
                         {lastDrawnCard && (
-                          <span className="font-black leading-none block" style={{ fontSize: 14, color: drawnFromDeck ? '#fde047' : '#22d3ee' }}>
+                          <span className="font-black leading-none block" style={{ fontSize: gameMinPx(14), color: drawnFromDeck ? '#fde047' : '#22d3ee' }}>
                             {drawnFromDeck ? '玩家摸牌' : '電腦摸牌'}
                           </span>
                         )}
                         {!lastDrawnCard && lastDiscardedCard && discardedBy && (
-                          <span className="font-black leading-none block" style={{ fontSize: 14, color: discardedBy === 'computer' ? '#22d3ee' : '#fde047' }}>
+                          <span className="font-black leading-none block" style={{ fontSize: gameMinPx(14), color: discardedBy === 'computer' ? '#22d3ee' : '#fde047' }}>
                             {discardedBy === 'computer' ? '電腦出牌' : '玩家出牌'}
                           </span>
                         )}
@@ -2838,18 +2858,18 @@ export default function App() {
                         <FourColorCard card={lastDiscardedCard} size="xs" isRevealed={true} disabled={true}
                           cardStyle={{ width: tableCardDims.w, height: tableCardDims.h }} charFontSize={tableCardDims.fs} />
                       ) : (
-                        <span className="text-[10px] text-slate-500">—</span>
+                        <span className={gameMinClass('text-[10px]') + ' text-slate-500'}>—</span>
                       )}
                     </div>
                   </div>
 
                   {/* Right half: 回收區 */}
                   <div className="flex-1 basis-1/2 min-w-0 flex flex-col py-0.5 px-1 overflow-hidden">
-                    <span className="text-[10px] font-bold text-yellow-300 mb-0.5 leading-none shrink-0">回收牌</span>
+                    <span className={gameMinClass('text-[10px]') + ' font-bold text-yellow-300 mb-0.5 leading-none shrink-0'}>回收牌</span>
                     <div className="flex-1 min-h-0 overflow-y-auto bg-black/40 border border-white/5 p-0.5 rounded-lg flex flex-wrap gap-[1px] content-start scrollbar-none">
                       {discardPile.map((c, idx) => renderMiniCard(c, `${c.id}-${idx}`))}
                       {discardPile.length === 0 && (
-                        <span className="text-[9px] text-slate-500 m-auto">空</span>
+                        <span className={gameMinClass('text-[9px]') + ' text-slate-500 m-auto'}>空</span>
                       )}
                     </div>
                   </div>
@@ -2869,22 +2889,22 @@ export default function App() {
                     <div className="flex justify-between items-center">
                       <div className="flex items-center gap-2">
                         <span className="text-xl leading-none">{playerAvatar}</span>
-                        <span className="text-sm font-black text-yellow-300">{playerName}</span>
-                        <span className="text-[11px] font-bold bg-yellow-300/10 border border-yellow-300/30 rounded-full px-2 py-0.5 tabular-nums">{player.score.toLocaleString()}</span>
+                        <span className={`${gameMinClass('text-sm')} font-black text-yellow-300`}>{playerName}</span>
+                        <span className={`${gameMinClass('text-[11px]')} font-bold bg-yellow-300/10 border border-yellow-300/30 rounded-full px-2 py-0.5 tabular-nums`}>{player.score.toLocaleString()}</span>
                         {mode === 'pairs' && dealerId === 'player' && (
-                          <span className="text-[11px] font-bold bg-red-600 border border-red-400 text-white rounded-full px-2 py-0.5 shrink-0">
+                          <span className={`${gameMinClass('text-[11px]')} font-bold bg-red-600 border border-red-400 text-white rounded-full px-2 py-0.5 shrink-0`}>
                             莊{dealerStreak > 0 ? `連${dealerStreak}莊` : ''}
                           </span>
                         )}
                       </div>
                       {mode === 'pairs' ? (
-                        <div className="flex items-center gap-1 text-xs text-yellow-300 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full font-bold">
+                        <div className={`flex items-center gap-1 ${gameMinClass('text-xs')} text-yellow-300 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full font-bold`}>
                           <span>散牌:</span>
-                          <strong className="text-yellow-300 text-sm">{playerStrayCount}</strong>
+                          <strong className={`text-yellow-300 ${gameMinClass('text-sm')}`}>{playerStrayCount}</strong>
                           <span>張</span>
                         </div>
                       ) : (
-                        <div className="text-xs font-bold leading-none text-yellow-300">
+                        <div className={`${gameMinClass('text-xs')} font-bold leading-none text-yellow-300`}>
                           {activeHuCheck.canHu ? (
                             <span className="text-yellow-300 font-black">✔ 可胡牌！</span>
                           ) : (
@@ -2895,8 +2915,8 @@ export default function App() {
                     </div>
                     {mode === 'pairs' && (
                       <div className="flex items-center gap-1.5 p-1 bg-black/25 rounded-xl border border-white/5">
-                        <span className="text-xs font-bold text-yellow-300 shrink-0">{pairsHandSize === 15 ? '組' : '對'}</span>
-                        <strong className="text-sm text-yellow-300 shrink-0">{playerClaimedMelds.length}</strong>
+                        <span className={`${gameMinClass('text-xs')} font-bold text-yellow-300 shrink-0`}>{pairsHandSize === 15 ? '組' : '對'}</span>
+                        <strong className={`${gameMinClass('text-sm')} text-yellow-300 shrink-0`}>{playerClaimedMelds.length}</strong>
                         <div className="flex flex-wrap gap-[3px] flex-1 min-w-0">
                           {playerClaimedMelds.length > 0
                             ? playerClaimedMelds.map((meld) => (
@@ -2904,7 +2924,7 @@ export default function App() {
                                   {meld.cards.map((c, i) => renderMiniCard(c, `player-claim-${meld.id}-${c.id}-${i}`))}
                                 </div>
                               ))
-                            : <span className="text-yellow-300/60 text-xs">無</span>}
+                            : <span className={`text-yellow-300/60 ${gameMinClass('text-xs')}`}>無</span>}
                         </div>
                       </div>
                     )}
@@ -3076,7 +3096,7 @@ export default function App() {
                        : selectedCardId ? '👉'
                        : 'ℹ️'}
                     </span>
-                    <p className="text-base font-black leading-tight truncate flex-1 text-cyan-400">
+                    <p className={`${gameMinClass('text-base')} font-black leading-tight truncate flex-1 text-cyan-400`}>
                       {gamePhase === 'playing' && curPlayerId === 'player' && canDiscard
                         ? (selectedCardId
                             ? `已選 [${player.hand.find(c => c.id === selectedCardId)?.name}]，點擊打出`
@@ -3111,7 +3131,7 @@ export default function App() {
                           style={{
                             width: handCardDims.w * 3,
                             height: handCardDims.w,
-                            fontSize: Math.min(handCardDims.w * 0.55, handCardDims.h * 0.38),
+                            fontSize: gameMinPx(Math.min(handCardDims.w * 0.55, handCardDims.h * 0.38)),
                             animation: 'bounceSmall 0.7s ease-in-out infinite',
                           }}
                           className="rounded-xl bg-yellow-400 hover:bg-yellow-300 border-2 border-white shadow-lg flex items-center justify-center font-black text-black hover:scale-105 active:scale-95 transition-transform whitespace-nowrap"
@@ -3127,7 +3147,7 @@ export default function App() {
                           style={{
                             width: handCardDims.w * 3,
                             height: handCardDims.w,
-                            fontSize: Math.min(handCardDims.w * 0.5, handCardDims.h * 0.34),
+                            fontSize: gameMinPx(Math.min(handCardDims.w * 0.5, handCardDims.h * 0.34)),
                             animation: 'bounceSmall 0.85s ease-in-out infinite',
                           }}
                           className="rounded-xl bg-yellow-400 hover:bg-yellow-300 border-2 border-white shadow-md flex items-center justify-center font-black text-black hover:scale-105 active:scale-95 transition-transform whitespace-nowrap"
@@ -3143,7 +3163,7 @@ export default function App() {
                           style={{
                             width: handCardDims.w * 3,
                             height: handCardDims.w,
-                            fontSize: Math.min(handCardDims.w * 0.5, handCardDims.h * 0.34),
+                            fontSize: gameMinPx(Math.min(handCardDims.w * 0.5, handCardDims.h * 0.34)),
                             animation: 'bounceSmall 0.85s ease-in-out infinite 0.1s',
                           }}
                           className="rounded-xl bg-yellow-400 hover:bg-yellow-300 border-2 border-white shadow-md flex items-center justify-center font-black text-black hover:scale-105 active:scale-95 transition-transform whitespace-nowrap"
@@ -3160,7 +3180,7 @@ export default function App() {
                           style={{
                             width: handCardDims.w * 3,
                             height: handCardDims.w,
-                            fontSize: Math.min(handCardDims.w * 0.5, handCardDims.h * 0.34),
+                            fontSize: gameMinPx(Math.min(handCardDims.w * 0.5, handCardDims.h * 0.34)),
                             animation: `bounceSmall 0.85s ease-in-out infinite ${i * 0.1}s`,
                           }}
                           className="rounded-xl bg-yellow-400 hover:bg-yellow-300 border-2 border-white shadow-md flex items-center justify-center font-black text-black active:scale-95 transition-transform whitespace-nowrap"
@@ -3181,7 +3201,7 @@ export default function App() {
                           }}
                           className="rounded-xl bg-yellow-400 hover:bg-yellow-300 border-2 border-white shadow-md flex flex-col items-center justify-center font-black text-black hover:scale-105 active:scale-95 transition-transform"
                         >
-                          <span style={{ fontSize: Math.min(handCardDims.w * 0.42, handCardDims.h * 0.28) }}>{opt.actionLabel}</span>
+                          <span style={{ fontSize: gameMinPx(Math.min(handCardDims.w * 0.42, handCardDims.h * 0.28)) }}>{opt.actionLabel}</span>
                           <span className="opacity-90" style={{ fontSize: Math.min(handCardDims.w * 0.22, handCardDims.h * 0.15) }}>
                             {opt.resultCards.map(c => c.name).join('‧')}
                           </span>
@@ -3194,7 +3214,7 @@ export default function App() {
                         style={{
                           width: handCardDims.w * 3,
                           height: handCardDims.w,
-                          fontSize: Math.min(handCardDims.w * 0.5, handCardDims.h * 0.34),
+                          fontSize: gameMinPx(Math.min(handCardDims.w * 0.5, handCardDims.h * 0.34)),
                         }}
                         className="rounded-xl bg-slate-600 hover:bg-slate-500 border border-slate-400 font-bold text-white active:scale-95 flex items-center justify-center whitespace-nowrap"
                       >
@@ -3202,7 +3222,7 @@ export default function App() {
                       </button>
                     </div>
 
-                    <div className="text-base font-black text-yellow-400 border-t border-white/10 w-full text-center pt-1.5">
+                    <div className={`${gameMinClass('text-base')} font-black text-yellow-400 border-t border-white/10 w-full text-center pt-1.5`}>
                       🚨 雷達配對組信號{triggerSourceLabel ? `（${triggerSourceLabel}）` : ''}！請選擇：
                     </div>
                   </div>
@@ -3212,16 +3232,16 @@ export default function App() {
               {/* RETRO DIALOG HISTORY ON DEMAND OVERLAY */}
               {showLogDrawer && (
                 <div className="absolute inset-x-0 bottom-0 top-[52px] bg-[#0a1628]/98 border-t border-blue-500/30 z-30 p-4 flex flex-col justify-between select-none">
-                  <div className="text-sm font-extrabold text-yellow-500 border-b border-white/10 pb-2 mb-3 flex items-center justify-between">
+                  <div className={`${gameMinClass('text-sm')} font-extrabold text-yellow-500 border-b border-white/10 pb-2 mb-3 flex items-center justify-between`}>
                     <span>📋 牌局歷程回顧：</span>
-                    <button 
+                    <button
                       onClick={() => setShowLogDrawer(false)}
                       className="px-2 py-0.5 bg-white/10 hover:bg-white/15 text-slate-300 font-extrabold rounded"
                     >
                       關閉 ✕
                     </button>
                   </div>
-                  <div className="flex-1 overflow-y-auto space-y-1.5 pr-2 text-xs text-left text-yellow-101/90 font-mono scrollbar-thin">
+                  <div className={`flex-1 overflow-y-auto space-y-1.5 pr-2 ${gameMinClass('text-xs')} text-left text-yellow-101/90 font-mono scrollbar-thin`}>
                     {logs.map((log, idx) => (
                       <div key={idx} className="border-b border-white/5 last:border-0 pb-1 flex items-start gap-1 leading-snug">
                         <span className="text-yellow-500 shrink-0 pr-0.5">▸</span>
@@ -3233,7 +3253,7 @@ export default function App() {
                   </div>
                   <button
                     onClick={() => setShowLogDrawer(false)}
-                    className="w-full mt-4 py-3 bg-yellow-500 hover:bg-yellow-400 font-black text-slate-950 text-sm rounded-xl"
+                    className={`w-full mt-4 py-3 bg-yellow-500 hover:bg-yellow-400 font-black text-slate-950 ${gameMinClass('text-sm')} rounded-xl`}
                   >
                     關閉回溯，繼續遊戲
                   </button>
