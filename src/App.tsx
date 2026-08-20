@@ -274,24 +274,25 @@ export default function App() {
       outerGap: 'gap-2', titlePad: 'py-1', titleSpace: 'space-y-1', titleText: 'text-3xl md:text-4xl', subText: 'text-sm',
       gridGap: 'gap-2', cardPad: 'p-3', cardSpace: 'space-y-2', avatarSize: 'h-11 w-11 text-2xl',
       inputPad: 'py-2.5', inputText: 'text-lg', modeGap: 'gap-1.5', modePad: 'py-2.5', modeTitle: 'text-lg', modeSub: 'text-xs',
-      smallBtnPad: 'py-1.5', smallBtnText: 'text-xs', launcherPad: 'py-3.5', launcherText: 'text-2xl',
+      smallBtnPad: 'py-2', smallBtnText: 'text-[13px]', launcherPad: 'py-3.5', launcherText: 'text-2xl',
     },
     cozy: {
-      // titleText and smallBtnText stay fixed across tiers — those are
-      // width-bound (a long line like 四色牌-吃一隻 with its flanking icons, or
-      // the 3-button 電腦手牌：開/關 row), not height-bound, so growing them
-      // wraps to an extra line on the same ~375-440px iPhone widths instead of
-      // filling more height. Every other value here is free to grow with tier.
+      // titleText stays fixed across tiers — it's width-bound (四色牌-吃一隻
+      // with its flanking icons on the same ~375-440px iPhone widths), not
+      // height-bound, so growing it wraps to an extra line instead of filling
+      // more height. smallBtnText only grows one step (12px→13px) for the
+      // same reason — the 3-button 電腦手牌：開/關 row has little width to
+      // spare. Every other value here is free to grow with tier.
       outerGap: 'gap-3', titlePad: 'py-1.5', titleSpace: 'space-y-1.5', titleText: 'text-3xl md:text-4xl', subText: 'text-sm',
       gridGap: 'gap-3', cardPad: 'p-4', cardSpace: 'space-y-3', avatarSize: 'h-12 w-12 text-3xl',
       inputPad: 'py-3', inputText: 'text-xl', modeGap: 'gap-2', modePad: 'py-3.5', modeTitle: 'text-xl', modeSub: 'text-sm',
-      smallBtnPad: 'py-2', smallBtnText: 'text-xs', launcherPad: 'py-4', launcherText: 'text-3xl',
+      smallBtnPad: 'py-2.5', smallBtnText: 'text-[13px]', launcherPad: 'py-4', launcherText: 'text-3xl',
     },
     roomy: {
       outerGap: 'gap-4', titlePad: 'py-2', titleSpace: 'space-y-2', titleText: 'text-3xl md:text-4xl', subText: 'text-base',
       gridGap: 'gap-4', cardPad: 'p-5', cardSpace: 'space-y-4', avatarSize: 'h-14 w-14 text-4xl',
       inputPad: 'py-4', inputText: 'text-xl', modeGap: 'gap-3', modePad: 'py-5', modeTitle: 'text-2xl', modeSub: 'text-sm',
-      smallBtnPad: 'py-2.5', smallBtnText: 'text-xs', launcherPad: 'py-5', launcherText: 'text-3xl',
+      smallBtnPad: 'py-3', smallBtnText: 'text-[13px]', launcherPad: 'py-5', launcherText: 'text-3xl',
     },
   }[lobbyTier];
   // Hand layout (2-row fixed size vs single-row fit-to-space) follows
@@ -2496,23 +2497,23 @@ export default function App() {
                       onClick={() => setSoundEnabled(!soundEnabled)}
                       className={`flex-1 flex items-center gap-1.5 justify-center ${lobbySizes.smallBtnPad} rounded-lg bg-white/5 hover:bg-white/10 ${lobbySizes.smallBtnText} font-bold text-slate-300 hover:text-white`}
                     >
-                      {soundEnabled ? <Volume2 className="w-4 h-4 text-blue-400 shrink-0" /> : <VolumeX className="w-4 h-4 text-red-400 shrink-0" />}
-                      <span>語音：{soundEnabled ? '開' : '關'}</span>
+                      {soundEnabled ? <Volume2 className="w-[18px] h-[18px] text-blue-400 shrink-0" /> : <VolumeX className="w-[18px] h-[18px] text-red-400 shrink-0" />}
+                      <span>語音</span>
                     </button>
 
                     <button
                       onClick={() => setShowComputerHand(!showComputerHand)}
                       className={`flex-1 flex items-center gap-1.5 justify-center ${lobbySizes.smallBtnPad} rounded-lg bg-white/5 hover:bg-white/10 ${lobbySizes.smallBtnText} font-bold text-slate-300 hover:text-white`}
                     >
-                      {showComputerHand ? <Eye className="w-4 h-4 text-blue-400 shrink-0" /> : <EyeOff className="w-4 h-4 text-slate-400 shrink-0" />}
-                      <span>電腦手牌：{showComputerHand ? '開' : '關'}</span>
+                      {showComputerHand ? <Eye className="w-[18px] h-[18px] text-blue-400 shrink-0" /> : <EyeOff className="w-[18px] h-[18px] text-slate-400 shrink-0" />}
+                      <span>電腦手牌</span>
                     </button>
 
                     <button
                       onClick={handleOpenRules}
                       className={`flex-1 flex items-center gap-1.5 justify-center ${lobbySizes.smallBtnPad} rounded-lg bg-white/5 hover:bg-white/10 ${lobbySizes.smallBtnText} font-bold text-slate-300 hover:text-white`}
                     >
-                      <BookOpen className="w-4 h-4 text-yellow-500 shrink-0" />
+                      <BookOpen className="w-[18px] h-[18px] text-yellow-500 shrink-0" />
                       <span>說明</span>
                     </button>
                   </div>
