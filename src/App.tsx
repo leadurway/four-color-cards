@@ -69,7 +69,7 @@ export default function App() {
   });
   const [computer, setComputer] = useState<Player>({
     id: 'computer',
-    name: '🤖 電腦AI',
+    name: '🤖 簡單AI',
     hand: [],
     revealed: [],
     score: 0
@@ -228,6 +228,11 @@ export default function App() {
   // device (e.g. Android) falls back to the same short-side-under-768
   // heuristic this file always used, applied once instead of on every resize.
   const [isLandscape, setIsLandscape] = useState(false);
+  // Tracks actual viewport height so the lobby page can pick a size tier
+  // (see lobbySizes below) instead of one fixed set of paddings/font sizes —
+  // an iPhone SE (667px tall) and an iPhone 14 Pro Max (932px tall) have a
+  // ~40% height difference, too much to serve well with a single layout.
+  const [windowHeight, setWindowHeight] = useState(() => window.innerHeight);
   const [isPhoneSized] = useState(() => {
     const ua = navigator.userAgent;
     if (/iPhone|iPod/.test(ua)) return true;
@@ -238,7 +243,10 @@ export default function App() {
     return false; // PC web
   });
   useEffect(() => {
-    const update = () => setIsLandscape(window.innerWidth > window.innerHeight);
+    const update = () => {
+      setIsLandscape(window.innerWidth > window.innerHeight);
+      setWindowHeight(window.innerHeight);
+    };
     update();
     window.addEventListener('resize', update);
     window.addEventListener('orientationchange', update);
@@ -250,6 +258,42 @@ export default function App() {
   const isIphonePortrait = isPhoneSized && !isLandscape;
   const isPhoneLandscape = isPhoneSized && isLandscape;
   const useWideLayout = !isIphonePortrait;
+  // Lobby (start) page size tier — non-phone devices (which center via
+  // justify-center instead, see the lobby JSX) always use 'compact', the
+  // same tight sizing an iPhone SE needs. iPhone height varies a lot across
+  // real models (iPhone SE 667px vs iPhone 14 Pro Max 932px, a ~40% gap), so
+  // rather than one fixed padding/font-size set that either overflows small
+  // phones or leaves a dead gap on tall ones, three tiers step the whole
+  // page's paddings/gaps/font sizes up together as more height becomes
+  // available — measured empirically against each tier's target devices.
+  const lobbyTier: 'compact' | 'cozy' | 'roomy' = !isPhoneSized
+    ? 'compact'
+    : windowHeight < 700 ? 'compact' : windowHeight < 860 ? 'cozy' : 'roomy';
+  const lobbySizes = {
+    compact: {
+      outerGap: 'gap-2', titlePad: 'py-1', titleSpace: 'space-y-1', titleText: 'text-3xl md:text-4xl', subText: 'text-sm',
+      gridGap: 'gap-2', cardPad: 'p-3', cardSpace: 'space-y-2', avatarSize: 'h-11 w-11 text-2xl',
+      inputPad: 'py-2.5', inputText: 'text-lg', modeGap: 'gap-1.5', modePad: 'py-2.5', modeTitle: 'text-lg', modeSub: 'text-xs',
+      smallBtnPad: 'py-1.5', smallBtnText: 'text-xs', launcherPad: 'py-3.5', launcherText: 'text-2xl',
+    },
+    cozy: {
+      // titleText and smallBtnText stay fixed across tiers — those are
+      // width-bound (a long line like 四色牌-吃一隻 with its flanking icons, or
+      // the 3-button 電腦手牌：開/關 row), not height-bound, so growing them
+      // wraps to an extra line on the same ~375-440px iPhone widths instead of
+      // filling more height. Every other value here is free to grow with tier.
+      outerGap: 'gap-3', titlePad: 'py-1.5', titleSpace: 'space-y-1.5', titleText: 'text-3xl md:text-4xl', subText: 'text-sm',
+      gridGap: 'gap-3', cardPad: 'p-4', cardSpace: 'space-y-3', avatarSize: 'h-12 w-12 text-3xl',
+      inputPad: 'py-3', inputText: 'text-xl', modeGap: 'gap-2', modePad: 'py-3.5', modeTitle: 'text-xl', modeSub: 'text-sm',
+      smallBtnPad: 'py-2', smallBtnText: 'text-xs', launcherPad: 'py-4', launcherText: 'text-3xl',
+    },
+    roomy: {
+      outerGap: 'gap-4', titlePad: 'py-2', titleSpace: 'space-y-2', titleText: 'text-3xl md:text-4xl', subText: 'text-base',
+      gridGap: 'gap-4', cardPad: 'p-5', cardSpace: 'space-y-4', avatarSize: 'h-14 w-14 text-4xl',
+      inputPad: 'py-4', inputText: 'text-xl', modeGap: 'gap-3', modePad: 'py-5', modeTitle: 'text-2xl', modeSub: 'text-sm',
+      smallBtnPad: 'py-2.5', smallBtnText: 'text-xs', launcherPad: 'py-5', launcherText: 'text-3xl',
+    },
+  }[lobbyTier];
   // Hand layout (2-row fixed size vs single-row fit-to-space) follows
   // orientation alone, regardless of phone vs tablet: any portrait screen
   // (iPhone or iPad) gets the fixed 2-row formula below; any landscape
@@ -853,7 +897,7 @@ export default function App() {
     });
     setComputer({
       id: 'computer',
-      name: '🤖 電腦AI',
+      name: aiDifficulty === 'hard' ? '🤖 困難AI' : '🤖 簡單AI',
       hand: sortHandForDisplay(computerHand),
       revealed: computerRevealed,
       score: newComputerScore
@@ -2324,32 +2368,35 @@ export default function App() {
           
           {/* 1. Lobby/Setup Page (遊戲開始設定頁面) */}
           {activePage === 'lobby' && (
-            // justify-center on tablet/PC only: this page's content is a fixed,
-            // shrink-0 stack sized for iPhone's shorter viewport — on iPad/PC's
-            // much taller one it used to leave a large dead gap below the 開始
-            // 遊戲 button instead of looking centered. iPhone (both orientations)
-            // keeps its original top-aligned/scrolling behavior untouched.
-            <div className={`flex-1 px-5 lg:px-16 xl:px-32 flex flex-col gap-2 select-none text-white overflow-y-auto min-h-0 ${isPhoneSized ? '' : 'justify-center'}`} style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.5rem)', paddingBottom: '0.5rem' }}>
+            <div className="flex-1 px-5 lg:px-16 xl:px-32 flex flex-col select-none text-white overflow-y-auto min-h-0" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.5rem)', paddingBottom: '0.5rem' }}>
+              {/* m-auto (not the parent's justify-center) centers this stack when
+                  it's shorter than the viewport, while still scrolling normally
+                  from the top if it's ever taller — justify-content:center on the
+                  scrollable parent would instead clip the top of any such overflow
+                  out of reach (same reasoning as the 胡牌 celebration screen's
+                  m-auto usage below). lobbySizes' per-tier gap keeps the three
+                  blocks proportionally spaced as they grow across tiers. */}
+              <div className={`flex flex-col w-full ${lobbySizes.outerGap} m-auto`}>
 
               {/* Grand compact title */}
-              <div className="text-center space-y-1 py-1 shrink-0">
+              <div className={`text-center ${lobbySizes.titleSpace} ${lobbySizes.titlePad} shrink-0`}>
                 <div className="flex items-center justify-center gap-3">
                   {renderFourColorLogo(28)}
-                  <h1 className="text-3xl md:text-4xl font-serif font-black tracking-widest text-yellow-500 select-none">
+                  <h1 className={`${lobbySizes.titleText} font-serif font-black tracking-widest text-yellow-500 select-none`}>
                     四色牌-吃一隻
                   </h1>
                   <img src={liangGameLogo} alt="LIANG GAME" className="w-9 h-9 rounded-full object-cover shrink-0" />
                 </div>
-                <p className="text-sm tracking-widest text-blue-200 font-extrabold uppercase font-mono">
+                <p className={`${lobbySizes.subText} tracking-widest text-blue-200 font-extrabold uppercase font-mono`}>
                   — 專為銀髮長輩特製 · 護腦防失智 —
                 </p>
               </div>
 
               {/* Steps in a beautiful compact grid to avoid scrolling */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 select-none min-h-0 shrink-0 items-start">
+              <div className={`grid grid-cols-1 md:grid-cols-2 ${lobbySizes.gridGap} select-none min-h-0 shrink-0 items-start`}>
 
                 {/* Step 1: Avatar Selector and username setup */}
-                <div className="bg-black/35 p-3 rounded-2xl border border-white/10 flex flex-col justify-center space-y-2">
+                <div className={`bg-black/35 ${lobbySizes.cardPad} rounded-2xl border border-white/10 flex flex-col justify-center ${lobbySizes.cardSpace}`}>
                   <div className="flex items-center gap-2">
                     <span className="text-sm bg-yellow-500 text-slate-950 font-black px-2.5 py-1 rounded shrink-0">1. 入席編制</span>
                     <p className="text-sm font-extrabold text-yellow-400">入席玩家暱稱與頭像：</p>
@@ -2361,7 +2408,7 @@ export default function App() {
                       <button
                         key={idx}
                         onClick={() => { playSound('click'); setUserAvatar(av); }}
-                        className={`text-2xl h-11 w-11 flex items-center justify-center rounded-xl transition-all ${
+                        className={`${lobbySizes.avatarSize} flex items-center justify-center rounded-xl transition-all ${
                           playerAvatar === av
                             ? 'bg-yellow-500 scale-110 border-2 border-white shadow-lg ring-3 ring-yellow-500/40'
                             : 'bg-white/10 hover:bg-white/15'
@@ -2377,42 +2424,42 @@ export default function App() {
                     maxLength={10}
                     value={playerName}
                     onChange={(e) => setUserName(e.target.value || '長輩玩家')}
-                    className="w-full py-2.5 px-4 bg-[#0a1e3d] border border-blue-600 rounded-xl text-lg text-center font-bold text-white placeholder-slate-400 focus:outline-none focus:border-yellow-500"
+                    className={`w-full ${lobbySizes.inputPad} px-4 bg-[#0a1e3d] border border-blue-600 rounded-xl ${lobbySizes.inputText} text-center font-bold text-white placeholder-slate-400 focus:outline-none focus:border-yellow-500`}
                     placeholder="輸入長輩的手遊暱稱"
                   />
                 </div>
 
                 {/* Step 2: Game Mode Picker */}
-                <div className="bg-black/35 p-3 rounded-2xl border border-white/10 flex flex-col justify-center space-y-2">
+                <div className={`bg-black/35 ${lobbySizes.cardPad} rounded-2xl border border-white/10 flex flex-col justify-center ${lobbySizes.cardSpace}`}>
                   <div className="flex items-center gap-2 px-1">
                     <span className="text-sm bg-yellow-500 text-slate-950 font-black px-2.5 py-1 rounded shrink-0">2. 自選玩法</span>
                     <p className="text-sm font-extrabold text-yellow-400">👦 抓對對子簡單對戰</p>
                   </div>
 
-                  <div className="flex flex-col gap-1.5">
+                  <div className={`flex flex-col ${lobbySizes.modeGap}`}>
                     <button
                       onClick={() => { playSound('click'); setPairsHandSize(10); }}
-                      className={`text-left px-4 py-2.5 rounded-xl border-2 transition-all font-black ${
+                      className={`text-left px-4 ${lobbySizes.modePad} rounded-xl border-2 transition-all font-black ${
                         pairsHandSize === 10
                           ? 'bg-yellow-500 text-slate-950 border-yellow-300 shadow-lg scale-[1.02]'
                           : 'bg-white/10 text-slate-200 border-white/10 hover:border-white/20'
                       }`}
                     >
-                      <div className="text-lg">10張五對胡（發9張）</div>
-                      <div className={`text-xs font-medium ${pairsHandSize === 10 ? 'text-slate-800' : 'text-slate-400'}`}>
+                      <div className={lobbySizes.modeTitle}>10張五對胡（發9張）</div>
+                      <div className={`${lobbySizes.modeSub} font-medium ${pairsHandSize === 10 ? 'text-slate-800' : 'text-slate-400'}`}>
                         湊滿 5 對牌即胡，規則最簡單，新手首選
                       </div>
                     </button>
                     <button
                       onClick={() => { playSound('click'); setPairsHandSize(15); }}
-                      className={`text-left px-4 py-2.5 rounded-xl border-2 transition-all font-black ${
+                      className={`text-left px-4 ${lobbySizes.modePad} rounded-xl border-2 transition-all font-black ${
                         pairsHandSize === 15
                           ? 'bg-yellow-500 text-slate-950 border-yellow-300 shadow-lg scale-[1.02]'
                           : 'bg-white/10 text-slate-200 border-white/10 hover:border-white/20'
                       }`}
                     >
-                      <div className="text-lg">15張五組胡（發14張）</div>
-                      <div className={`text-xs font-medium ${pairsHandSize === 15 ? 'text-slate-800' : 'text-slate-400'}`}>
+                      <div className={lobbySizes.modeTitle}>15張五組胡（發14張）</div>
+                      <div className={`${lobbySizes.modeSub} font-medium ${pairsHandSize === 15 ? 'text-slate-800' : 'text-slate-400'}`}>
                         湊滿 5 組三張即胡，稍具挑戰性
                       </div>
                     </button>
@@ -2420,10 +2467,10 @@ export default function App() {
 
                   {/* AI difficulty: compact toggle row attached under 自選玩法 */}
                   <div className="flex items-center gap-2 pt-1 border-t border-white/10">
-                    <span className="text-xs font-bold text-slate-400 shrink-0 pl-1">電腦難度</span>
+                    <span className={`${lobbySizes.smallBtnText} font-bold text-slate-400 shrink-0 pl-1`}>電腦難度</span>
                     <button
                       onClick={() => { playSound('click'); setAiDifficulty('easy'); }}
-                      className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                      className={`flex-1 ${lobbySizes.smallBtnPad} rounded-lg ${lobbySizes.smallBtnText} font-bold transition-all ${
                         aiDifficulty === 'easy'
                           ? 'bg-yellow-500 text-slate-950'
                           : 'bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white'
@@ -2433,7 +2480,7 @@ export default function App() {
                     </button>
                     <button
                       onClick={() => { playSound('click'); setAiDifficulty('hard'); }}
-                      className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                      className={`flex-1 ${lobbySizes.smallBtnPad} rounded-lg ${lobbySizes.smallBtnText} font-bold transition-all ${
                         aiDifficulty === 'hard'
                           ? 'bg-yellow-500 text-slate-950'
                           : 'bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white'
@@ -2447,7 +2494,7 @@ export default function App() {
                   <div className="flex items-center gap-2 pt-1 border-t border-white/10">
                     <button
                       onClick={() => setSoundEnabled(!soundEnabled)}
-                      className="flex-1 flex items-center gap-1.5 justify-center py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs font-bold text-slate-300 hover:text-white"
+                      className={`flex-1 flex items-center gap-1.5 justify-center ${lobbySizes.smallBtnPad} rounded-lg bg-white/5 hover:bg-white/10 ${lobbySizes.smallBtnText} font-bold text-slate-300 hover:text-white`}
                     >
                       {soundEnabled ? <Volume2 className="w-4 h-4 text-blue-400 shrink-0" /> : <VolumeX className="w-4 h-4 text-red-400 shrink-0" />}
                       <span>語音：{soundEnabled ? '開' : '關'}</span>
@@ -2455,7 +2502,7 @@ export default function App() {
 
                     <button
                       onClick={() => setShowComputerHand(!showComputerHand)}
-                      className="flex-1 flex items-center gap-1.5 justify-center py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs font-bold text-slate-300 hover:text-white"
+                      className={`flex-1 flex items-center gap-1.5 justify-center ${lobbySizes.smallBtnPad} rounded-lg bg-white/5 hover:bg-white/10 ${lobbySizes.smallBtnText} font-bold text-slate-300 hover:text-white`}
                     >
                       {showComputerHand ? <Eye className="w-4 h-4 text-blue-400 shrink-0" /> : <EyeOff className="w-4 h-4 text-slate-400 shrink-0" />}
                       <span>電腦手牌：{showComputerHand ? '開' : '關'}</span>
@@ -2463,7 +2510,7 @@ export default function App() {
 
                     <button
                       onClick={handleOpenRules}
-                      className="flex-1 flex items-center gap-1.5 justify-center py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs font-bold text-slate-300 hover:text-white"
+                      className={`flex-1 flex items-center gap-1.5 justify-center ${lobbySizes.smallBtnPad} rounded-lg bg-white/5 hover:bg-white/10 ${lobbySizes.smallBtnText} font-bold text-slate-300 hover:text-white`}
                     >
                       <BookOpen className="w-4 h-4 text-yellow-500 shrink-0" />
                       <span>說明</span>
@@ -2476,13 +2523,14 @@ export default function App() {
               <div className="shrink-0">
                 <button
                   onClick={() => { playSound('click'); initGame(); }}
-                  className="w-full py-3.5 bg-yellow-500 hover:brightness-105 active:scale-98 transition-all font-black text-slate-950 text-2xl rounded-xl border-4 border-red-500 flex items-center justify-center gap-2 select-none"
+                  className={`w-full ${lobbySizes.launcherPad} bg-yellow-500 hover:brightness-105 active:scale-98 transition-all font-black text-slate-950 ${lobbySizes.launcherText} rounded-xl border-4 border-red-500 flex items-center justify-center gap-2 select-none`}
                   style={{ animation: 'bounceSmall 1.4s ease-in-out infinite, huBoxGlow 1s ease-in-out infinite alternate' }}
                 >
                   開始遊戲 {renderFourColorLogo(26)}
                 </button>
               </div>
 
+              </div>
             </div>
           )}
 
@@ -3483,7 +3531,7 @@ export default function App() {
                 </p>
                 <div className="flex justify-between text-[11px] font-bold text-slate-300 tabular-nums">
                   <span>{playerAvatar} {playerName}：{player.score.toLocaleString()}</span>
-                  <span>🤖 電腦AI：{computer.score.toLocaleString()}</span>
+                  <span>{computer.name}：{computer.score.toLocaleString()}</span>
                 </div>
               </div>
             )}
