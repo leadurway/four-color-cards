@@ -273,6 +273,20 @@ export function find15TrioHints(hand: Card[]): Card[][] {
   return groups;
 }
 
+// How useful a card is to keep, given the rest of the hand it's sitting in:
+// counts other cards in `hand` that could combine with it toward a 15-card
+// 組 (same color+char, same char/different color, or an adjacent same-color
+// sequence neighbor). Higher = more worth keeping. Shared by the 困難 AI's
+// discard choice and its claim-option choice so both agree on which card is
+// safest to give up.
+export function scoreCardConnectivity(card: Card, hand: Card[]): number {
+  const sameKey = hand.filter(x => x.color === card.color && x.character === card.character).length;
+  const sameChar = hand.filter(x => x.character === card.character && x.color !== card.color).length;
+  const seqPartner = hand.filter(x => x.color === card.color &&
+    Math.abs(x.order - card.order) === 1 && card.order !== 7 && x.order !== 7).length;
+  return sameKey + sameChar + seqPartner;
+}
+
 // Cards already sitting in a complete "組" hint (find15TrioHints) are spoken for —
 // they shouldn't also be offered up to complete a *different* claim against an
 // incoming trigger card. Filter them out before scanning for claimable trios.

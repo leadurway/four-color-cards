@@ -17,7 +17,8 @@ import {
   ScoreBreakdown,
   PairsGrouping,
   HuResult,
-  classifyTrio
+  classifyTrio,
+  scoreCardConnectivity
 } from './cardUtils';
 import { Card, GameMode, GameState, Player, RevealedMeld } from './types';
 import { loadPlayerScore, savePlayerScore } from './scoreStorage';
@@ -55,7 +56,8 @@ export default function App() {
   // Active Game parameters
   const [mode, setMode] = useState<GameMode>('pairs');
   const [pairsHandSize, setPairsHandSize] = useState<10 | 15>(15);
-  
+  const [aiDifficulty, setAiDifficulty] = useState<'easy' | 'hard'>('easy');
+
   // Play Space State Variables
   const [deck, setDeck] = useState<Card[]>([]);
   const [player, setPlayer] = useState<Player>({
@@ -1096,6 +1098,22 @@ export default function App() {
     }, 1200);
   };
 
+  // 困難 AI only: when several 碰/吃一隻 claim options are available for the
+  // same trigger card, pick whichever one leaves the strongest remaining hand
+  // (highest total connectivity) instead of the first/random option — 簡單 AI
+  // keeps picking randomly among the options, see call sites below.
+  const pickBestTrioOption = (options: TrioClaimOption[], hand: Card[]): TrioClaimOption => {
+    let best = options[0];
+    let bestScore = -Infinity;
+    options.forEach(opt => {
+      const usedIds = new Set(opt.cardsToUse.map(u => u.id));
+      const remaining = hand.filter(c => !usedIds.has(c.id));
+      const score = remaining.reduce((sum, c) => sum + scoreCardConnectivity(c, remaining), 0);
+      if (score > bestScore) { bestScore = score; best = opt; }
+    });
+    return best;
+  };
+
   // Computes Computer reaction and self-play logic
   const runComputerTurn = (playerDiscard: Card | null) => {
     // This function is always scheduled via setTimeout from a prior render,
@@ -1121,8 +1139,11 @@ export default function App() {
         // 10-card: AI checks if player's discard completes a pair
         const cGroup = groupPairsMode(computer.hand);
         const matchesStray = cGroup.strays.find(c => c.color === playerDiscard.color && c.character === playerDiscard.character);
+        // 簡單 AI occasionally misses an obvious pair (feels like a beginner
+        // opponent); 困難 AI always takes a free pair.
+        const takeStrayChance = aiDifficulty === 'hard' ? 1 : 0.65;
 
-        if (matchesStray) {
+        if (matchesStray && Math.random() < takeStrayChance) {
           const newHand = computer.hand.filter(c => c.id !== matchesStray.id);
           const newMeld: RevealedMeld = {
             id: `comp-pair-${Date.now()}`,
@@ -1163,8 +1184,14 @@ export default function App() {
       } else if (mode === 'pairs' && pairsHandSize === 15) {
         // 15-card: AI checks if player's discard completes a claimable trio (碰一隻/吃一隻)
         const trioOptions = checkTrioClaims(excludeLockedTrioCards(computer.hand), playerDiscard);
-        if (trioOptions.length > 0 && Math.random() < 0.75) {
-          const option = trioOptions[Math.floor(Math.random() * trioOptions.length)];
+        // 簡單 AI claims less often and picks randomly among options when it
+        // does; 困難 AI claims almost every time and picks the option that
+        // leaves it the strongest remaining hand.
+        const claimChance = aiDifficulty === 'hard' ? 0.92 : 0.4;
+        if (trioOptions.length > 0 && Math.random() < claimChance) {
+          const option = aiDifficulty === 'hard'
+            ? pickBestTrioOption(trioOptions, computer.hand)
+            : trioOptions[Math.floor(Math.random() * trioOptions.length)];
           const newHand = computer.hand.filter(c => !option.cardsToUse.map(u => u.id).includes(c.id));
           const newMeld: RevealedMeld = {
             id: `comp-trio-${Date.now()}`,
@@ -1297,7 +1324,9 @@ export default function App() {
       // 15-card: self-drawn card may complete a claimable trio (碰一隻/吃一隻) — claim it immediately
       const trioOptions = checkTrioClaims(excludeLockedTrioCards(computer.hand), drawn);
       if (trioOptions.length > 0) {
-        const option = trioOptions[0];
+        // Self-drawn completions are always taken (no reason to pass on your
+        // own turn) — difficulty only affects WHICH option when several exist.
+        const option = aiDifficulty === 'hard' ? pickBestTrioOption(trioOptions, computer.hand) : trioOptions[0];
         const newHand = computer.hand.filter(c => !option.cardsToUse.map(u => u.id).includes(c.id));
         const newMeld: RevealedMeld = {
           id: `comp-trio-self-${Date.now()}`,
@@ -1489,24 +1518,45 @@ export default function App() {
     let discardIndex = -1;
 
     if (mode === 'pairs' && pairsHandSize === 15) {
-      // 15-card: discard card with fewest potential trio partners
-      const scoreCard = (card: Card) => {
-        const sameKey = handBeforeDicard.filter(x => x.color === card.color && x.character === card.character).length;
-        const sameChar = handBeforeDicard.filter(x => x.character === card.character && x.color !== card.color).length;
-        const seqPartner = handBeforeDicard.filter(x => x.color === card.color &&
-          Math.abs(x.order - card.order) === 1 && card.order !== 7 && x.order !== 7).length;
-        return sameKey + sameChar + seqPartner;
+      // 困難 AI: always discard the card with fewest potential trio partners
+      // (greedy-optimal). 簡單 AI: only plays that greedy pick half the time —
+      // the rest of the time it discards a uniformly random card, so it still
+      // makes coherent moves but noticeably worse ones, without looking erratic.
+      const pickGreedyDiscard = () => {
+        let lowest = Infinity;
+        let idxOfLowest = -1;
+        handBeforeDicard.forEach((c, idx) => {
+          const s = scoreCardConnectivity(c, handBeforeDicard);
+          if (s < lowest) { lowest = s; idxOfLowest = idx; }
+        });
+        return idxOfLowest;
       };
-      let lowest = Infinity;
-      handBeforeDicard.forEach((c, idx) => {
-        const s = scoreCard(c);
-        if (s < lowest) { lowest = s; discardIndex = idx; }
-      });
+      if (aiDifficulty === 'hard' || Math.random() < 0.5) {
+        discardIndex = pickGreedyDiscard();
+      } else {
+        discardIndex = Math.floor(Math.random() * handBeforeDicard.length);
+      }
     } else if (mode === 'pairs') {
       const group = groupPairsMode(handBeforeDicard);
       if (group.strays.length > 0) {
-        const choice = group.strays[0];
-        discardIndex = handBeforeDicard.findIndex(c => c.id === choice.id);
+        if (aiDifficulty === 'hard') {
+          // 困難 AI: keep 將/帥 strays longer (they carry a +2 hoo pairing
+          // bonus), and among the rest prefer discarding whichever already
+          // has the most copies visible in the discard pile / own revealed
+          // melds — those are the least likely to still be pairable.
+          const visibleCount = (c: Card) =>
+            discardPile.filter(x => x.color === c.color && x.character === c.character).length +
+            computer.revealed.flatMap(m => m.cards).filter(x => x.color === c.color && x.character === c.character).length;
+          const ranked = [...group.strays].sort((a, b) => {
+            const genDiff = Number(isGeneral(a)) - Number(isGeneral(b));
+            if (genDiff !== 0) return genDiff;
+            return visibleCount(b) - visibleCount(a);
+          });
+          discardIndex = handBeforeDicard.findIndex(c => c.id === ranked[0].id);
+        } else {
+          const choice = group.strays[0];
+          discardIndex = handBeforeDicard.findIndex(c => c.id === choice.id);
+        }
       }
     } else {
       const uniqueKeys = Array.from(new Set(handBeforeDicard.map(c => `${c.color}-${c.character}`)));
@@ -2392,6 +2442,43 @@ export default function App() {
                     >
                       <BookOpen className="w-4 h-4 text-yellow-500 shrink-0" />
                       <span>說明</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Step 3: AI Difficulty Picker */}
+                <div className="bg-black/35 p-4 rounded-2xl border border-white/10 flex flex-col justify-center space-y-3">
+                  <div className="flex items-center gap-2 px-1">
+                    <span className="text-sm bg-yellow-500 text-slate-950 font-black px-2.5 py-1 rounded shrink-0">3. 電腦難度</span>
+                    <p className="text-sm font-extrabold text-yellow-400">🤖 電腦 AI 對手</p>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <button
+                      onClick={() => { playSound('click'); setAiDifficulty('easy'); }}
+                      className={`text-left px-4 py-4 rounded-xl border-2 transition-all font-black ${
+                        aiDifficulty === 'easy'
+                          ? 'bg-yellow-500 text-slate-950 border-yellow-300 shadow-lg scale-[1.02]'
+                          : 'bg-white/10 text-slate-200 border-white/10 hover:border-white/20'
+                      }`}
+                    >
+                      <div className="text-lg">😊 簡單 AI</div>
+                      <div className={`text-xs font-medium mt-0.5 ${aiDifficulty === 'easy' ? 'text-slate-800' : 'text-slate-400'}`}>
+                        電腦偶爾會失誤，出牌較保守，適合新手輕鬆遊玩
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => { playSound('click'); setAiDifficulty('hard'); }}
+                      className={`text-left px-4 py-4 rounded-xl border-2 transition-all font-black ${
+                        aiDifficulty === 'hard'
+                          ? 'bg-yellow-500 text-slate-950 border-yellow-300 shadow-lg scale-[1.02]'
+                          : 'bg-white/10 text-slate-200 border-white/10 hover:border-white/20'
+                      }`}
+                    >
+                      <div className="text-lg">🔥 困難 AI</div>
+                      <div className={`text-xs font-medium mt-0.5 ${aiDifficulty === 'hard' ? 'text-slate-800' : 'text-slate-400'}`}>
+                        電腦精打細算、很少放過吃碰機會，更具挑戰性
+                      </div>
                     </button>
                   </div>
                 </div>
