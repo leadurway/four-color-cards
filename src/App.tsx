@@ -2610,14 +2610,22 @@ export default function App() {
   );
 
   return (
-    <div className="min-h-screen w-full bg-[#0a1628] text-slate-100 flex justify-center relative font-sans select-none">
-      
+    // min-h-dvh (dynamic viewport height), not min-h-screen (100vh) — on iOS
+    // Safari, 100vh is defined as the height with the address bar/toolbar
+    // collapsed, not however much is actually visible right now. Sizing the
+    // lobby's letterbox-fit scale (see lobbyScale) off a clientHeight that's
+    // ultimately rooted in a 100vh ancestor made it consistently compute a
+    // scale too large for what was really on screen — fine in Chromium
+    // (which doesn't have this quirk) but overflowing/needing a scroll on a
+    // real iPad. 100dvh tracks the true currently-visible viewport instead.
+    <div className="min-h-dvh w-full bg-[#0a1628] text-slate-100 flex justify-center relative font-sans select-none">
+
       {/* BACKGROUND GRADIENT */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_#0d2d6b_0%,_#071020_100%)] opacity-80 z-0 pointer-events-none" />
 
       {/* FULLSCREEN GAME BOARD CONSOLE */}
       <div
-        className="w-full max-w-7xl min-h-screen bg-[#0f2d5c]/95 shadow-2xl flex flex-col relative border-x border-blue-950/40 z-20 animate-fade-in"
+        className="w-full max-w-7xl min-h-dvh bg-[#0f2d5c]/95 shadow-2xl flex flex-col relative border-x border-blue-950/40 z-20 animate-fade-in"
       >
 
         {/* ========================================== */}
