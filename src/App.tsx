@@ -40,6 +40,63 @@ import {
   History
 } from 'lucide-react';
 
+// Shared "letterbox fit" scaling for secondary (non-game) pages on tablet/PC —
+// renders a page's content at a fixed reference width, then uniformly scales
+// the whole block up with CSS transform so it fills the device instead of
+// sitting phone-sized in a sea of empty tablet/PC screen. Originally built
+// for the lobby; extracted here so other secondary pages (rules, the 結算
+// celebration overlay) can reuse the exact same measuring logic instead of
+// each carrying their own copy.
+//
+// contentRef measures the block's true natural (unscaled) height —
+// dividing the observed rect height by whatever scale is currently applied
+// backs out the natural value, so this works whether or not a previous
+// scale is already in effect, with no separate hidden measurement copy
+// needed. outerRef is the actual available viewport area to fit into, and
+// must be rendered with no padding of its own (padding there would make
+// its clientWidth/clientHeight over-report the truly usable space).
+//
+// isTabletDevice && isLandscape reuses the scale iPad PORTRAIT would
+// compute for this same physical device (swapping which dimension plays
+// width/height — exact for an in-place rotation, not just an
+// approximation) instead of fitting to landscape's own short height, then
+// lets the page scroll — matching "same size as portrait, scrollable"
+// rather than "shrink to fit landscape". Every other case (tablet
+// portrait, PC at any window shape) is a straight letterbox fit to
+// whichever of width/height is more constraining; on a typical wide
+// desktop window that's always the height, so PC scaling is height-driven
+// in practice while still never overflowing width in an unusually
+// narrow/tall browser window.
+function useScaleToFit(refWidth: number, active: boolean, isTabletDevice: boolean, isLandscape: boolean) {
+  const contentRef = useRef<HTMLDivElement>(null);
+  const outerRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+  const scaleRef = useRef(1);
+  useEffect(() => { scaleRef.current = scale; }, [scale]);
+  const [naturalH, setNaturalH] = useState(0);
+  useLayoutEffect(() => {
+    if (!active) return;
+    const contentEl = contentRef.current;
+    const outerEl = outerRef.current;
+    if (!contentEl || !outerEl) return;
+    const measure = () => {
+      const nH = contentEl.getBoundingClientRect().height / scaleRef.current;
+      const availW = outerEl.clientWidth;
+      const availH = outerEl.clientHeight;
+      const k = isTabletDevice && isLandscape
+        ? Math.min(availH / refWidth, availW / nH)
+        : Math.min(availW / refWidth, availH / nH);
+      setNaturalH(nH);
+      setScale(Math.max(0.5, Math.min(k, 3)));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(outerEl);
+    return () => ro.disconnect();
+  }, [active, isTabletDevice, isLandscape, refWidth]);
+  return { scale, naturalH, contentRef, outerRef };
+}
+
 export default function App() {
   // Navigation Router & Setup State
   const [activePage, setActivePage] = useState<'lobby' | 'game' | 'rules'>('lobby');
@@ -320,53 +377,29 @@ export default function App() {
       smallBtnPad: 'py-3', smallBtnText: 'text-[13px]', launcherPad: 'py-4', launcherText: 'text-3xl',
     },
   }[lobbyTier];
-  // Tablet/PC lobby scaling: renders the exact same iPhone-portrait 'compact'
-  // layout (via lobbySizes above) at a fixed LOBBY_REF_WIDTH reference width,
-  // then uniformly scales the whole block up with CSS transform so it fills
-  // the device instead of looking like a small phone-sized island floating
-  // in a sea of empty tablet/PC screen. lobbyContentRef measures the block's
-  // true natural (unscaled) height — dividing the observed rect height by
-  // whatever scale is currently applied backs out the natural value, so this
-  // works whether or not a previous scale is already in effect, with no
-  // separate hidden measurement copy needed. lobbyOuterRef is the actual
-  // available viewport area to fit into.
+  // Shared across every secondary (non-game) page: the content width phone
+  // landscape caps itself to, so landscape reads as "the portrait layout,
+  // scrolled down to" instead of stretching the same single-column design
+  // edge to edge across the much wider landscape viewport.
+  const PHONE_PORTRAIT_MAX_W = 420;
+  // Tablet/PC lobby scaling — see useScaleToFit above for the mechanism.
   const LOBBY_REF_WIDTH = 380;
-  const lobbyContentRef = useRef<HTMLDivElement>(null);
-  const lobbyOuterRef = useRef<HTMLDivElement>(null);
-  const [lobbyScale, setLobbyScale] = useState(1);
-  const lobbyScaleRef = useRef(1);
-  useEffect(() => { lobbyScaleRef.current = lobbyScale; }, [lobbyScale]);
-  const [lobbyNaturalH, setLobbyNaturalH] = useState(0);
-  useLayoutEffect(() => {
-    if (isPhoneSized || activePage !== 'lobby') return;
-    const contentEl = lobbyContentRef.current;
-    const outerEl = lobbyOuterRef.current;
-    if (!contentEl || !outerEl) return;
-    const measure = () => {
-      const naturalH = contentEl.getBoundingClientRect().height / lobbyScaleRef.current;
-      const availW = outerEl.clientWidth;
-      const availH = outerEl.clientHeight;
-      // iPad landscape reuses the scale iPad PORTRAIT would compute for this
-      // same physical device (swapping which dimension plays width/height —
-      // exact for an in-place rotation, not just an approximation) instead of
-      // fitting to landscape's own short height, then lets the page scroll —
-      // matching "same size as portrait, scrollable" rather than "shrink to
-      // fit landscape". Every other case (tablet portrait, PC at any window
-      // shape) is a straight letterbox fit to whichever of width/height is
-      // more constraining; on a typical wide desktop window that's always
-      // the height, so PC scaling is height-driven in practice while still
-      // never overflowing width in an unusually narrow/tall browser window.
-      const k = isTabletDevice && isLandscape
-        ? Math.min(availH / LOBBY_REF_WIDTH, availW / naturalH)
-        : Math.min(availW / LOBBY_REF_WIDTH, availH / naturalH);
-      setLobbyNaturalH(naturalH);
-      setLobbyScale(Math.max(0.5, Math.min(k, 3)));
-    };
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(outerEl);
-    return () => ro.disconnect();
-  }, [isPhoneSized, isTabletDevice, isLandscape, activePage]);
+  const {
+    scale: lobbyScale,
+    naturalH: lobbyNaturalH,
+    contentRef: lobbyContentRef,
+    outerRef: lobbyOuterRef,
+  } = useScaleToFit(LOBBY_REF_WIDTH, !isPhoneSized && activePage === 'lobby', isTabletDevice, isLandscape);
+  // Tablet/PC rules/tutorial page scaling — same mechanism as the lobby
+  // above, just a wider reference (this page is read at a comfortable text
+  // width rather than a compact control-panel width).
+  const RULES_REF_WIDTH = 420;
+  const {
+    scale: rulesScale,
+    naturalH: rulesNaturalH,
+    contentRef: rulesContentRef,
+    outerRef: rulesOuterRef,
+  } = useScaleToFit(RULES_REF_WIDTH, !isPhoneSized && activePage === 'rules', isTabletDevice, isLandscape);
   // Hand layout (2-row fixed size vs single-row fit-to-space) follows
   // orientation alone, regardless of phone vs tablet: any portrait screen
   // (iPhone or iPad) gets the fixed 2-row formula below; any landscape
@@ -2637,6 +2670,194 @@ export default function App() {
     </>
   );
 
+  // Rules/tutorial page content — header, sub-tabs, tab content, and the
+  // back button. Shared verbatim between phone (rendered inline, capped to
+  // PHONE_PORTRAIT_MAX_W in landscape) and tablet/PC (rendered at the fixed
+  // RULES_REF_WIDTH inside the useScaleToFit transform wrapper) — see the
+  // two call sites below for how each device class wraps this content.
+  const renderRulesBody = () => (
+    <>
+      {/* Header */}
+      <header className="bg-black/40 border-b border-white/10 px-3 flex items-center justify-between shrink-0 select-none z-10" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)', paddingBottom: '0.75rem' }}>
+        <button
+          onClick={handleBackFromRules}
+          className="py-2.5 px-5 bg-white/10 hover:bg-white/15 border border-white/10 text-base font-extrabold text-slate-200 rounded-xl transition-all flex items-center gap-2"
+        >
+          <ArrowLeft className="w-5 h-5" />
+          返回
+        </button>
+        <span className="text-lg font-black text-yellow-500 tracking-wider">🀄 傳統四色牌指引</span>
+        <div className="w-20 h-3" />
+      </header>
+
+      {/* Sub tabs */}
+      <div className="bg-black/20 p-2 flex border-b border-white/5 justify-between gap-1.5 shrink-0 text-sm font-semibold select-none">
+        <button
+          onClick={() => handleSwitchTab('ranks')}
+          className={`flex-1 py-3 px-0.5 rounded-lg text-center transition-colors ${activeTutorialTab === 'ranks' ? 'bg-yellow-500 text-black font-extrabold' : 'hover:bg-white/5 text-slate-300 font-medium'}`}
+        >
+          🎨 牌色圖鑑
+        </button>
+        <button
+          onClick={() => handleSwitchTab('pairs')}
+          className={`flex-1 py-3 px-0.5 rounded-lg text-center transition-colors ${activeTutorialTab === 'pairs' ? 'bg-yellow-500 text-black font-extrabold' : 'hover:bg-white/5 text-slate-300 font-medium'}`}
+        >
+          👦 簡單對子
+        </button>
+      </div>
+
+      {/* Tab contents */}
+      <div className="flex-1 p-4 overflow-y-auto min-h-0 text-slate-200 text-left text-base space-y-4 font-sans leading-relaxed scrollbar-thin max-w-2xl mx-auto w-full">
+
+        {activeTutorialTab === 'ranks' && (
+          <div className="space-y-4">
+            <div className="bg-white/5 p-4 rounded-2xl border border-white/10 text-center select-none">
+              <p className="font-extrabold text-yellow-500 text-xl mb-1">整套四色牌共有 112 張</p>
+              <p className="text-sm text-slate-400 font-semibold">區分為：紅、黃、綠、白 等四種色系：</p>
+            </div>
+
+            <div className="space-y-3 select-none">
+              <div className="p-4 bg-red-950/20 border border-red-900/40 rounded-xl">
+                <p className="font-extrabold text-orange-400 text-base mb-2">🔴 紅色 與 🟡 黃色 (高階牌面)</p>
+                <p className="text-sm text-slate-300 font-medium">
+                  文字代表角色依次序為：<strong>帥、仕、相、俥、傌、炮、兵</strong>。
+                </p>
+                <div className="flex gap-2 mt-3">
+                  <span className="bg-amber-100/10 border border-amber-500 px-2.5 py-1 rounded text-sm text-yellow-400 font-black">黃帥</span>
+                  <span className="bg-red-800/15 border border-red-650 px-2.5 py-1 rounded text-sm text-orange-400 font-black">紅帥</span>
+                </div>
+              </div>
+
+              <div className="p-4 bg-emerald-950/20 border border-emerald-900/40 rounded-xl">
+                <p className="font-extrabold text-emerald-400 text-base mb-2">🟢 綠色 與 ⚪ 白色 (基層角色)</p>
+                <p className="text-sm text-slate-300 font-medium">
+                  文字代表角色依次序為：<strong>將、士、象、車、馬、包、卒</strong>。
+                </p>
+                <div className="flex gap-2 mt-3">
+                  <span className="bg-emerald-900/20 border border-emerald-500 px-2.5 py-1 rounded text-sm text-emerald-400 font-black">綠將</span>
+                  <span className="bg-slate-800/20 border border-slate-500 px-2.5 py-1 rounded text-sm text-slate-200 font-black font-serif">白將</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-yellow-500/5 p-4 rounded-xl border border-yellow-500/20 select-none">
+              <h4 className="font-extrabold text-yellow-500 text-base mb-2">💡 傳統常識貼心提醒：</h4>
+              <p className="text-slate-300 leading-relaxed font-semibold text-sm">
+                兩類字體雖有些微繁簡異體區分，但在配牌成組時，邏輯字體是一一對應、完全同等作用的（如紅帥與綠將在組同牌組時皆代表頂級將軍）。
+              </p>
+            </div>
+          </div>
+        )}
+
+        {activeTutorialTab === 'pairs' && (
+          <div className="space-y-4 select-none">
+            <h3 className="text-lg font-black text-yellow-500 border-b border-white/10 pb-2">👦 玩法一：抓對子（湊對子）</h3>
+            <p className="text-slate-300 font-semibold leading-relaxed text-sm">
+              比傳統十胡更簡單、快速的入門玩法，核心在於湊出相同的牌（同色同字）。
+            </p>
+
+            {/* 10-card rules */}
+            <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-3 space-y-2">
+              <p className="font-extrabold text-yellow-400 text-sm">🃏 10張玩法「五對胡」</p>
+              <ul className="list-disc pl-4 space-y-1.5 text-slate-300 text-xs font-medium leading-snug">
+                <li><strong className="text-white">起手牌數：</strong>每人發 <strong className="text-yellow-300">9 張</strong>牌，其餘放在中央為牌疊。</li>
+                <li><strong className="text-white">摸牌：</strong>輪到自己時從牌疊摸一張。若與手中某張單牌湊成對子，點【吃一隻】配對並打出一張不要的牌；若無法配對，可打出剛摸到的牌，或換入手中打出另一張。</li>
+                <li><strong className="text-white">碰牌：</strong>他人打出與你手中單牌完全相同的牌時，可喊「碰」湊成對子，再打出一張手牌。</li>
+                <li><strong className="text-white">聽牌：</strong>手中已有 4 個對子＋1 張單牌時，為「聽牌」狀態。</li>
+                <li><strong className="text-yellow-300">胡牌：</strong>自摸或他人打出與那張單牌配對的牌，完成 <strong>5 個對子（共 10 張）</strong>，喊「胡」勝出！</li>
+              </ul>
+            </div>
+
+            {/* 15-card rules */}
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-3 space-y-2">
+              <p className="font-extrabold text-blue-300 text-sm">🀄 15張玩法「五組三張」</p>
+              <ul className="list-disc pl-4 space-y-1.5 text-slate-300 text-xs font-medium leading-snug">
+                <li><strong className="text-white">起手牌數：</strong>每人發 <strong className="text-blue-200">14 張</strong>牌。</li>
+                <li><strong className="text-white">容許組合（每組 3 張）：</strong>
+                  <ul className="list-none pl-2 mt-1 space-y-1">
+                    <li>① 同色同字三張（例：3張綠包）</li>
+                    <li>② 常規散牌組（同色：將士象 或 車馬包）</li>
+                    <li>③ 同字異色三張（例：紅兵＋綠兵＋黃兵）</li>
+                  </ul>
+                </li>
+                <li><strong className="text-white">摸牌與碰吃：</strong>輪流摸牌；摸到可湊組的牌可保留並打出一張；他人打出的牌若能湊組可喊「碰」或「吃」。</li>
+                <li><strong className="text-blue-200">胡牌：</strong>手牌加上最後贏的那張牌，剛好湊滿 <strong>5 組（共 15 張）</strong>即為胡牌！</li>
+              </ul>
+            </div>
+
+            {/* General rule */}
+            <div className="bg-black/30 border border-white/10 rounded-xl p-3">
+              <p className="text-slate-400 text-xs font-semibold leading-snug">
+                💡 <strong className="text-slate-200">系統自動處理：</strong>開局時系統會自動偵測手牌中的「暗坎（三張）」與「暗開車（四張）」並直接放桌上。牌疊摸完無人胡牌則判定為<strong className="text-orange-300">流局（平手）</strong>。
+              </p>
+            </div>
+
+            {/* 台數計分 */}
+            <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3 space-y-2">
+              <p className="font-extrabold text-emerald-300 text-sm">💰 胡牌怎麼算分？台數計分法</p>
+              <p className="text-slate-300 text-xs font-medium leading-snug">
+                每次胡牌，系統會依牌型自動列出「台數明細」，總台數換算成輸贏分數：
+                底 <strong className="text-emerald-300">200</strong> 分 ＋ 總台數 × 每台 <strong className="text-emerald-300">100</strong> 分。
+              </p>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="bg-black/25 rounded-lg p-2">
+                  <p className="text-yellow-300 font-bold text-xs mb-1">🃏 10張「五對胡」加台</p>
+                  <ul className="text-slate-300 text-[11px] font-medium leading-relaxed space-y-0.5">
+                    <li>底台：<strong className="text-white">1台</strong></li>
+                    <li>自摸：<strong className="text-white">+1台</strong></li>
+                    <li>門清（全程沒吃碰對方棄牌）：<strong className="text-white">+1台</strong></li>
+                    <li>門清自摸加成（門清＋自摸同時成立）：<strong className="text-white">+1台</strong></li>
+                    <li>海底撈月（摸走牌庫最後一張自摸）：<strong className="text-white">+1台</strong></li>
+                    <li>連莊（莊家連續蟬聯，贏或被贏都算）：每局 <strong className="text-white">+1台</strong></li>
+                    <li>每組將/帥對：<strong className="text-white">+1台</strong></li>
+                    <li>無將（沒有半張將/帥）：<strong className="text-white">+1台</strong></li>
+                    <li>全將（5對都是將/帥）：<strong className="text-white">+1台</strong></li>
+                    <li>清一色（10張同色）：<strong className="text-white">+3台</strong></li>
+                  </ul>
+                </div>
+                <div className="bg-black/25 rounded-lg p-2">
+                  <p className="text-blue-300 font-bold text-xs mb-1">🀄 15張「五組三張」加台</p>
+                  <ul className="text-slate-300 text-[11px] font-medium leading-relaxed space-y-0.5">
+                    <li>底台：<strong className="text-white">1台</strong></li>
+                    <li>自摸：<strong className="text-white">+1台</strong></li>
+                    <li>門清（全程沒吃碰對方棄牌）：<strong className="text-white">+1台</strong></li>
+                    <li>門清自摸加成（門清＋自摸同時成立）：<strong className="text-white">+1台</strong></li>
+                    <li>海底撈月（摸走牌庫最後一張自摸）：<strong className="text-white">+1台</strong></li>
+                    <li>連莊（莊家連續蟬聯，贏或被贏都算）：每局 <strong className="text-white">+1台</strong></li>
+                    <li>每組三張同色同字（崁）：<strong className="text-white">+1台</strong></li>
+                    <li>三暗刻（5組中3組是暗崁）：<strong className="text-white">+2台</strong></li>
+                    <li>四暗刻（5組中4組是暗崁）：<strong className="text-white">+5台</strong></li>
+                    <li>每組同色將士象/車馬包：<strong className="text-white">+1台</strong></li>
+                    <li>四色兵/卒（四色各一張）：<strong className="text-white">+1台</strong></li>
+                    <li>其他階級四色同字（仕/士、相/象、俥/車、傌/馬、炮/包，四色各一張）：每階 <strong className="text-white">+2台</strong></li>
+                    <li>四大將/四大帥（四色各一張）：<strong className="text-white">+2台</strong></li>
+                    <li>清一色（15張同色）：<strong className="text-white">+4台</strong></li>
+                  </ul>
+                </div>
+              </div>
+
+              <p className="text-slate-500 text-[11px] font-medium leading-snug">
+                ※ 只有玩家/電腦兩人對戰，沒有獨立的「莊家」身分加台，只計算「連莊」——莊家連續蟬聯的局數，不論這局是莊家胡牌或被胡，都算進台數。「槓上開花」（需要開槓機制）、「天胡」（起手就發滿整副胡牌牌組）、「地胡」（首巡自摸）在本遊戲設計下不會出現，故未列入計算；10張玩法的三隻/四隻同字，牌局規則下也一律會拆成對子，不會鎖成獨立的刻子/槓。
+              </p>
+            </div>
+          </div>
+        )}
+
+      </div>
+
+      {/* Back trigger button */}
+      <div className="px-4 pt-4 border-t border-white/10 bg-[#0f2d5c] shrink-0" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)' }}>
+        <button
+          onClick={handleBackFromRules}
+          className="w-full py-5 bg-yellow-500 hover:bg-yellow-400 text-slate-950 font-black rounded-2xl text-xl"
+        >
+          細讀完畢，返回上一頁
+        </button>
+      </div>
+    </>
+  );
+
   return (
     // min-h-dvh (dynamic viewport height), not min-h-screen (100vh) — on iOS
     // Safari, 100vh is defined as the height with the address bar/toolbar
@@ -2679,9 +2900,16 @@ export default function App() {
             // content is ever taller than the viewport — justify-content:
             // center on the scrollable parent would instead clip the top of
             // such overflow out of reach (same reasoning as the 胡牌
-            // celebration screen's m-auto usage below).
+            // celebration screen's m-auto usage below). Landscape keeps this
+            // same portrait-proportioned layout capped at PHONE_PORTRAIT_MAX_W
+            // and centered, rather than stretching w-full edge to edge across
+            // the much wider landscape viewport — it should read as "the
+            // portrait screen, scrolled down to", not a different wide layout.
             <div className="flex-1 px-5 flex flex-col select-none text-white overflow-y-auto min-h-0" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.25rem)', paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 0.25rem)' }}>
-              <div className={`flex flex-col w-full ${lobbySizes.outerGap} mb-auto`}>
+              <div
+                className={`flex flex-col w-full ${lobbySizes.outerGap} mb-auto ${isPhoneLandscape ? 'mx-auto' : ''}`}
+                style={isPhoneLandscape ? { maxWidth: PHONE_PORTRAIT_MAX_W } : undefined}
+              >
                 {renderLobbyBody()}
               </div>
             </div>
@@ -3319,186 +3547,34 @@ export default function App() {
           )}
 
           {/* 3. Detailed Rules and Tutorial Screen (遊戲說明教學頁面) */}
-          {activePage === 'rules' && (
-            <div className="flex-1 flex flex-col justify-between h-full w-full select-none text-white overflow-hidden">
-              
-              {/* Header */}
-              <header className="bg-black/40 border-b border-white/10 px-3 flex items-center justify-between shrink-0 select-none z-10" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)', paddingBottom: '0.75rem' }}>
-                <button
-                  onClick={handleBackFromRules}
-                  className="py-2.5 px-5 bg-white/10 hover:bg-white/15 border border-white/10 text-base font-extrabold text-slate-200 rounded-xl transition-all flex items-center gap-2"
+          {activePage === 'rules' && isPhoneSized && (
+            // Phone: unchanged content, capped to PHONE_PORTRAIT_MAX_W and
+            // centered in landscape (same reasoning as the lobby's landscape
+            // cap above — reads as "the portrait page, scrolled down to").
+            <div
+              className={`flex-1 flex flex-col justify-between h-full w-full select-none text-white overflow-hidden ${isPhoneLandscape ? 'mx-auto' : ''}`}
+              style={isPhoneLandscape ? { maxWidth: PHONE_PORTRAIT_MAX_W } : undefined}
+            >
+              {renderRulesBody()}
+            </div>
+          )}
+
+          {activePage === 'rules' && !isPhoneSized && (
+            // Tablet/PC: same content rendered at RULES_REF_WIDTH, scaled up
+            // via useScaleToFit to fill the device — see the lobby's tablet/
+            // PC block above for the identical mechanism/reasoning.
+            <div ref={rulesOuterRef} className="flex-1 flex flex-col overflow-hidden">
+              <div
+                className={isTabletDevice && isLandscape ? 'mx-auto my-0 overflow-y-auto' : 'm-auto overflow-y-auto'}
+                style={{ width: RULES_REF_WIDTH * rulesScale, height: rulesNaturalH * rulesScale }}
+              >
+                <div
+                  ref={rulesContentRef}
+                  className="flex flex-col justify-between w-full select-none text-white"
+                  style={{ width: RULES_REF_WIDTH, transform: `scale(${rulesScale})`, transformOrigin: 'top left' }}
                 >
-                  <ArrowLeft className="w-5 h-5" />
-                  返回
-                </button>
-                <span className="text-lg font-black text-yellow-500 tracking-wider">🀄 傳統四色牌指引</span>
-                <div className="w-20 h-3" />
-              </header>
-
-              {/* Sub tabs */}
-              <div className="bg-black/20 p-2 flex border-b border-white/5 justify-between gap-1.5 shrink-0 text-sm font-semibold select-none">
-                <button
-                  onClick={() => handleSwitchTab('ranks')}
-                  className={`flex-1 py-3 px-0.5 rounded-lg text-center transition-colors ${activeTutorialTab === 'ranks' ? 'bg-yellow-500 text-black font-extrabold' : 'hover:bg-white/5 text-slate-300 font-medium'}`}
-                >
-                  🎨 牌色圖鑑
-                </button>
-                <button
-                  onClick={() => handleSwitchTab('pairs')}
-                  className={`flex-1 py-3 px-0.5 rounded-lg text-center transition-colors ${activeTutorialTab === 'pairs' ? 'bg-yellow-500 text-black font-extrabold' : 'hover:bg-white/5 text-slate-300 font-medium'}`}
-                >
-                  👦 簡單對子
-                </button>
-              </div>
-
-              {/* Tab contents */}
-              <div className="flex-1 p-4 overflow-y-auto min-h-0 text-slate-200 text-left text-base space-y-4 font-sans leading-relaxed scrollbar-thin max-w-2xl mx-auto w-full">
-
-                {activeTutorialTab === 'ranks' && (
-                  <div className="space-y-4">
-                    <div className="bg-white/5 p-4 rounded-2xl border border-white/10 text-center select-none">
-                      <p className="font-extrabold text-yellow-500 text-xl mb-1">整套四色牌共有 112 張</p>
-                      <p className="text-sm text-slate-400 font-semibold">區分為：紅、黃、綠、白 等四種色系：</p>
-                    </div>
-
-                    <div className="space-y-3 select-none">
-                      <div className="p-4 bg-red-950/20 border border-red-900/40 rounded-xl">
-                        <p className="font-extrabold text-orange-400 text-base mb-2">🔴 紅色 與 🟡 黃色 (高階牌面)</p>
-                        <p className="text-sm text-slate-300 font-medium">
-                          文字代表角色依次序為：<strong>帥、仕、相、俥、傌、炮、兵</strong>。
-                        </p>
-                        <div className="flex gap-2 mt-3">
-                          <span className="bg-amber-100/10 border border-amber-500 px-2.5 py-1 rounded text-sm text-yellow-400 font-black">黃帥</span>
-                          <span className="bg-red-800/15 border border-red-650 px-2.5 py-1 rounded text-sm text-orange-400 font-black">紅帥</span>
-                        </div>
-                      </div>
-
-                      <div className="p-4 bg-emerald-950/20 border border-emerald-900/40 rounded-xl">
-                        <p className="font-extrabold text-emerald-400 text-base mb-2">🟢 綠色 與 ⚪ 白色 (基層角色)</p>
-                        <p className="text-sm text-slate-300 font-medium">
-                          文字代表角色依次序為：<strong>將、士、象、車、馬、包、卒</strong>。
-                        </p>
-                        <div className="flex gap-2 mt-3">
-                          <span className="bg-emerald-900/20 border border-emerald-500 px-2.5 py-1 rounded text-sm text-emerald-400 font-black">綠將</span>
-                          <span className="bg-slate-800/20 border border-slate-500 px-2.5 py-1 rounded text-sm text-slate-200 font-black font-serif">白將</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="bg-yellow-500/5 p-4 rounded-xl border border-yellow-500/20 select-none">
-                      <h4 className="font-extrabold text-yellow-500 text-base mb-2">💡 傳統常識貼心提醒：</h4>
-                      <p className="text-slate-300 leading-relaxed font-semibold text-sm">
-                        兩類字體雖有些微繁簡異體區分，但在配牌成組時，邏輯字體是一一對應、完全同等作用的（如紅帥與綠將在組同牌組時皆代表頂級將軍）。
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {activeTutorialTab === 'pairs' && (
-                  <div className="space-y-4 select-none">
-                    <h3 className="text-lg font-black text-yellow-500 border-b border-white/10 pb-2">👦 玩法一：抓對子（湊對子）</h3>
-                    <p className="text-slate-300 font-semibold leading-relaxed text-sm">
-                      比傳統十胡更簡單、快速的入門玩法，核心在於湊出相同的牌（同色同字）。
-                    </p>
-
-                    {/* 10-card rules */}
-                    <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-3 space-y-2">
-                      <p className="font-extrabold text-yellow-400 text-sm">🃏 10張玩法「五對胡」</p>
-                      <ul className="list-disc pl-4 space-y-1.5 text-slate-300 text-xs font-medium leading-snug">
-                        <li><strong className="text-white">起手牌數：</strong>每人發 <strong className="text-yellow-300">9 張</strong>牌，其餘放在中央為牌疊。</li>
-                        <li><strong className="text-white">摸牌：</strong>輪到自己時從牌疊摸一張。若與手中某張單牌湊成對子，點【吃一隻】配對並打出一張不要的牌；若無法配對，可打出剛摸到的牌，或換入手中打出另一張。</li>
-                        <li><strong className="text-white">碰牌：</strong>他人打出與你手中單牌完全相同的牌時，可喊「碰」湊成對子，再打出一張手牌。</li>
-                        <li><strong className="text-white">聽牌：</strong>手中已有 4 個對子＋1 張單牌時，為「聽牌」狀態。</li>
-                        <li><strong className="text-yellow-300">胡牌：</strong>自摸或他人打出與那張單牌配對的牌，完成 <strong>5 個對子（共 10 張）</strong>，喊「胡」勝出！</li>
-                      </ul>
-                    </div>
-
-                    {/* 15-card rules */}
-                    <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-3 space-y-2">
-                      <p className="font-extrabold text-blue-300 text-sm">🀄 15張玩法「五組三張」</p>
-                      <ul className="list-disc pl-4 space-y-1.5 text-slate-300 text-xs font-medium leading-snug">
-                        <li><strong className="text-white">起手牌數：</strong>每人發 <strong className="text-blue-200">14 張</strong>牌。</li>
-                        <li><strong className="text-white">容許組合（每組 3 張）：</strong>
-                          <ul className="list-none pl-2 mt-1 space-y-1">
-                            <li>① 同色同字三張（例：3張綠包）</li>
-                            <li>② 常規散牌組（同色：將士象 或 車馬包）</li>
-                            <li>③ 同字異色三張（例：紅兵＋綠兵＋黃兵）</li>
-                          </ul>
-                        </li>
-                        <li><strong className="text-white">摸牌與碰吃：</strong>輪流摸牌；摸到可湊組的牌可保留並打出一張；他人打出的牌若能湊組可喊「碰」或「吃」。</li>
-                        <li><strong className="text-blue-200">胡牌：</strong>手牌加上最後贏的那張牌，剛好湊滿 <strong>5 組（共 15 張）</strong>即為胡牌！</li>
-                      </ul>
-                    </div>
-
-                    {/* General rule */}
-                    <div className="bg-black/30 border border-white/10 rounded-xl p-3">
-                      <p className="text-slate-400 text-xs font-semibold leading-snug">
-                        💡 <strong className="text-slate-200">系統自動處理：</strong>開局時系統會自動偵測手牌中的「暗坎（三張）」與「暗開車（四張）」並直接放桌上。牌疊摸完無人胡牌則判定為<strong className="text-orange-300">流局（平手）</strong>。
-                      </p>
-                    </div>
-
-                    {/* 台數計分 */}
-                    <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3 space-y-2">
-                      <p className="font-extrabold text-emerald-300 text-sm">💰 胡牌怎麼算分？台數計分法</p>
-                      <p className="text-slate-300 text-xs font-medium leading-snug">
-                        每次胡牌，系統會依牌型自動列出「台數明細」，總台數換算成輸贏分數：
-                        底 <strong className="text-emerald-300">200</strong> 分 ＋ 總台數 × 每台 <strong className="text-emerald-300">100</strong> 分。
-                      </p>
-
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="bg-black/25 rounded-lg p-2">
-                          <p className="text-yellow-300 font-bold text-xs mb-1">🃏 10張「五對胡」加台</p>
-                          <ul className="text-slate-300 text-[11px] font-medium leading-relaxed space-y-0.5">
-                            <li>底台：<strong className="text-white">1台</strong></li>
-                            <li>自摸：<strong className="text-white">+1台</strong></li>
-                            <li>門清（全程沒吃碰對方棄牌）：<strong className="text-white">+1台</strong></li>
-                            <li>門清自摸加成（門清＋自摸同時成立）：<strong className="text-white">+1台</strong></li>
-                            <li>海底撈月（摸走牌庫最後一張自摸）：<strong className="text-white">+1台</strong></li>
-                            <li>連莊（莊家連續蟬聯，贏或被贏都算）：每局 <strong className="text-white">+1台</strong></li>
-                            <li>每組將/帥對：<strong className="text-white">+1台</strong></li>
-                            <li>無將（沒有半張將/帥）：<strong className="text-white">+1台</strong></li>
-                            <li>全將（5對都是將/帥）：<strong className="text-white">+1台</strong></li>
-                            <li>清一色（10張同色）：<strong className="text-white">+3台</strong></li>
-                          </ul>
-                        </div>
-                        <div className="bg-black/25 rounded-lg p-2">
-                          <p className="text-blue-300 font-bold text-xs mb-1">🀄 15張「五組三張」加台</p>
-                          <ul className="text-slate-300 text-[11px] font-medium leading-relaxed space-y-0.5">
-                            <li>底台：<strong className="text-white">1台</strong></li>
-                            <li>自摸：<strong className="text-white">+1台</strong></li>
-                            <li>門清（全程沒吃碰對方棄牌）：<strong className="text-white">+1台</strong></li>
-                            <li>門清自摸加成（門清＋自摸同時成立）：<strong className="text-white">+1台</strong></li>
-                            <li>海底撈月（摸走牌庫最後一張自摸）：<strong className="text-white">+1台</strong></li>
-                            <li>連莊（莊家連續蟬聯，贏或被贏都算）：每局 <strong className="text-white">+1台</strong></li>
-                            <li>每組三張同色同字（崁）：<strong className="text-white">+1台</strong></li>
-                            <li>三暗刻（5組中3組是暗崁）：<strong className="text-white">+2台</strong></li>
-                            <li>四暗刻（5組中4組是暗崁）：<strong className="text-white">+5台</strong></li>
-                            <li>每組同色將士象/車馬包：<strong className="text-white">+1台</strong></li>
-                            <li>四色兵/卒（四色各一張）：<strong className="text-white">+1台</strong></li>
-                            <li>其他階級四色同字（仕/士、相/象、俥/車、傌/馬、炮/包，四色各一張）：每階 <strong className="text-white">+2台</strong></li>
-                            <li>四大將/四大帥（四色各一張）：<strong className="text-white">+2台</strong></li>
-                            <li>清一色（15張同色）：<strong className="text-white">+4台</strong></li>
-                          </ul>
-                        </div>
-                      </div>
-
-                      <p className="text-slate-500 text-[11px] font-medium leading-snug">
-                        ※ 只有玩家/電腦兩人對戰，沒有獨立的「莊家」身分加台，只計算「連莊」——莊家連續蟬聯的局數，不論這局是莊家胡牌或被胡，都算進台數。「槓上開花」（需要開槓機制）、「天胡」（起手就發滿整副胡牌牌組）、「地胡」（首巡自摸）在本遊戲設計下不會出現，故未列入計算；10張玩法的三隻/四隻同字，牌局規則下也一律會拆成對子，不會鎖成獨立的刻子/槓。
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-              </div>
-
-              {/* Back trigger button */}
-              <div className="px-4 pt-4 border-t border-white/10 bg-[#0f2d5c] shrink-0" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)' }}>
-                <button
-                  onClick={handleBackFromRules}
-                  className="w-full py-5 bg-yellow-500 hover:bg-yellow-400 text-slate-950 font-black rounded-2xl text-xl"
-                >
-                  細讀完畢，返回上一頁
-                </button>
+                  {renderRulesBody()}
+                </div>
               </div>
             </div>
           )}
@@ -3613,7 +3689,10 @@ export default function App() {
 
       {/* 胡牌 CELEBRATION OVERLAY — stamp + cards + 繼續下局 button (fireworks for player only) */}
       {showHuCelebration && (
-        <div className="fixed inset-0 z-[200] flex flex-col items-center select-none overflow-y-auto">
+        <div
+          className="fixed inset-0 z-[200] flex flex-col items-center select-none overflow-y-auto"
+          style={{ paddingTop: 'env(safe-area-inset-top, 0px)', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+        >
           {/* Fireworks canvas — player wins only */}
           {huAnimWho === 'player' && (
             <canvas
