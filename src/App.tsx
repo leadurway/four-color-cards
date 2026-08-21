@@ -3713,7 +3713,10 @@ export default function App() {
               visible on iPhone landscape, where the viewport is short and this whole
               block (cards + badge + score breakdown + 繼續下局 button) is routinely
               taller than it — margin:auto keeps it scrollable end to end instead. */}
-          <div className="relative z-10 flex flex-col items-center px-6 py-8 text-center m-auto" style={{ gap: 10 }}>
+          <div
+            className="relative z-10 flex flex-col items-center px-6 py-8 text-center m-auto"
+            style={{ gap: 10, ...(isPhoneLandscape ? { width: '100%', maxWidth: PHONE_PORTRAIT_MAX_W } : {}) }}
+          >
             {/* Both sides' full final hand (concealed + all revealed melds),
                 small square mini-cards, seated group-by-group — the complete
                 10/15 張 for EACH side regardless of who won, not just the
