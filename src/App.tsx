@@ -409,24 +409,20 @@ export default function App() {
   const showTwoRowHand = !isLandscape;
 
   // 桌面牌's own size is the fixed reference point every OTHER piece of text
-  // on the game page must render strictly bigger than — 14px on phone,
-  // 24px on tablet/PC (its original size, from when it was floored to
-  // match 打出這張牌's clamp(1rem, 5vw, 1.5rem) cap; 打出這張牌 itself has
-  // since been bumped to a 1.75rem cap so it stays above this floor too).
-  // Referenced directly by 桌面牌's own font-size call site below (not
-  // through gameMinPx), so it stays the actual smallest label instead of
-  // also being pulled up by its own floor.
+  // on the game page is floored to match — 14px on phone, 24px on tablet/PC
+  // (matching 打出這張牌's clamp(1rem, 5vw, 1.5rem), which flattens out at
+  // its 1.5rem cap on tablet/PC widths). Referenced directly by 桌面牌's
+  // own font-size call site below (not through gameMinPx) purely so it
+  // doesn't route through an extra function call for the same value.
   const GAME_DESK_LABEL_PX = isPhoneSized ? 14 : 24;
-  // Floor for every OTHER piece of text on the game page — one Tailwind
-  // step above 桌面牌 itself (16px/text-base vs 14px on phone, 30px/
-  // text-3xl vs 24px on tablet/PC), on every device now. Previously this
-  // only applied on tablet/PC; a lot of small badges/labels were left at
-  // their original tiny px size on phone too, some smaller than 桌面牌
-  // itself — legible up close but inconsistent with it as the reference
-  // "smallest label" the page is meant to have.
-  const GAME_MIN_TEXT_PX = isPhoneSized ? 16 : 30;
+  // Floor for every OTHER piece of text on the game page — equal to 桌面牌
+  // itself (not bigger), on every device. A lot of small badges/labels were
+  // left at their original tiny px size on phone too, some smaller than
+  // 桌面牌 itself — legible up close but inconsistent with it as the
+  // reference "smallest label" the page is meant to have.
+  const GAME_MIN_TEXT_PX = GAME_DESK_LABEL_PX;
   const gameMinPx = (px: number) => Math.max(px, GAME_MIN_TEXT_PX);
-  const gameMinClass = (_phoneClass: string) => (isPhoneSized ? 'text-base' : 'text-3xl');
+  const gameMinClass = (_phoneClass: string) => (isPhoneSized ? 'text-sm' : 'text-2xl');
 
   // Animation overlays
   const [showEatPairAnim, setShowEatPairAnim] = useState(false);
@@ -2685,9 +2681,10 @@ export default function App() {
   // must pass the ORIGINAL class straight through on tablet/PC — floor-ing
   // it there too would double-scale (the class bump AND the transform both
   // enlarging it). Phone gets no such transform, so its small classes
-  // (text-sm/text-xs/text-[11px], all ≤14px — at or under 桌面牌's own
-  // 14px game-page reference) are floored directly here to 16px instead.
-  const rulesMinClass = (original: string) => (isPhoneSized ? 'text-base' : original);
+  // (text-xs/text-[11px], both under 桌面牌's own 14px game-page reference)
+  // are floored directly here to text-sm (14px) instead — equal to 桌面牌,
+  // not bigger.
+  const rulesMinClass = (original: string) => (isPhoneSized ? 'text-sm' : original);
   // Rules/tutorial page content — header, sub-tabs, tab content, and the
   // back button. Shared verbatim between phone (rendered inline, capped to
   // PHONE_PORTRAIT_MAX_W in landscape) and tablet/PC (rendered at the fixed
@@ -3360,7 +3357,7 @@ export default function App() {
                           : 'bg-white/5 border-2 border-white/10 text-slate-500 cursor-not-allowed'
                       }`}
                     >
-                      <span className="font-black leading-none whitespace-nowrap" style={{ fontSize: 'clamp(1rem, 5vw, 1.75rem)' }}>
+                      <span className="font-black leading-none whitespace-nowrap" style={{ fontSize: 'clamp(1rem, 5vw, 1.5rem)' }}>
                         打出這張牌
                       </span>
                     </button>
@@ -3380,7 +3377,7 @@ export default function App() {
                           : 'bg-white/5 border-2 border-white/10 text-slate-500 cursor-not-allowed'
                       }`}
                     >
-                      <span className="font-black leading-none whitespace-nowrap" style={{ fontSize: 'clamp(1rem, 5vw, 1.75rem)' }}>
+                      <span className="font-black leading-none whitespace-nowrap" style={{ fontSize: 'clamp(1rem, 5vw, 1.5rem)' }}>
                         {deck.length > 0 ? `摸牌 ${deck.length}張` : '牌庫空'}
                       </span>
                     </button>
