@@ -351,30 +351,35 @@ export default function App() {
   const lobbyTier: 'compact' | 'cozy' | 'roomy' = !isPhoneSized
     ? 'compact'
     : windowHeight < 700 ? 'compact' : windowHeight < 900 ? 'cozy' : 'roomy';
+  // Designed for elderly players — no text anywhere should render under
+  // 15px (16px/text-base in practice, since Tailwind has nothing at exactly
+  // 15px). subText/modeSub/smallBtnText were previously left at text-sm
+  // (14px)/text-xs (12px)/text-[13px] on the smaller tiers to leave more
+  // room for the fixed-width title and the 3-button 電腦手牌 row on narrow
+  // iPhones; all bumped to text-base (16px) here instead, re-verified below
+  // not to wrap on a 375px-wide screen (the narrowest current target).
   const lobbySizes = {
     compact: {
-      outerGap: 'gap-2', titlePad: 'py-1', titleSpace: 'space-y-1', titleText: 'text-3xl md:text-4xl', subText: 'text-sm',
+      outerGap: 'gap-2', titlePad: 'py-1', titleSpace: 'space-y-1', titleText: 'text-3xl md:text-4xl', subText: 'text-base',
       gridGap: 'gap-2', cardPad: 'p-3', cardSpace: 'space-y-2', avatarSize: 'h-11 w-11 text-2xl',
-      inputPad: 'py-2.5', inputText: 'text-lg', modeGap: 'gap-1.5', modePad: 'py-2.5', modeTitle: 'text-lg', modeSub: 'text-xs',
-      smallBtnPad: 'py-2', smallBtnText: 'text-[13px]', launcherPad: 'py-3.5', launcherText: 'text-2xl',
+      inputPad: 'py-2.5', inputText: 'text-lg', modeGap: 'gap-1.5', modePad: 'py-2.5', modeTitle: 'text-lg', modeSub: 'text-base',
+      smallBtnPad: 'py-2', smallBtnText: 'text-base', launcherPad: 'py-3.5', launcherText: 'text-2xl',
     },
     cozy: {
       // titleText stays fixed across tiers — it's width-bound (四色牌-吃一隻
       // with its flanking icons on the same ~375-440px iPhone widths), not
       // height-bound, so growing it wraps to an extra line instead of filling
-      // more height. smallBtnText only grows one step (12px→13px) for the
-      // same reason — the 3-button 電腦手牌：開/關 row has little width to
-      // spare. Every other value here is free to grow with tier.
-      outerGap: 'gap-3', titlePad: 'py-1.5', titleSpace: 'space-y-1.5', titleText: 'text-3xl md:text-4xl', subText: 'text-sm',
+      // more height. Every other value here is free to grow with tier.
+      outerGap: 'gap-3', titlePad: 'py-1.5', titleSpace: 'space-y-1.5', titleText: 'text-3xl md:text-4xl', subText: 'text-base',
       gridGap: 'gap-3', cardPad: 'p-4', cardSpace: 'space-y-3', avatarSize: 'h-12 w-12 text-3xl',
-      inputPad: 'py-3', inputText: 'text-xl', modeGap: 'gap-2', modePad: 'py-3.5', modeTitle: 'text-xl', modeSub: 'text-sm',
-      smallBtnPad: 'py-2.5', smallBtnText: 'text-[13px]', launcherPad: 'py-4', launcherText: 'text-3xl',
+      inputPad: 'py-3', inputText: 'text-xl', modeGap: 'gap-2', modePad: 'py-3.5', modeTitle: 'text-xl', modeSub: 'text-base',
+      smallBtnPad: 'py-2.5', smallBtnText: 'text-base', launcherPad: 'py-4', launcherText: 'text-3xl',
     },
     roomy: {
       outerGap: 'gap-3', titlePad: 'py-2', titleSpace: 'space-y-2', titleText: 'text-3xl md:text-4xl', subText: 'text-base',
       gridGap: 'gap-3', cardPad: 'p-4', cardSpace: 'space-y-4', avatarSize: 'h-14 w-14 text-4xl',
-      inputPad: 'py-4', inputText: 'text-xl', modeGap: 'gap-3', modePad: 'py-4', modeTitle: 'text-2xl', modeSub: 'text-sm',
-      smallBtnPad: 'py-3', smallBtnText: 'text-[13px]', launcherPad: 'py-4', launcherText: 'text-3xl',
+      inputPad: 'py-4', inputText: 'text-xl', modeGap: 'gap-3', modePad: 'py-4', modeTitle: 'text-2xl', modeSub: 'text-base',
+      smallBtnPad: 'py-3', smallBtnText: 'text-base', launcherPad: 'py-4', launcherText: 'text-3xl',
     },
   }[lobbyTier];
   // Shared across every secondary (non-game) page: the content width phone
@@ -408,21 +413,23 @@ export default function App() {
   // still shares with the other non-iPhone-portrait cases.
   const showTwoRowHand = !isLandscape;
 
-  // 桌面牌's own size is the fixed reference point every OTHER piece of text
-  // on the game page is floored to match — 14px on phone, 24px on tablet/PC
-  // (matching 打出這張牌's clamp(1rem, 5vw, 1.5rem), which flattens out at
-  // its 1.5rem cap on tablet/PC widths). Referenced directly by 桌面牌's
-  // own font-size call site below (not through gameMinPx) purely so it
-  // doesn't route through an extra function call for the same value.
-  const GAME_DESK_LABEL_PX = isPhoneSized ? 14 : 24;
+  // This app is designed for elderly players — no text anywhere should ever
+  // render under 15px (16px in practice, since Tailwind's scale jumps
+  // text-sm 14px → text-base 16px with nothing at exactly 15px). 桌面牌's
+  // own size is the reference point every OTHER piece of text on the game
+  // page is floored to match — 16px on phone, 24px on tablet/PC (24 already
+  // clears the 15px minimum on its own; it separately matches 打出這張牌's
+  // clamp(1rem, 5vw, 1.5rem), which flattens out at its 1.5rem cap on
+  // tablet/PC widths). Referenced directly by 桌面牌's own font-size call
+  // site below (not through gameMinPx) purely so it doesn't route through
+  // an extra function call for the same value.
+  const GAME_DESK_LABEL_PX = isPhoneSized ? 16 : 24;
   // Floor for every OTHER piece of text on the game page — equal to 桌面牌
-  // itself (not bigger), on every device. A lot of small badges/labels were
-  // left at their original tiny px size on phone too, some smaller than
-  // 桌面牌 itself — legible up close but inconsistent with it as the
-  // reference "smallest label" the page is meant to have.
+  // itself, on every device. A lot of small badges/labels were left at
+  // their original tiny px size on phone too, some under the 15px minimum.
   const GAME_MIN_TEXT_PX = GAME_DESK_LABEL_PX;
   const gameMinPx = (px: number) => Math.max(px, GAME_MIN_TEXT_PX);
-  const gameMinClass = (_phoneClass: string) => (isPhoneSized ? 'text-sm' : 'text-2xl');
+  const gameMinClass = (_phoneClass: string) => (isPhoneSized ? 'text-base' : 'text-2xl');
 
   // Animation overlays
   const [showEatPairAnim, setShowEatPairAnim] = useState(false);
@@ -2470,7 +2477,7 @@ export default function App() {
   // full-width row instead of wrapping, unlike renderMiniCard's fixed size.
   const renderHuFullHandRow = (cards: Card[], label: string, keyPrefix: string) => cards.length > 0 && (
     <div key={keyPrefix} className="flex flex-col items-center" style={{ gap: 4, animation: 'fadeInUp 0.4s ease both', width: '92vw', maxWidth: 560 }}>
-      <span className="text-[11px] font-bold tracking-wide text-slate-300">
+      <span className="text-base font-bold tracking-wide text-slate-300">
         {label}（共 {cards.length} 張）
       </span>
       <div className="flex w-full justify-center bg-black/40 border border-white/10 rounded-xl p-2" style={{ gap: 3 }}>
@@ -2479,7 +2486,7 @@ export default function App() {
             key={`${keyPrefix}-${c.id}-${i}`}
             className="aspect-square flex-1 min-w-0 rounded-sm flex items-center justify-center font-black overflow-visible"
             style={{
-              fontSize: 'clamp(10px, 4.5vw, 22px)',
+              fontSize: 'clamp(16px, 4.5vw, 22px)',
               backgroundColor: c.color === 'yellow' ? '#ffd300' : c.color === 'green' ? '#299c42' : c.color === 'red' ? '#ff5511' : '#ffffff',
               color: c.color === 'yellow' ? '#ab1313' : '#111111',
             }}
@@ -2541,8 +2548,8 @@ export default function App() {
         {/* Step 1: Avatar Selector and username setup */}
         <div className={`bg-black/35 ${lobbySizes.cardPad} rounded-2xl border border-white/10 flex flex-col justify-center ${lobbySizes.cardSpace}`}>
           <div className="flex items-center gap-2">
-            <span className="text-sm bg-yellow-500 text-slate-950 font-black px-2.5 py-1 rounded shrink-0">1. 入席編制</span>
-            <p className="text-sm font-extrabold text-yellow-400">入席玩家暱稱與頭像：</p>
+            <span className="text-base bg-yellow-500 text-slate-950 font-black px-2.5 py-1 rounded shrink-0">1. 入席編制</span>
+            <p className="text-base font-extrabold text-yellow-400">入席玩家暱稱與頭像：</p>
           </div>
 
           {/* Picker list */}
@@ -2575,8 +2582,8 @@ export default function App() {
         {/* Step 2: Game Mode Picker */}
         <div className={`bg-black/35 ${lobbySizes.cardPad} rounded-2xl border border-white/10 flex flex-col justify-center ${lobbySizes.cardSpace}`}>
           <div className="flex items-center gap-2 px-1">
-            <span className="text-sm bg-yellow-500 text-slate-950 font-black px-2.5 py-1 rounded shrink-0">2. 自選玩法</span>
-            <p className="text-sm font-extrabold text-yellow-400">👦 抓對對子簡單對戰</p>
+            <span className="text-base bg-yellow-500 text-slate-950 font-black px-2.5 py-1 rounded shrink-0">2. 自選玩法</span>
+            <p className="text-base font-extrabold text-yellow-400">👦 抓對對子簡單對戰</p>
           </div>
 
           <div className={`flex flex-col ${lobbySizes.modeGap}`}>
@@ -2589,7 +2596,7 @@ export default function App() {
               }`}
             >
               <div className={lobbySizes.modeTitle}>10張五對胡（發9張）</div>
-              <div className={`${lobbySizes.modeSub} font-medium ${pairsHandSize === 10 ? 'text-slate-800' : 'text-slate-400'}`}>
+              <div className={`${lobbySizes.modeSub} font-medium ${pairsHandSize === 10 ? 'text-slate-800' : 'text-slate-300'}`}>
                 湊滿 5 對牌即胡，規則最簡單，新手首選
               </div>
             </button>
@@ -2602,7 +2609,7 @@ export default function App() {
               }`}
             >
               <div className={lobbySizes.modeTitle}>15張五組胡（發14張）</div>
-              <div className={`${lobbySizes.modeSub} font-medium ${pairsHandSize === 15 ? 'text-slate-800' : 'text-slate-400'}`}>
+              <div className={`${lobbySizes.modeSub} font-medium ${pairsHandSize === 15 ? 'text-slate-800' : 'text-slate-300'}`}>
                 湊滿 5 組三張即胡，稍具挑戰性
               </div>
             </button>
@@ -2610,7 +2617,7 @@ export default function App() {
 
           {/* AI difficulty: compact toggle row attached under 自選玩法 */}
           <div className="flex items-center gap-2 pt-1 border-t border-white/10">
-            <span className={`${lobbySizes.smallBtnText} font-bold text-slate-400 shrink-0 pl-1`}>電腦難度</span>
+            <span className={`${lobbySizes.smallBtnText} font-bold text-slate-300 shrink-0 pl-1`}>電腦難度</span>
             <button
               onClick={() => { playSound('click'); setAiDifficulty('easy'); }}
               className={`flex-1 ${lobbySizes.smallBtnPad} rounded-lg ${lobbySizes.smallBtnText} font-bold transition-all ${
@@ -2647,7 +2654,7 @@ export default function App() {
               onClick={() => setShowComputerHand(!showComputerHand)}
               className={`flex-1 flex items-center gap-1.5 justify-center ${lobbySizes.smallBtnPad} rounded-lg bg-white/5 hover:bg-white/10 ${lobbySizes.smallBtnText} font-bold text-slate-300 hover:text-white`}
             >
-              {showComputerHand ? <Eye className="w-[18px] h-[18px] text-blue-400 shrink-0" /> : <EyeOff className="w-[18px] h-[18px] text-slate-400 shrink-0" />}
+              {showComputerHand ? <Eye className="w-[18px] h-[18px] text-blue-400 shrink-0" /> : <EyeOff className="w-[18px] h-[18px] text-slate-300 shrink-0" />}
               <span>電腦手牌</span>
             </button>
 
@@ -2675,16 +2682,15 @@ export default function App() {
     </>
   );
 
-  // Rules page text floor — phone only. Unlike gameMinClass (game page),
-  // tablet/PC here gets its enlargement entirely from the whole-page
-  // useScaleToFit transform (see RULES_REF_WIDTH/rulesScale above), so this
-  // must pass the ORIGINAL class straight through on tablet/PC — floor-ing
-  // it there too would double-scale (the class bump AND the transform both
-  // enlarging it). Phone gets no such transform, so its small classes
-  // (text-xs/text-[11px], both under 桌面牌's own 14px game-page reference)
-  // are floored directly here to text-sm (14px) instead — equal to 桌面牌,
-  // not bigger.
-  const rulesMinClass = (original: string) => (isPhoneSized ? 'text-sm' : original);
+  // Rules page text floor — phone only. No text anywhere in this app should
+  // render under 15px (see gameMinClass above), so every small class this
+  // page uses (text-sm 14px, text-xs 12px, text-[11px] 11px) is floored to
+  // text-base (16px). Unlike gameMinClass (game page), tablet/PC here gets
+  // its enlargement entirely from the whole-page useScaleToFit transform
+  // (see RULES_REF_WIDTH/rulesScale above), so this must pass the ORIGINAL
+  // class straight through on tablet/PC — floor-ing it there too would
+  // double-scale (the class bump AND the transform both enlarging it).
+  const rulesMinClass = (_original: string) => (isPhoneSized ? 'text-base' : _original);
   // Rules/tutorial page content — header, sub-tabs, tab content, and the
   // back button. Shared verbatim between phone (rendered inline, capped to
   // PHONE_PORTRAIT_MAX_W in landscape) and tablet/PC (rendered at the fixed
@@ -2728,7 +2734,7 @@ export default function App() {
           <div className="space-y-4">
             <div className="bg-white/5 p-4 rounded-2xl border border-white/10 text-center select-none">
               <p className="font-extrabold text-yellow-500 text-xl mb-1">整套四色牌共有 112 張</p>
-              <p className={`${rulesMinClass('text-sm')} text-slate-400 font-semibold`}>區分為：紅、黃、綠、白 等四種色系：</p>
+              <p className={`${rulesMinClass('text-sm')} text-slate-300 font-semibold`}>區分為：紅、黃、綠、白 等四種色系：</p>
             </div>
 
             <div className="space-y-3 select-none">
@@ -2802,7 +2808,7 @@ export default function App() {
 
             {/* General rule */}
             <div className="bg-black/30 border border-white/10 rounded-xl p-3">
-              <p className={`text-slate-400 ${rulesMinClass('text-xs')} font-semibold leading-snug`}>
+              <p className={`text-slate-300 ${rulesMinClass('text-xs')} font-semibold leading-snug`}>
                 💡 <strong className="text-slate-200">系統自動處理：</strong>開局時系統會自動偵測手牌中的「暗坎（三張）」與「暗開車（四張）」並直接放桌上。牌疊摸完無人胡牌則判定為<strong className="text-orange-300">流局（平手）</strong>。
               </p>
             </div>
@@ -2852,7 +2858,7 @@ export default function App() {
                 </div>
               </div>
 
-              <p className={`text-slate-500 ${rulesMinClass('text-[11px]')} font-medium leading-snug`}>
+              <p className={`text-slate-300 ${rulesMinClass('text-[11px]')} font-medium leading-snug`}>
                 ※ 只有玩家/電腦兩人對戰，沒有獨立的「莊家」身分加台，只計算「連莊」——莊家連續蟬聯的局數，不論這局是莊家胡牌或被胡，都算進台數。「槓上開花」（需要開槓機制）、「天胡」（起手就發滿整副胡牌牌組）、「地胡」（首巡自摸）在本遊戲設計下不會出現，故未列入計算；10張玩法的三隻/四隻同字，牌局規則下也一律會拆成對子，不會鎖成獨立的刻子/槓。
               </p>
             </div>
@@ -3004,7 +3010,7 @@ export default function App() {
                       onClick={() => setShowLogDrawer(!showLogDrawer)}
                       className="p-2 bg-white/5 border border-white/10 text-slate-300 hover:text-white rounded-full transition-colors"
                     >
-                      <History className="w-5 h-5 text-slate-400" />
+                      <History className="w-5 h-5 text-slate-300" />
                     </button>
                   </div>
 
@@ -3080,7 +3086,7 @@ export default function App() {
                                 {meld.cards.map((c, i) => renderMiniCard(c, `comp-claim-${meld.id}-${c.id}-${i}`))}
                               </div>
                             ))
-                          : <span className={`text-cyan-400/60 ${gameMinClass('text-xs')}`}>無</span>}
+                          : <span className={`text-cyan-400 ${gameMinClass('text-xs')}`}>無</span>}
                       </div>
                     </div>
                   ) : computer.revealed.length > 0 && (
@@ -3157,7 +3163,7 @@ export default function App() {
                         <FourColorCard card={lastDiscardedCard} size="xs" isRevealed={true} disabled={true}
                           cardStyle={{ width: tableCardDims.w, height: tableCardDims.h }} charFontSize={tableCardDims.fs} />
                       ) : (
-                        <span className={gameMinClass('text-[10px]') + ' text-slate-500'}>—</span>
+                        <span className={gameMinClass('text-[10px]') + ' text-slate-300'}>—</span>
                       )}
                     </div>
                   </div>
@@ -3168,7 +3174,7 @@ export default function App() {
                     <div className="flex-1 min-h-0 overflow-y-auto bg-black/40 border border-white/5 p-0.5 rounded-lg flex flex-wrap gap-[1px] content-start scrollbar-none">
                       {discardPile.map((c, idx) => renderMiniCard(c, `${c.id}-${idx}`))}
                       {discardPile.length === 0 && (
-                        <span className={gameMinClass('text-[9px]') + ' text-slate-500 m-auto'}>空</span>
+                        <span className={gameMinClass('text-[9px]') + ' text-slate-300 m-auto'}>空</span>
                       )}
                     </div>
                   </div>
@@ -3223,7 +3229,7 @@ export default function App() {
                                   {meld.cards.map((c, i) => renderMiniCard(c, `player-claim-${meld.id}-${c.id}-${i}`))}
                                 </div>
                               ))
-                            : <span className={`text-yellow-300/60 ${gameMinClass('text-xs')}`}>無</span>}
+                            : <span className={`text-yellow-300 ${gameMinClass('text-xs')}`}>無</span>}
                         </div>
                       </div>
                     )}
@@ -3354,7 +3360,7 @@ export default function App() {
                       className={`flex-1 rounded-xl transition-all flex items-center justify-center ${
                         selectedCardId && canDiscard && gamePhase === 'playing' && curPlayerId === 'player'
                           ? 'bg-red-600 border-2 border-red-400 text-white active:scale-95 ring-2 ring-red-300 shadow-lg'
-                          : 'bg-white/5 border-2 border-white/10 text-slate-500 cursor-not-allowed'
+                          : 'bg-white/5 border-2 border-white/10 text-slate-400 cursor-not-allowed'
                       }`}
                     >
                       <span className="font-black leading-none whitespace-nowrap" style={{ fontSize: 'clamp(1rem, 5vw, 1.5rem)' }}>
@@ -3374,7 +3380,7 @@ export default function App() {
                       className={`flex-1 rounded-xl transition-all flex items-center justify-center ${
                         gamePhase === 'playing' && curPlayerId === 'player' && lastDrawnCard === null && !hasDrawn && deck.length > 0
                           ? 'bg-red-600 border-2 border-red-400 text-white active:scale-95 ring-2 ring-red-300 shadow-lg'
-                          : 'bg-white/5 border-2 border-white/10 text-slate-500 cursor-not-allowed'
+                          : 'bg-white/5 border-2 border-white/10 text-slate-400 cursor-not-allowed'
                       }`}
                     >
                       <span className="font-black leading-none whitespace-nowrap" style={{ fontSize: 'clamp(1rem, 5vw, 1.5rem)' }}>
@@ -3559,7 +3565,7 @@ export default function App() {
                       </div>
                     ))}
                     <div ref={logsEndRef} />
-                    {logs.length === 0 && <p className="text-center text-slate-500 my-10">尚無內容可供追憶。</p>}
+                    {logs.length === 0 && <p className="text-center text-slate-300 my-10">尚無內容可供追憶。</p>}
                   </div>
                   <button
                     onClick={() => setShowLogDrawer(false)}
@@ -3624,7 +3630,7 @@ export default function App() {
               {winnerId === 'player' ? '🏆 恭喜您大獲全勝！' : winnerId === 'computer' ? '🤖 電腦拔得頭籌' : '🤝 雙方和局流局'}
             </h2>
 
-            <p className="text-emerald-400 font-extrabold text-sm mb-3">
+            <p className="text-emerald-400 font-extrabold text-base mb-3">
               {mode === 'pairs' ? '👦 抓對對子簡單對局' : '🀄 傳統吃碰標準對戰'}
             </p>
 
@@ -3632,7 +3638,7 @@ export default function App() {
                 real wins stay inside the 胡牌慶祝 celebration overlay (which owns the
                 積分計算資訊框) until "繼續下局" restarts the round, so there's no score
                 to show here; a draw never changes anyone's score. */}
-            <div className="bg-black/45 p-4 rounded-2xl border border-blue-800 text-slate-100 text-sm font-serif font-medium leading-relaxed mb-5 max-h-[140px] overflow-y-auto">
+            <div className="bg-black/45 p-4 rounded-2xl border border-blue-800 text-slate-100 text-base font-serif font-medium leading-relaxed mb-5 max-h-[140px] overflow-y-auto">
               {winExplanation}
             </div>
 
@@ -3665,7 +3671,7 @@ export default function App() {
             <div
               className="font-black tracking-widest"
               style={{
-                fontSize: 'clamp(0.9rem, 4vw, 1.3rem)',
+                fontSize: 'clamp(1rem, 4vw, 1.3rem)',
                 color: '#f5c218',
                 letterSpacing: '0.15em',
                 textShadow: '0 0 16px rgba(245,194,24,0.85)',
@@ -3708,8 +3714,8 @@ export default function App() {
               animation: 'eatPairPop 0.5s cubic-bezier(0.34,1.56,0.64,1) both, boxGlow 0.8s ease-in-out 0.5s infinite alternate',
             }}
           >
-            <span style={{ fontSize: Math.min(handCardDims.w * 0.88, handCardDims.h * 0.38) }}>{eatPairAnimWho === 'player' ? '玩家' : '電腦'}</span>
-            <span style={{ fontSize: Math.min(handCardDims.w * 0.58, handCardDims.h * 0.25) }}>吃一隻</span>
+            <span style={{ fontSize: gameMinPx(Math.min(handCardDims.w * 0.88, handCardDims.h * 0.38)) }}>{eatPairAnimWho === 'player' ? '玩家' : '電腦'}</span>
+            <span style={{ fontSize: gameMinPx(Math.min(handCardDims.w * 0.58, handCardDims.h * 0.25)) }}>吃一隻</span>
           </div>
         </div>
       )}
@@ -3780,7 +3786,7 @@ export default function App() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: 4,
-                fontSize: Math.min(handCardDims.w * 0.88, handCardDims.h * 0.38),
+                fontSize: gameMinPx(Math.min(handCardDims.w * 0.88, handCardDims.h * 0.38)),
                 fontWeight: 900,
                 borderRadius: '0.6rem',
                 lineHeight: 1.1,
@@ -3795,7 +3801,7 @@ export default function App() {
             {/* Sub-label */}
             <div
               style={{
-                fontSize: 'clamp(0.8rem, 3.5vw, 1.2rem)',
+                fontSize: 'clamp(1rem, 3.5vw, 1.2rem)',
                 color: huAnimWho === 'player' ? '#f5c218' : '#fca5a5',
                 fontWeight: 700,
                 letterSpacing: '0.15em',
@@ -3810,25 +3816,25 @@ export default function App() {
             {winScore && (
               <div
                 className="bg-black/55 border border-emerald-500/30 rounded-2xl px-4 py-3 text-left"
-                style={{ animation: 'fadeInUp 0.5s ease 0.7s both', minWidth: 230, maxWidth: 300 }}
+                style={{ animation: 'fadeInUp 0.5s ease 0.7s both', minWidth: 230, maxWidth: 340 }}
               >
-                <p className="text-emerald-300 font-black text-xs text-center mb-1.5 tracking-wide">💰 積分計算</p>
+                <p className="text-emerald-300 font-black text-base text-center mb-1.5 tracking-wide">💰 積分計算</p>
                 <ul className="space-y-0.5 mb-1.5">
                   {winScore.items.map((it, i) => (
-                    <li key={i} className="flex justify-between text-[11px] font-semibold text-slate-200">
+                    <li key={i} className="flex justify-between text-base font-semibold text-slate-200">
                       <span>{it.label}</span>
                       <span className="tabular-nums">+{it.tai} 台</span>
                     </li>
                   ))}
                 </ul>
-                <div className="flex justify-between text-xs font-black text-emerald-300 border-t border-emerald-500/25 pt-1 mb-1.5">
+                <div className="flex justify-between text-base font-black text-emerald-300 border-t border-emerald-500/25 pt-1 mb-1.5">
                   <span>共計台數</span>
                   <span className="tabular-nums">{winScore.totalTai} 台</span>
                 </div>
-                <p className="text-emerald-300 font-black text-sm text-center mb-1">
+                <p className="text-emerald-300 font-black text-base text-center mb-1">
                   本局輸贏：{huAnimWho === 'player' ? '+' : '-'}{winScore.payout.toLocaleString()} 分
                 </p>
-                <div className="flex justify-between text-[11px] font-bold text-slate-300 tabular-nums">
+                <div className="flex justify-between text-base font-bold text-slate-300 tabular-nums">
                   <span>{playerAvatar} {playerName}：{player.score.toLocaleString()}</span>
                   <span>{computer.name}：{computer.score.toLocaleString()}</span>
                 </div>
@@ -3852,7 +3858,7 @@ export default function App() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: 4,
-                fontSize: Math.min(handCardDims.w * 0.88, handCardDims.h * 0.38),
+                fontSize: gameMinPx(Math.min(handCardDims.w * 0.88, handCardDims.h * 0.38)),
                 fontWeight: 900,
                 borderRadius: '0.6rem',
                 lineHeight: 1.1,
