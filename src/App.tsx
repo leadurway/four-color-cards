@@ -498,8 +498,58 @@ export default function App() {
 
       if (showTwoRowHand) {
         const containerW = wrapperEl.getBoundingClientRect().width - wrapperPadX;
+        // NOT wrapperEl's own getBoundingClientRect().height — that's
+        // circular here. The outer console only sets min-h-dvh (a MINIMUM,
+        // chosen deliberately elsewhere to dodge an iOS Safari 100vh bug),
+        // so nothing in the flex chain actually stops it from growing to
+        // fit whatever height this wrapper's content currently wants;
+        // min-h-0 on every ancestor only controls how existing space is
+        // SHARED, not whether the tree is willing to expand past the
+        // viewport in the first place. So wrapperEl's measured height just
+        // reflects the card size already chosen — using it as an input
+        // here would feed a stale/self-confirming value back into the
+        // calculation instead of ever correcting it. window.innerHeight
+        // minus this element's actual top offset is the one measurement
+        // that isn't circular: the top offset is fixed by everything
+        // genuinely above it (header, AI status + table, player profile
+        // banner — none of which depend on the hand's own size), so this
+        // always reflects the true remaining space down to the real
+        // viewport edge, regardless of how tall the page has drifted.
+        const containerH = window.innerHeight - wrapperEl.getBoundingClientRect().top;
         if (containerW < 10) return;
-        w = containerW / portraitReferenceCols;
+        const wFromWidth = containerW / portraitReferenceCols;
+        // Portrait's 2-row grid + action bar + guide bar was originally
+        // sized off width alone — fine on the iPhone/iPad this was tuned
+        // against, where that happens to already fit, but a shorter-height
+        // phone (e.g. iPhone SE, ~185px shorter than iPhone Pro14 at the
+        // same-ish width) would then overflow, since nothing here ever
+        // shrank to match less available height. Same "contain" fix as the
+        // landscape branch below: solve for the height-driven card size too
+        // (h·2 + h·aspect = available, i.e. h = available / (2 + aspect),
+        // mirroring the action bar's height being set equal to card WIDTH
+        // by design) and take whichever of width- or height-driven is
+        // smaller. On a device where width-driven already fit, height-
+        // driven comes out equal or larger, so min() keeps picking
+        // width-driven — unchanged from before for iPhone Pro14/iPad.
+        let w2 = wFromWidth;
+        if (containerH >= 10) {
+          const rowGap = 10; // gap-y-2.5
+          // Fixed chrome not otherwise accounted for: the wrapper's own
+          // pt-1 (4px, pb-0 is 0) + the grid's own py-1 (8px top+bottom) =
+          // 12px that sits between containerH's start (the wrapper's own
+          // top edge) and where the grid's rows actually begin; plus the
+          // ACTION BAR container's own py-2 (16px) — its button height is
+          // set equal to card WIDTH by design (accounted for via the
+          // h·aspect term below), but the bar around that button adds this
+          // extra 16px on top of the button itself.
+          const fixedChromeY = 12 + 16;
+          const guideBarH = guideBarRef.current?.getBoundingClientRect().height ?? 0;
+          const available = Math.max(10, containerH - rowGap - guideBarH - fixedChromeY);
+          const hFromHeight = available / (2 + HAND_CARD_ASPECT);
+          const wFromHeight = hFromHeight * HAND_CARD_ASPECT;
+          w2 = Math.min(wFromWidth, wFromHeight);
+        }
+        w = w2;
         h = w / HAND_CARD_ASPECT;
       } else {
         // Measure against the OUTER (non-scrolling) wrapper, not the grid
@@ -2597,7 +2647,7 @@ export default function App() {
             >
               <div className={lobbySizes.modeTitle}>10張五對胡（發9張）</div>
               <div className={`${lobbySizes.modeSub} font-medium ${pairsHandSize === 10 ? 'text-slate-800' : 'text-slate-300'}`}>
-                湊滿 5 對牌即胡，規則最簡單，新手首選
+                湊滿 5 對牌即胡，規則最簡單
               </div>
             </button>
             <button
@@ -2976,7 +3026,18 @@ export default function App() {
           {/* 2. Game Play Page (遊戲頁面) */}
           {activePage === 'game' && (
             <div
-              className={`flex-1 flex flex-col h-full w-full select-none text-white relative ${isPhoneLandscape ? 'overflow-y-auto' : 'overflow-hidden'}`}
+              // min-h-0 (portrait only, matching every descendant down to the
+              // hand wrapper) is required here — flex items default to
+              // min-height:auto regardless of flex-1/h-full, so without it
+              // this div (and everything inside relying on its height being
+              // truly capped to the flex-allocated space, not just "h-full
+              // of a parent that itself might grow") could quietly inflate
+              // past the viewport on any device shorter than the one this
+              // was last measured against, with overflow-hidden powerless
+              // to stop it since ITS OWN box had already grown to match.
+              // Landscape deliberately omits this (see the comment on the
+              // child below) so it can outgrow the viewport and scroll.
+              className={`flex-1 flex flex-col h-full w-full select-none text-white relative ${isPhoneLandscape ? 'overflow-y-auto' : 'overflow-hidden min-h-0'}`}
               style={isPhoneLandscape ? { paddingLeft: 'env(safe-area-inset-left, 0px)', paddingRight: 'env(safe-area-inset-right, 0px)' } : undefined}
             >
               
