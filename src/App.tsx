@@ -3038,7 +3038,7 @@ export default function App() {
               <div className={`flex-1 flex flex-col overflow-hidden mx-auto ${isPhoneLandscape ? '' : 'min-h-0'} ${useWideLayout ? 'w-full' : 'max-w-lg'}`}>
 
                 {/* ① 遊戲頁面 — Game Display Panel */}
-                <div className="shrink-0 flex flex-col px-3 pt-2 pb-1.5 space-y-1.5 border-b-2 border-white/10">
+                <div className="shrink-0 flex flex-col px-3 pt-2 pb-1.5 space-y-1.5">
 
                 {/* AI / OPPONENT STATUS (Top) */}
                 <div className={`bg-black/35 p-2 rounded-2xl border border-white/5 space-y-1 ${gameMinClass('text-sm')} relative select-none`}>
@@ -3167,7 +3167,7 @@ export default function App() {
 
                   {/* 回收區 — see 桌面牌 side above for the 1:2 ratio comment */}
                   <div className="flex-[2] basis-0 min-w-0 flex flex-col py-0.5 px-1 overflow-hidden">
-                    <span className={gameMinClass('text-[10px]') + ' font-bold text-yellow-300 mb-0.5 leading-none shrink-0'}>回收牌</span>
+                    <span className="font-bold text-yellow-300 mb-0.5 leading-none shrink-0" style={{ fontSize: GAME_DESK_LABEL_PX }}>回收牌</span>
                     <div className="flex-1 min-h-0 overflow-y-auto bg-black/40 border border-white/5 p-0.5 rounded-lg flex flex-wrap gap-[1px] content-start scrollbar-none">
                       {discardPile.map((c, idx) => renderMiniCard(c, `${c.id}-${idx}`))}
                       {discardPile.length === 0 && (
