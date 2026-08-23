@@ -408,16 +408,25 @@ export default function App() {
   // still shares with the other non-iPhone-portrait cases.
   const showTwoRowHand = !isLandscape;
 
-  // Game page (in-play screen) minimum text size for iPad/PC: never render
-  // smaller than "打出這張牌"'s size — clamp(1rem, 5vw, 1.5rem), which
-  // resolves to a flat 24px (1.5rem) on any tablet/PC-width viewport since
-  // 5vw clears the max well before 480px. A lot of the page's small
-  // badges/labels were sized the same tiny px value on every device; that's
-  // legible on a phone held close, but too small viewed on a tablet/PC
-  // screen from further away. Phone keeps its original (smaller) sizes.
-  const GAME_MIN_TEXT_PX = 24;
-  const gameMinPx = (px: number) => (isPhoneSized ? px : Math.max(px, GAME_MIN_TEXT_PX));
-  const gameMinClass = (phoneClass: string) => (isPhoneSized ? phoneClass : 'text-2xl');
+  // 桌面牌's own size is the fixed reference point every OTHER piece of text
+  // on the game page must render strictly bigger than — 14px on phone,
+  // 24px on tablet/PC (its original size, from when it was floored to
+  // match 打出這張牌's clamp(1rem, 5vw, 1.5rem) cap; 打出這張牌 itself has
+  // since been bumped to a 1.75rem cap so it stays above this floor too).
+  // Referenced directly by 桌面牌's own font-size call site below (not
+  // through gameMinPx), so it stays the actual smallest label instead of
+  // also being pulled up by its own floor.
+  const GAME_DESK_LABEL_PX = isPhoneSized ? 14 : 24;
+  // Floor for every OTHER piece of text on the game page — one Tailwind
+  // step above 桌面牌 itself (16px/text-base vs 14px on phone, 30px/
+  // text-3xl vs 24px on tablet/PC), on every device now. Previously this
+  // only applied on tablet/PC; a lot of small badges/labels were left at
+  // their original tiny px size on phone too, some smaller than 桌面牌
+  // itself — legible up close but inconsistent with it as the reference
+  // "smallest label" the page is meant to have.
+  const GAME_MIN_TEXT_PX = isPhoneSized ? 16 : 30;
+  const gameMinPx = (px: number) => Math.max(px, GAME_MIN_TEXT_PX);
+  const gameMinClass = (_phoneClass: string) => (isPhoneSized ? 'text-base' : 'text-3xl');
 
   // Animation overlays
   const [showEatPairAnim, setShowEatPairAnim] = useState(false);
@@ -2670,6 +2679,15 @@ export default function App() {
     </>
   );
 
+  // Rules page text floor — phone only. Unlike gameMinClass (game page),
+  // tablet/PC here gets its enlargement entirely from the whole-page
+  // useScaleToFit transform (see RULES_REF_WIDTH/rulesScale above), so this
+  // must pass the ORIGINAL class straight through on tablet/PC — floor-ing
+  // it there too would double-scale (the class bump AND the transform both
+  // enlarging it). Phone gets no such transform, so its small classes
+  // (text-sm/text-xs/text-[11px], all ≤14px — at or under 桌面牌's own
+  // 14px game-page reference) are floored directly here to 16px instead.
+  const rulesMinClass = (original: string) => (isPhoneSized ? 'text-base' : original);
   // Rules/tutorial page content — header, sub-tabs, tab content, and the
   // back button. Shared verbatim between phone (rendered inline, capped to
   // PHONE_PORTRAIT_MAX_W in landscape) and tablet/PC (rendered at the fixed
@@ -2691,7 +2709,7 @@ export default function App() {
       </header>
 
       {/* Sub tabs */}
-      <div className="bg-black/20 p-2 flex border-b border-white/5 justify-between gap-1.5 shrink-0 text-sm font-semibold select-none">
+      <div className={`bg-black/20 p-2 flex border-b border-white/5 justify-between gap-1.5 shrink-0 ${rulesMinClass('text-sm')} font-semibold select-none`}>
         <button
           onClick={() => handleSwitchTab('ranks')}
           className={`flex-1 py-3 px-0.5 rounded-lg text-center transition-colors ${activeTutorialTab === 'ranks' ? 'bg-yellow-500 text-black font-extrabold' : 'hover:bg-white/5 text-slate-300 font-medium'}`}
@@ -2713,36 +2731,36 @@ export default function App() {
           <div className="space-y-4">
             <div className="bg-white/5 p-4 rounded-2xl border border-white/10 text-center select-none">
               <p className="font-extrabold text-yellow-500 text-xl mb-1">整套四色牌共有 112 張</p>
-              <p className="text-sm text-slate-400 font-semibold">區分為：紅、黃、綠、白 等四種色系：</p>
+              <p className={`${rulesMinClass('text-sm')} text-slate-400 font-semibold`}>區分為：紅、黃、綠、白 等四種色系：</p>
             </div>
 
             <div className="space-y-3 select-none">
               <div className="p-4 bg-red-950/20 border border-red-900/40 rounded-xl">
                 <p className="font-extrabold text-orange-400 text-base mb-2">🔴 紅色 與 🟡 黃色 (高階牌面)</p>
-                <p className="text-sm text-slate-300 font-medium">
+                <p className={`${rulesMinClass('text-sm')} text-slate-300 font-medium`}>
                   文字代表角色依次序為：<strong>帥、仕、相、俥、傌、炮、兵</strong>。
                 </p>
                 <div className="flex gap-2 mt-3">
-                  <span className="bg-amber-100/10 border border-amber-500 px-2.5 py-1 rounded text-sm text-yellow-400 font-black">黃帥</span>
-                  <span className="bg-red-800/15 border border-red-650 px-2.5 py-1 rounded text-sm text-orange-400 font-black">紅帥</span>
+                  <span className={`bg-amber-100/10 border border-amber-500 px-2.5 py-1 rounded ${rulesMinClass('text-sm')} text-yellow-400 font-black`}>黃帥</span>
+                  <span className={`bg-red-800/15 border border-red-650 px-2.5 py-1 rounded ${rulesMinClass('text-sm')} text-orange-400 font-black`}>紅帥</span>
                 </div>
               </div>
 
               <div className="p-4 bg-emerald-950/20 border border-emerald-900/40 rounded-xl">
                 <p className="font-extrabold text-emerald-400 text-base mb-2">🟢 綠色 與 ⚪ 白色 (基層角色)</p>
-                <p className="text-sm text-slate-300 font-medium">
+                <p className={`${rulesMinClass('text-sm')} text-slate-300 font-medium`}>
                   文字代表角色依次序為：<strong>將、士、象、車、馬、包、卒</strong>。
                 </p>
                 <div className="flex gap-2 mt-3">
-                  <span className="bg-emerald-900/20 border border-emerald-500 px-2.5 py-1 rounded text-sm text-emerald-400 font-black">綠將</span>
-                  <span className="bg-slate-800/20 border border-slate-500 px-2.5 py-1 rounded text-sm text-slate-200 font-black font-serif">白將</span>
+                  <span className={`bg-emerald-900/20 border border-emerald-500 px-2.5 py-1 rounded ${rulesMinClass('text-sm')} text-emerald-400 font-black`}>綠將</span>
+                  <span className={`bg-slate-800/20 border border-slate-500 px-2.5 py-1 rounded ${rulesMinClass('text-sm')} text-slate-200 font-black font-serif`}>白將</span>
                 </div>
               </div>
             </div>
 
             <div className="bg-yellow-500/5 p-4 rounded-xl border border-yellow-500/20 select-none">
               <h4 className="font-extrabold text-yellow-500 text-base mb-2">💡 傳統常識貼心提醒：</h4>
-              <p className="text-slate-300 leading-relaxed font-semibold text-sm">
+              <p className={`text-slate-300 leading-relaxed font-semibold ${rulesMinClass('text-sm')}`}>
                 兩類字體雖有些微繁簡異體區分，但在配牌成組時，邏輯字體是一一對應、完全同等作用的（如紅帥與綠將在組同牌組時皆代表頂級將軍）。
               </p>
             </div>
@@ -2752,14 +2770,14 @@ export default function App() {
         {activeTutorialTab === 'pairs' && (
           <div className="space-y-4 select-none">
             <h3 className="text-lg font-black text-yellow-500 border-b border-white/10 pb-2">👦 玩法一：抓對子（湊對子）</h3>
-            <p className="text-slate-300 font-semibold leading-relaxed text-sm">
+            <p className={`text-slate-300 font-semibold leading-relaxed ${rulesMinClass('text-sm')}`}>
               比傳統十胡更簡單、快速的入門玩法，核心在於湊出相同的牌（同色同字）。
             </p>
 
             {/* 10-card rules */}
             <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-3 space-y-2">
-              <p className="font-extrabold text-yellow-400 text-sm">🃏 10張玩法「五對胡」</p>
-              <ul className="list-disc pl-4 space-y-1.5 text-slate-300 text-xs font-medium leading-snug">
+              <p className={`font-extrabold text-yellow-400 ${rulesMinClass('text-sm')}`}>🃏 10張玩法「五對胡」</p>
+              <ul className={`list-disc pl-4 space-y-1.5 text-slate-300 ${rulesMinClass('text-xs')} font-medium leading-snug`}>
                 <li><strong className="text-white">起手牌數：</strong>每人發 <strong className="text-yellow-300">9 張</strong>牌，其餘放在中央為牌疊。</li>
                 <li><strong className="text-white">摸牌：</strong>輪到自己時從牌疊摸一張。若與手中某張單牌湊成對子，點【吃一隻】配對並打出一張不要的牌；若無法配對，可打出剛摸到的牌，或換入手中打出另一張。</li>
                 <li><strong className="text-white">碰牌：</strong>他人打出與你手中單牌完全相同的牌時，可喊「碰」湊成對子，再打出一張手牌。</li>
@@ -2770,8 +2788,8 @@ export default function App() {
 
             {/* 15-card rules */}
             <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-3 space-y-2">
-              <p className="font-extrabold text-blue-300 text-sm">🀄 15張玩法「五組三張」</p>
-              <ul className="list-disc pl-4 space-y-1.5 text-slate-300 text-xs font-medium leading-snug">
+              <p className={`font-extrabold text-blue-300 ${rulesMinClass('text-sm')}`}>🀄 15張玩法「五組三張」</p>
+              <ul className={`list-disc pl-4 space-y-1.5 text-slate-300 ${rulesMinClass('text-xs')} font-medium leading-snug`}>
                 <li><strong className="text-white">起手牌數：</strong>每人發 <strong className="text-blue-200">14 張</strong>牌。</li>
                 <li><strong className="text-white">容許組合（每組 3 張）：</strong>
                   <ul className="list-none pl-2 mt-1 space-y-1">
@@ -2787,23 +2805,23 @@ export default function App() {
 
             {/* General rule */}
             <div className="bg-black/30 border border-white/10 rounded-xl p-3">
-              <p className="text-slate-400 text-xs font-semibold leading-snug">
+              <p className={`text-slate-400 ${rulesMinClass('text-xs')} font-semibold leading-snug`}>
                 💡 <strong className="text-slate-200">系統自動處理：</strong>開局時系統會自動偵測手牌中的「暗坎（三張）」與「暗開車（四張）」並直接放桌上。牌疊摸完無人胡牌則判定為<strong className="text-orange-300">流局（平手）</strong>。
               </p>
             </div>
 
             {/* 台數計分 */}
             <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3 space-y-2">
-              <p className="font-extrabold text-emerald-300 text-sm">💰 胡牌怎麼算分？台數計分法</p>
-              <p className="text-slate-300 text-xs font-medium leading-snug">
+              <p className={`font-extrabold text-emerald-300 ${rulesMinClass('text-sm')}`}>💰 胡牌怎麼算分？台數計分法</p>
+              <p className={`text-slate-300 ${rulesMinClass('text-xs')} font-medium leading-snug`}>
                 每次胡牌，系統會依牌型自動列出「台數明細」，總台數換算成輸贏分數：
                 底 <strong className="text-emerald-300">200</strong> 分 ＋ 總台數 × 每台 <strong className="text-emerald-300">100</strong> 分。
               </p>
 
               <div className="grid grid-cols-2 gap-2">
                 <div className="bg-black/25 rounded-lg p-2">
-                  <p className="text-yellow-300 font-bold text-xs mb-1">🃏 10張「五對胡」加台</p>
-                  <ul className="text-slate-300 text-[11px] font-medium leading-relaxed space-y-0.5">
+                  <p className={`text-yellow-300 font-bold ${rulesMinClass('text-xs')} mb-1`}>🃏 10張「五對胡」加台</p>
+                  <ul className={`text-slate-300 ${rulesMinClass('text-[11px]')} font-medium leading-relaxed space-y-0.5`}>
                     <li>底台：<strong className="text-white">1台</strong></li>
                     <li>自摸：<strong className="text-white">+1台</strong></li>
                     <li>門清（全程沒吃碰對方棄牌）：<strong className="text-white">+1台</strong></li>
@@ -2817,8 +2835,8 @@ export default function App() {
                   </ul>
                 </div>
                 <div className="bg-black/25 rounded-lg p-2">
-                  <p className="text-blue-300 font-bold text-xs mb-1">🀄 15張「五組三張」加台</p>
-                  <ul className="text-slate-300 text-[11px] font-medium leading-relaxed space-y-0.5">
+                  <p className={`text-blue-300 font-bold ${rulesMinClass('text-xs')} mb-1`}>🀄 15張「五組三張」加台</p>
+                  <ul className={`text-slate-300 ${rulesMinClass('text-[11px]')} font-medium leading-relaxed space-y-0.5`}>
                     <li>底台：<strong className="text-white">1台</strong></li>
                     <li>自摸：<strong className="text-white">+1台</strong></li>
                     <li>門清（全程沒吃碰對方棄牌）：<strong className="text-white">+1台</strong></li>
@@ -2837,7 +2855,7 @@ export default function App() {
                 </div>
               </div>
 
-              <p className="text-slate-500 text-[11px] font-medium leading-snug">
+              <p className={`text-slate-500 ${rulesMinClass('text-[11px]')} font-medium leading-snug`}>
                 ※ 只有玩家/電腦兩人對戰，沒有獨立的「莊家」身分加台，只計算「連莊」——莊家連續蟬聯的局數，不論這局是莊家胡牌或被胡，都算進台數。「槓上開花」（需要開槓機制）、「天胡」（起手就發滿整副胡牌牌組）、「地胡」（首巡自摸）在本遊戲設計下不會出現，故未列入計算；10張玩法的三隻/四隻同字，牌局規則下也一律會拆成對子，不會鎖成獨立的刻子/槓。
               </p>
             </div>
@@ -3090,7 +3108,7 @@ export default function App() {
                         meld.cards.map((card, i) => (
                           <div key={`comp-revealed-${meld.id}-${card.id}-${i}`} className="opacity-75 filter scale-75 relative">
                             <FourColorCard card={card} size="sm" isRevealed={true} disabled={true} />
-                            <span className="absolute inset-x-0 top-1/2 -translate-y-1/2 text-center text-[10px] font-black leading-none py-0.5" style={{ background: '#1d4ed8', color: '#ffffff' }}>
+                            <span className={`absolute inset-x-0 top-1/2 -translate-y-1/2 text-center ${gameMinClass('text-[10px]')} font-black leading-none py-0.5`} style={{ background: '#1d4ed8', color: '#ffffff' }}>
                               {meld.type === 'pair' ? '對' : '組'}
                             </span>
                           </div>
@@ -3116,10 +3134,11 @@ export default function App() {
                     itself is capped independently too (tableCardDims above). */}
                 <div className="p-2 bg-black/20 rounded-2xl border border-white/5 flex gap-1.5 items-stretch select-none" style={{ height: tableRowHeight }}>
 
-                  {/* Left half: 桌面牌 — text left (enlarged), card right (matches hand card size, capped) */}
-                  <div className="flex-1 basis-1/2 min-w-0 flex gap-2 py-1 px-1 border-r border-white/10 overflow-hidden">
+                  {/* 桌面牌 : 回收牌 width ratio is 1:2 — flex-grow does the split (basis-0 so
+                      the ratio isn't skewed by each side's own natural content width). */}
+                  <div className="flex-[1] basis-0 min-w-0 flex gap-2 py-1 px-1 border-r border-white/10 overflow-hidden">
                     <div className="flex flex-col justify-between shrink-0">
-                      <span className="font-bold text-yellow-300 leading-none" style={{ fontSize: gameMinPx(14) }}>桌面牌</span>
+                      <span className="font-bold text-yellow-300 leading-none" style={{ fontSize: GAME_DESK_LABEL_PX }}>桌面牌</span>
                       <div>
                         {lastDrawnCard && (
                           <span className="font-black leading-none block" style={{ fontSize: gameMinPx(14), color: drawnFromDeck ? '#fde047' : '#22d3ee' }}>
@@ -3146,8 +3165,8 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* Right half: 回收區 */}
-                  <div className="flex-1 basis-1/2 min-w-0 flex flex-col py-0.5 px-1 overflow-hidden">
+                  {/* 回收區 — see 桌面牌 side above for the 1:2 ratio comment */}
+                  <div className="flex-[2] basis-0 min-w-0 flex flex-col py-0.5 px-1 overflow-hidden">
                     <span className={gameMinClass('text-[10px]') + ' font-bold text-yellow-300 mb-0.5 leading-none shrink-0'}>回收牌</span>
                     <div className="flex-1 min-h-0 overflow-y-auto bg-black/40 border border-white/5 p-0.5 rounded-lg flex flex-wrap gap-[1px] content-start scrollbar-none">
                       {discardPile.map((c, idx) => renderMiniCard(c, `${c.id}-${idx}`))}
@@ -3258,12 +3277,17 @@ export default function App() {
                         const isTrioHint = (is15 && player15TrioIds.has(card.id)) || (isRevealedLocked && playerRevealedBadge.get(card.id) === '組');
                         const isLocked = isPaired || isTrioHint || isRevealedLocked;
                         const isSelected = card.id === selectedCardId && (isStray || is15) && !isTrioHint;
+                        // fontSize floored the same way as the rest of the page (gameMinPx) —
+                        // the badge's own height then needs its own floor too (1.3x the font
+                        // size, comfortably containing it) rather than just the card-relative
+                        // 0.19 ratio, or a floored-up font on a small card would clip.
+                        const badgeFontSize = gameMinPx(13);
                         const badgeStyle: React.CSSProperties = {
                           left: 2, right: 2,
                           top: '50%',
                           transform: 'translateY(-50%)',
-                          height: Math.max(16, handCardDims.h * 0.19),
-                          fontSize: Math.max(13, handCardDims.fs * 0.5),
+                          height: Math.max(badgeFontSize * 1.3, handCardDims.h * 0.19),
+                          fontSize: badgeFontSize,
                           background: '#1d4ed8',
                           color: '#ffffff',
                           borderRadius: 4,
@@ -3336,7 +3360,7 @@ export default function App() {
                           : 'bg-white/5 border-2 border-white/10 text-slate-500 cursor-not-allowed'
                       }`}
                     >
-                      <span className="font-black leading-none whitespace-nowrap" style={{ fontSize: 'clamp(1rem, 5vw, 1.5rem)' }}>
+                      <span className="font-black leading-none whitespace-nowrap" style={{ fontSize: 'clamp(1rem, 5vw, 1.75rem)' }}>
                         打出這張牌
                       </span>
                     </button>
@@ -3356,7 +3380,7 @@ export default function App() {
                           : 'bg-white/5 border-2 border-white/10 text-slate-500 cursor-not-allowed'
                       }`}
                     >
-                      <span className="font-black leading-none whitespace-nowrap" style={{ fontSize: 'clamp(1rem, 5vw, 1.5rem)' }}>
+                      <span className="font-black leading-none whitespace-nowrap" style={{ fontSize: 'clamp(1rem, 5vw, 1.75rem)' }}>
                         {deck.length > 0 ? `摸牌 ${deck.length}張` : '牌庫空'}
                       </span>
                     </button>
@@ -3485,7 +3509,13 @@ export default function App() {
                           className="rounded-xl bg-yellow-400 hover:bg-yellow-300 border-2 border-white shadow-md flex flex-col items-center justify-center font-black text-black hover:scale-105 active:scale-95 transition-transform"
                         >
                           <span style={{ fontSize: gameMinPx(Math.min(handCardDims.w * 0.42, handCardDims.h * 0.28)) }}>{opt.actionLabel}</span>
-                          <span className="opacity-90" style={{ fontSize: Math.min(handCardDims.w * 0.22, handCardDims.h * 0.15) }}>
+                          {/* Secondary detail line (which exact cards) under the already-floored
+                              主 action label above — phone keeps this one unfloored: the button's
+                              height equals handCardDims.w, which on phone is small enough that
+                              flooring both lines to 16px would overflow a two-line button. Tablet/
+                              PC buttons are large enough (handCardDims.w scales with the much
+                              bigger available space there) that flooring this too is safe. */}
+                          <span className="opacity-90" style={{ fontSize: isPhoneSized ? Math.min(handCardDims.w * 0.22, handCardDims.h * 0.15) : gameMinPx(Math.min(handCardDims.w * 0.22, handCardDims.h * 0.15)) }}>
                             {opt.resultCards.map(c => c.name).join('‧')}
                           </span>
                         </button>
