@@ -3576,28 +3576,29 @@ export default function App() {
                 // 雙排時下排的按鈕在較矮的橫式可視高度中被截斷。
                 const claimRows = isPhoneLandscape ? 1 : (totalClaimButtons <= 2 ? 1 : 2);
                 const claimCols = Math.max(1, Math.ceil(totalClaimButtons / claimRows));
-                const claimBtnHeight = claimRows === 2 ? handCardDims.w * 0.8 : handCardDims.w;
+                // 第一排按鈕高度固定跟摸牌按鈕一樣（不再依排數縮小），確保「Y高度
+                // 跟摸牌按鈕一樣」在單排/雙排時都成立。
+                const claimBtnHeight = handCardDims.w;
 
-                // 讓最下面一排按鈕的 Y 位置對齊 ACTION BAR 的摸牌/打出這張牌按鈕：
-                // 疊層底部直接貼齊 GUIDE BAR 的頂端（= ACTION BAR 的底端），而不是
-                // 貼齊整個畫面底部，兩排以上時自然往上長，不影響最下排的對齊。
+                // 用 top（而非 bottom）定位：第一排的頂端固定對齊 ACTION BAR 按鈕的
+                // 頂端，之後不管有沒有第二排／說明文字，都是往下長、不影響第一排
+                // 位置——最下方的說明文字若因此被下方內容（回收牌列等）遮蔽也沒關係。
+                const actionBarBottomPad = 8; // 對應 ACTION BAR 的 py-2 底部內距
+                const boxPad = 8; // 對應本框自己的 p-2
                 const guideBarH = guideBarRef.current?.getBoundingClientRect().height ?? 0;
+                const boxTop = Math.max(0, window.innerHeight - (guideBarH + actionBarBottomPad + handCardDims.w) - boxPad);
 
                 let animIdx = 0;
 
                 return (
                   <div
                     className="absolute inset-x-0 z-40 flex flex-col items-center pointer-events-none px-1.5"
-                    style={{ bottom: guideBarH }}
+                    style={{ top: boxTop }}
                   >
                     <div
                       className="pointer-events-auto bg-black/95 border-2 border-yellow-500 p-2 rounded-2xl flex flex-col gap-2 shadow-2xl max-w-full"
                       style={{ width: '100%' }}
                     >
-                      <div className={`${gameMinClass('text-base')} font-black text-yellow-400 border-b border-white/10 w-full text-center pb-1.5`}>
-                        🚨 雷達配對組信號{triggerSourceLabel ? `（${triggerSourceLabel}）` : ''}！請選擇：
-                      </div>
-
                       <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${claimCols}, minmax(0, 1fr))` }}>
                         {/* 吃 group */}
                         {eatSeqOptions.map((opt, i) => (
@@ -3720,6 +3721,10 @@ export default function App() {
                         >
                           過 (放棄)
                         </button>
+                      </div>
+
+                      <div className={`${gameMinClass('text-base')} font-black text-yellow-400 border-t border-white/10 w-full text-center pt-1.5`}>
+                        🚨 雷達配對組信號{triggerSourceLabel ? `（${triggerSourceLabel}）` : ''}！請選擇：
                       </div>
                     </div>
                   </div>
