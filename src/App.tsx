@@ -3113,7 +3113,7 @@ export default function App() {
                       <span className={`${gameMinClass('text-[11px]')} font-bold bg-cyan-400/10 border border-cyan-400/30 rounded-full px-2 py-0.5 tabular-nums`}>{computer.score.toLocaleString()}</span>
                       {mode === 'pairs' && dealerId === 'computer' && (
                         <span className={`${gameMinClass('text-[11px]')} font-bold bg-red-600 border border-red-400 text-white rounded-full px-2 py-0.5 shrink-0`}>
-                          莊{dealerStreak > 0 ? `連${dealerStreak}莊` : ''}
+                          莊{dealerStreak > 0 ? `連${dealerStreak}` : ''}
                         </span>
                       )}
                     </div>
@@ -3259,7 +3259,7 @@ export default function App() {
                         <span className={`${gameMinClass('text-[11px]')} font-bold bg-yellow-300/10 border border-yellow-300/30 rounded-full px-2 py-0.5 tabular-nums`}>{player.score.toLocaleString()}</span>
                         {mode === 'pairs' && dealerId === 'player' && (
                           <span className={`${gameMinClass('text-[11px]')} font-bold bg-red-600 border border-red-400 text-white rounded-full px-2 py-0.5 shrink-0`}>
-                            莊{dealerStreak > 0 ? `連${dealerStreak}莊` : ''}
+                            莊{dealerStreak > 0 ? `連${dealerStreak}` : ''}
                           </span>
                         )}
                       </div>
@@ -3896,8 +3896,22 @@ export default function App() {
                   本局輸贏：{huAnimWho === 'player' ? '+' : '-'}{winScore.payout.toLocaleString()} 分
                 </p>
                 <div className="flex justify-between text-base font-bold text-slate-300 tabular-nums">
-                  <span>{playerAvatar} {playerName}：{player.score.toLocaleString()}</span>
-                  <span>{computer.name}：{computer.score.toLocaleString()}</span>
+                  <span className="flex items-center gap-1">
+                    {playerAvatar} {playerName}：{player.score.toLocaleString()}
+                    {mode === 'pairs' && dealerId === 'player' && (
+                      <span className="text-[11px] font-bold bg-red-600 border border-red-400 text-white rounded-full px-2 py-0.5 shrink-0">
+                        莊{dealerStreak > 0 ? `連${dealerStreak}` : ''}
+                      </span>
+                    )}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    {computer.name}：{computer.score.toLocaleString()}
+                    {mode === 'pairs' && dealerId === 'computer' && (
+                      <span className="text-[11px] font-bold bg-red-600 border border-red-400 text-white rounded-full px-2 py-0.5 shrink-0">
+                        莊{dealerStreak > 0 ? `連${dealerStreak}` : ''}
+                      </span>
+                    )}
+                  </span>
                 </div>
               </div>
             )}
