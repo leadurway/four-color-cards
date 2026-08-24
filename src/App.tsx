@@ -252,6 +252,17 @@ export default function App() {
   const logsEndRef = useRef<HTMLDivElement>(null);
   const handContainerRef = useRef<HTMLDivElement>(null);
   const guideBarRef = useRef<HTMLDivElement>(null);
+  // Positioning references for the claim (雷達配對) overlay: gamePageRootRef is
+  // the `relative` containing block the overlay is absolutely positioned
+  // within, and actionBarRef is the 打出這張牌/摸牌 bar it aligns its first
+  // row to. Both are read via getBoundingClientRect() at render time and
+  // subtracted from each other rather than compared against window.innerHeight
+  // — on iPhone landscape this root scrolls (overflow-y-auto), so its content
+  // height can exceed the viewport, and an absolutely positioned descendant
+  // scrolls together with it; a window.innerHeight-based offset would silently
+  // drift out of alignment as soon as the page is scrolled.
+  const gamePageRootRef = useRef<HTMLDivElement>(null);
+  const actionBarRef = useRef<HTMLDivElement>(null);
   // Guards handlePlayerDraw/handlePlayerDiscard against a fast double-tap
   // firing the same action twice before React has re-rendered to disable the
   // button — the guard conditions those handlers check (hasDrawn, canDiscard)
@@ -3047,6 +3058,7 @@ export default function App() {
               // to stop it since ITS OWN box had already grown to match.
               // Landscape deliberately omits this (see the comment on the
               // child below) so it can outgrow the viewport and scroll.
+              ref={gamePageRootRef}
               className={`flex-1 flex flex-col h-full w-full select-none text-white relative ${isPhoneLandscape ? 'overflow-y-auto' : 'overflow-hidden min-h-0'}`}
               style={isPhoneLandscape ? { paddingLeft: 'env(safe-area-inset-left, 0px)', paddingRight: 'env(safe-area-inset-right, 0px)' } : undefined}
             >
@@ -3474,7 +3486,7 @@ export default function App() {
                     </div>
 
                   {/* ACTION BAR — 打出這張牌 and 摸牌 share the same size/color scheme */}
-                  <div className="bg-black/30 px-1.5 py-2 flex items-center gap-1 border-t border-white/5 shrink-0">
+                  <div ref={actionBarRef} className="bg-black/30 px-1.5 py-2 flex items-center gap-1 border-t border-white/5 shrink-0">
                     <button
                       onClick={() => handlePlayerDiscard(selectedCardId!)}
                       disabled={!selectedCardId || !canDiscard || gamePhase !== 'playing' || curPlayerId !== 'player'}
@@ -3583,10 +3595,24 @@ export default function App() {
                 // 用 top（而非 bottom）定位：第一排的頂端固定對齊 ACTION BAR 按鈕的
                 // 頂端，之後不管有沒有第二排／說明文字，都是往下長、不影響第一排
                 // 位置——最下方的說明文字若因此被下方內容（回收牌列等）遮蔽也沒關係。
-                const actionBarBottomPad = 8; // 對應 ACTION BAR 的 py-2 底部內距
-                const boxPad = 8; // 對應本框自己的 p-2
-                const guideBarH = guideBarRef.current?.getBoundingClientRect().height ?? 0;
-                const boxTop = Math.max(0, window.innerHeight - (guideBarH + actionBarBottomPad + handCardDims.w) - boxPad);
+                //
+                // 直接量測 actionBarRef 相對 gamePageRootRef（本疊層 absolute 定位
+                // 的 relative 容器）的位移，而不是用 window.innerHeight 換算：
+                // iPhone 橫式時 gamePageRootRef 本身可上下捲動（overflow-y-auto），
+                // 用 window.innerHeight 換算只在「完全沒捲動」時才準，一旦使用者
+                // 捲動頁面就會算錯，導致第一排跟摸牌按鈕對不齊——這正是這次要修
+                // 的問題。CSS 的 top 是相對容器「內容座標」（不受捲動影響）的位
+                // 移，但 getBoundingClientRect() 回傳的是「目前畫面上的視覺座
+                // 標」（會被捲動影響：視覺座標＝內容座標－scrollTop）。所以兩者
+                // 相減得到的只是「目前」視覺位移，還要加回 scrollTop 換算回內容
+                // 座標，才能得到不受捲動位置影響、可以直接當作 top 使用的值；
+                // ACTION BAR 自己的 py-2 上內距跟本框的 p-2 上內距相同（都是
+                // 8px），兩者互相抵銷，不需要再額外加減。
+                const actionBarRect = actionBarRef.current?.getBoundingClientRect();
+                const ancestorRect = gamePageRootRef.current?.getBoundingClientRect();
+                const boxTop = actionBarRect && ancestorRect
+                  ? Math.max(0, (actionBarRect.top - ancestorRect.top) + (gamePageRootRef.current?.scrollTop ?? 0))
+                  : 0;
 
                 let animIdx = 0;
 
