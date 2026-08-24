@@ -3116,8 +3116,8 @@ export default function App() {
 
                 {/* AI / OPPONENT STATUS (Top) */}
                 <div className={`bg-black/35 p-2 rounded-2xl border border-white/5 space-y-1 ${gameMinClass('text-sm')} relative select-none`}>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 text-cyan-400 font-black">
+                  <div className={`flex items-center ${isPhoneLandscape ? 'gap-1.5' : 'justify-between'}`}>
+                    <div className="flex items-center gap-1.5 text-cyan-400 font-black shrink-0">
                       <Cpu className="w-4 h-4 animate-pulse text-cyan-400" />
                       <span>{computer.name}</span>
                       <span className={`${gameMinClass('text-[11px]')} font-bold bg-cyan-400/10 border border-cyan-400/30 rounded-full px-2 py-0.5 tabular-nums`}>{computer.score.toLocaleString()}</span>
@@ -3128,14 +3128,48 @@ export default function App() {
                       )}
                     </div>
 
+                    {/* iPhone landscape: 露牌 info moves into this info row, placed to
+                        the left of 散牌/賸餘牌 — see the non-landscape block below for
+                        the original standalone-row version used on every other device. */}
+                    {isPhoneLandscape && (
+                      <div className="flex items-center gap-1 flex-1 min-w-0 overflow-x-auto scrollbar-none">
+                        {mode === 'pairs' ? (
+                          <>
+                            <span className={`${gameMinClass('text-xs')} font-bold text-cyan-400 shrink-0`}>{pairsHandSize === 15 ? '組' : '對'}</span>
+                            <strong className={`${gameMinClass('text-sm')} text-cyan-400 shrink-0`}>{computerClaimedMelds.length}</strong>
+                            <div className="flex gap-[3px] shrink-0">
+                              {computerClaimedMelds.length > 0
+                                ? computerClaimedMelds.map((meld) => (
+                                    <div key={meld.id} className="flex gap-[1px] shrink-0">
+                                      {meld.cards.map((c, i) => renderMiniCard(c, `comp-claim-${meld.id}-${c.id}-${i}`))}
+                                    </div>
+                                  ))
+                                : <span className={`text-cyan-400 ${gameMinClass('text-xs')} shrink-0`}>無</span>}
+                            </div>
+                          </>
+                        ) : computer.revealed.length > 0 && (
+                          <>
+                            <span className={`${gameMinClass('text-xs')} text-cyan-400 font-bold shrink-0`}>案前亮相：</span>
+                            <div className="flex gap-1 shrink-0">
+                              {computer.revealed.map((meld) => (
+                                <div key={meld.id} className={`bg-white/5 px-1.5 py-0.5 rounded border border-white/10 ${gameMinClass('text-xs')} flex items-center gap-0.5 shrink-0`}>
+                                  <span className="text-cyan-400 font-bold leading-none">{meld.name}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
+
                     {mode === 'pairs' ? (
-                      <div className={`flex items-center gap-1 ${gameMinClass('text-xs')} text-cyan-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full font-bold`}>
+                      <div className={`flex items-center gap-1 ${gameMinClass('text-xs')} text-cyan-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full font-bold shrink-0`}>
                         <span>散牌:</span>
                         <strong className={`text-cyan-400 ${gameMinClass('text-sm')}`}>{computerStrayCount}</strong>
                         <span>張</span>
                       </div>
                     ) : (
-                      <div className={`flex items-center gap-1 ${gameMinClass('text-xs')} text-cyan-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full font-bold`}>
+                      <div className={`flex items-center gap-1 ${gameMinClass('text-xs')} text-cyan-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full font-bold shrink-0`}>
                         <span>賸餘牌:</span>
                         <strong className={`text-cyan-400 ${gameMinClass('text-sm')}`}>{computer.hand.length}</strong>
                         <span>張</span>
@@ -3145,8 +3179,10 @@ export default function App() {
 
                   {/* Robot's 露牌: only melds claimed from the player's discard (碰/吃) —
                       self-formed ones render inline in the hand area below (or in the
-                      透視 fan when cheat mode is on) and don't count here. */}
-                  {mode === 'pairs' ? (
+                      透視 fan when cheat mode is on) and don't count here. iPhone
+                      landscape renders this inline in the info row above instead (see
+                      isPhoneLandscape block), so this standalone row is skipped there. */}
+                  {!isPhoneLandscape && (mode === 'pairs' ? (
                     <div className="flex items-center gap-1.5 p-1 bg-black/25 rounded-xl border border-white/5">
                       <span className={`${gameMinClass('text-xs')} font-bold text-cyan-400 shrink-0`}>{pairsHandSize === 15 ? '組' : '對'}</span>
                       <strong className={`${gameMinClass('text-sm')} text-cyan-400 shrink-0`}>{computerClaimedMelds.length}</strong>
@@ -3171,7 +3207,7 @@ export default function App() {
                         ))}
                       </div>
                     </div>
-                  )}
+                  ))}
 
                   {/* Fan of AI cards — only shown in cheat/透視 mode. Self-formed (draw-origin)
                       melds render inline with the rest of the hand, tagged with their 對/組
@@ -3262,8 +3298,8 @@ export default function App() {
 
                   {/* User profile banner */}
                   <div className="flex flex-col gap-1 bg-[#0c2852] py-2 px-3 border-b border-white/5 shrink-0">
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center gap-2">
+                    <div className={`flex items-center ${isPhoneLandscape ? 'gap-1.5' : 'justify-between'}`}>
+                      <div className="flex items-center gap-2 shrink-0">
                         <span className="text-xl leading-none">{playerAvatar}</span>
                         <span className={`${gameMinClass('text-sm')} font-black text-yellow-300`}>{playerName}</span>
                         <span className={`${gameMinClass('text-[11px]')} font-bold bg-yellow-300/10 border border-yellow-300/30 rounded-full px-2 py-0.5 tabular-nums`}>{player.score.toLocaleString()}</span>
@@ -3273,14 +3309,34 @@ export default function App() {
                           </span>
                         )}
                       </div>
+
+                      {/* iPhone landscape: 露牌 info moves into this info row, placed to
+                          the left of 散牌 — see the non-landscape block below for the
+                          original standalone-row version used on every other device. */}
+                      {isPhoneLandscape && mode === 'pairs' && (
+                        <div className="flex items-center gap-1 flex-1 min-w-0 overflow-x-auto scrollbar-none">
+                          <span className={`${gameMinClass('text-xs')} font-bold text-yellow-300 shrink-0`}>{pairsHandSize === 15 ? '組' : '對'}</span>
+                          <strong className={`${gameMinClass('text-sm')} text-yellow-300 shrink-0`}>{playerClaimedMelds.length}</strong>
+                          <div className="flex gap-[3px] shrink-0">
+                            {playerClaimedMelds.length > 0
+                              ? playerClaimedMelds.map((meld) => (
+                                  <div key={meld.id} className="flex gap-[1px] shrink-0">
+                                    {meld.cards.map((c, i) => renderMiniCard(c, `player-claim-${meld.id}-${c.id}-${i}`))}
+                                  </div>
+                                ))
+                              : <span className={`text-yellow-300 ${gameMinClass('text-xs')} shrink-0`}>無</span>}
+                          </div>
+                        </div>
+                      )}
+
                       {mode === 'pairs' ? (
-                        <div className={`flex items-center gap-1 ${gameMinClass('text-xs')} text-yellow-300 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full font-bold`}>
+                        <div className={`flex items-center gap-1 ${gameMinClass('text-xs')} text-yellow-300 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full font-bold shrink-0`}>
                           <span>散牌:</span>
                           <strong className={`text-yellow-300 ${gameMinClass('text-sm')}`}>{playerStrayCount}</strong>
                           <span>張</span>
                         </div>
                       ) : (
-                        <div className={`${gameMinClass('text-xs')} font-bold leading-none text-yellow-300`}>
+                        <div className={`${gameMinClass('text-xs')} font-bold leading-none text-yellow-300 shrink-0`}>
                           {activeHuCheck.canHu ? (
                             <span className="text-yellow-300 font-black">✔ 可胡牌！</span>
                           ) : (
@@ -3289,7 +3345,7 @@ export default function App() {
                         </div>
                       )}
                     </div>
-                    {mode === 'pairs' && (
+                    {!isPhoneLandscape && mode === 'pairs' && (
                       <div className="flex items-center gap-1.5 p-1 bg-black/25 rounded-xl border border-white/5">
                         <span className={`${gameMinClass('text-xs')} font-bold text-yellow-300 shrink-0`}>{pairsHandSize === 15 ? '組' : '對'}</span>
                         <strong className={`${gameMinClass('text-sm')} text-yellow-300 shrink-0`}>{playerClaimedMelds.length}</strong>
