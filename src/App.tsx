@@ -193,6 +193,11 @@ export default function App() {
   // 歸零）。
   const [dealerId, setDealerId] = useState<'player' | 'computer'>('player');
   const [dealerStreak, setDealerStreak] = useState(0);
+  // 結算畫面專用快照：handleWin 一開始就會把 dealerId/dealerStreak 更新成
+  // 「下一局」的值，但結算畫面要顯示的是「剛結束這一局」的莊家資訊，所以
+  // 在 handleWin 更新之前，先把當時的值存一份給結算畫面讀取。
+  const [resultDealerId, setResultDealerId] = useState<'player' | 'computer'>('player');
+  const [resultDealerStreak, setResultDealerStreak] = useState(0);
 
   const [lastDrawnCard, setLastDrawnCard] = useState<Card | null>(null);
   const [lastDiscardedCard, setLastDiscardedCard] = useState<Card | null>(null);
@@ -2309,6 +2314,11 @@ export default function App() {
     setWinExplanation(explanation);
     setWinScore(breakdown);
 
+    // 結算畫面要顯示「這一局」的莊家資訊，必須在下面更新成下一局的值之前
+    // 先存快照。
+    setResultDealerId(dealerId);
+    setResultDealerStreak(dealerStreak);
+
     // 莊家輪替：贏家是現任莊家 → 連莊（下一局的 dealerStreak 加 1）；贏家是
     // 挑戰者 → 換莊，挑戰者成為新莊家，下一局從「連零莊」重新開始。只有
     // pairs 玩法才有莊家/連莊概念。
@@ -3898,18 +3908,18 @@ export default function App() {
                 <div className="flex flex-col gap-1 text-base font-bold text-slate-300 tabular-nums">
                   <div className="flex items-center gap-1">
                     <span className="truncate">{playerAvatar} {playerName}</span>
-                    {mode === 'pairs' && dealerId === 'player' && (
+                    {mode === 'pairs' && resultDealerId === 'player' && (
                       <span className="text-[11px] font-bold bg-red-600 border border-red-400 text-white rounded-full px-2 py-0.5 shrink-0">
-                        莊{dealerStreak > 0 ? `連${dealerStreak}` : ''}
+                        莊{resultDealerStreak > 0 ? `連${resultDealerStreak}` : ''}
                       </span>
                     )}
                     <span className="ml-auto shrink-0">{player.score.toLocaleString()}</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <span className="truncate">{computer.name}</span>
-                    {mode === 'pairs' && dealerId === 'computer' && (
+                    {mode === 'pairs' && resultDealerId === 'computer' && (
                       <span className="text-[11px] font-bold bg-red-600 border border-red-400 text-white rounded-full px-2 py-0.5 shrink-0">
-                        莊{dealerStreak > 0 ? `連${dealerStreak}` : ''}
+                        莊{resultDealerStreak > 0 ? `連${resultDealerStreak}` : ''}
                       </span>
                     )}
                     <span className="ml-auto shrink-0">{computer.score.toLocaleString()}</span>
