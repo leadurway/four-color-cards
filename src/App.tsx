@@ -1909,20 +1909,24 @@ export default function App() {
           setGuideMessage('輪到您！請摸牌。');
         }
       } else if (mode === 'pairs') {
-        // 10-card: offer pair match if player has matching stray
+        // 10-card: offer pair match if player has matching stray. If this is
+        // the player's LAST remaining stray, claiming it completes all 5
+        // pairs — offer 胡 instead of a plain 吃一隻 so the player explicitly
+        // declares the win, matching how 傳統吃碰 offers a distinct 胡 button.
         const pGroup = groupPairsMode(player.hand);
         const canPair = pGroup.strays.some(c => c.color === discarded.color && c.character === discarded.character);
+        const wouldWin = canPair && pGroup.strays.length === 1;
 
         if (canPair) {
           setPendingMoves({
-            canHu: false,
+            canHu: wouldWin,
             canQuad: false,
-            canPong: true,
+            canPong: !wouldWin,
             canEatSeq: false,
             eatSeqOptions: []
           });
           setGamePhase('waiting_player_action');
-          setGuideMessage(`電腦出 [${discarded.name}]，可配對！請選擇或按過。`);
+          setGuideMessage(wouldWin ? `電腦出 [${discarded.name}]，可胡牌！請選擇或按過。` : `電腦出 [${discarded.name}]，可配對！請選擇或按過。`);
         } else {
           setCurPlayerId('player');
           setCanDiscard(false);
@@ -2146,7 +2150,41 @@ export default function App() {
       setHasDrawn(true);
       setGuideMessage(`吃牌成功！組成同色序列 [${eatOption.meldName}]。請選牌打出。`);
     } else if (actionType === 'hu') {
-      handleWin('player', 'hu', pendingMoves!.huResult!.explanation);
+      if (mode === 'pairs') {
+        // 10-card 抓對子: 宣告胡牌，用觸發牌完成最後一對散牌（此按鈕只在
+        // wouldWin 成立時才會出現，見 handlePlayerDiscard 的 discard-reaction
+        // 判斷，所以這裡必定能找到相符的最後一張散牌）。
+        const pGroup = groupPairsMode(player.hand);
+        let matchCard = pGroup.strays.find(c => c.color === trigger.color && c.character === trigger.character);
+        if (!matchCard) matchCard = player.hand.find(c => c.color === trigger.color && c.character === trigger.character);
+        if (matchCard) {
+          const nextHand = player.hand.filter(c => c.id !== matchCard!.id);
+          const newMeld: RevealedMeld = {
+            id: `player-pair-${Date.now()}`,
+            type: 'pair',
+            cards: [trigger, matchCard],
+            hoo: isGeneral(trigger) ? 2 : 0,
+            name: `對子 [${trigger.name}]`,
+            origin: claimedFromDiscard ? 'discard' : 'draw'
+          };
+          const updatedRevealed = [...player.revealed, newMeld];
+          setPlayer(prev => ({ ...prev, hand: nextHand, revealed: updatedRevealed }));
+          addLog(`【胡牌】您宣告胡牌！用 [${trigger.name}] 完成最後一對。`);
+          setLastDrawnCard(null);
+          setLastDiscardedCard(null);
+          setPendingMoves(null);
+          setEatPairAnimWho('player');
+          setEatPairAnimCards([trigger, matchCard]);
+          setEatPairAnimSource('電腦出牌');
+          setShowEatPairAnim(true);
+          scheduleTurnTimeout(() => {
+            setShowEatPairAnim(false);
+            handleWin('player', 'pairs', '恭喜！您成功配對了手中所有單張散牌，宣告勝出！', [trigger, matchCard], { hand: nextHand, revealed: updatedRevealed, wasSelfDraw: !claimedFromDiscard });
+          }, 3000);
+        }
+      } else {
+        handleWin('player', 'hu', pendingMoves!.huResult!.explanation);
+      }
     }
   };
 
@@ -3567,12 +3605,24 @@ export default function App() {
                   block inside the control panel, which pushed the hand/action area down
                   whenever it appeared) */}
               {(pendingMoves || pendingTrioOptions.length > 0) && gamePhase === 'waiting_player_action' && (() => {
-                // 依「吃碰胡過」順序分組顯示。canPong 這個旗標在 10 張抓對玩法代表
+                // 依「吃碰過胡」順序分組顯示。canPong 這個旗標在 10 張抓對玩法代表
                 // 「吃一隻」（歸入吃組），在傳統吃碰玩法代表「碰」（歸入碰組，槓
                 // 也歸在這組）；15 張玩法的碰一隻/吃一隻改用 pendingTrioOptions，
-                // 依 actionLabel 拆到對應組別。過永遠排在最後。
-                const trioEatOptions = pendingTrioOptions.filter(o => o.actionLabel === '吃一隻');
-                const trioPongOptions = pendingTrioOptions.filter(o => o.actionLabel === '碰一隻');
+                // 依 actionLabel 拆到對應組別。過固定排第三，胡固定排最後——15
+                // 張玩法若某個湊組選項湊完後手牌直接歸零/整手成局，代表這步就是
+                // 胡牌，改標「胡！」歸進胡組（而不是原本的碰一隻/吃一隻），點擊
+                // 還是走 handlePlayerTrioAction，該函式本來就會在湊組後自動判斷
+                // 整手是否已胡。10 張抓對玩法同理：pendingMoves.canHu 在
+                // handlePlayerDiscard 判斷「這是最後一張散牌」時就會設為 true，
+                // huBtn 直接沿用同一顆 pendingMoves.canHu 旗標，點擊時
+                // handlePlayerAction('hu') 內部會依 mode 分流處理。
+                const wouldTrioWin = (opt: TrioClaimOption) => {
+                  const nextHand = player.hand.filter(c => !opt.cardsToUse.map(u => u.id).includes(c.id));
+                  return nextHand.length === 0 || checkTriosWin(nextHand);
+                };
+                const trioHuOptions = pendingTrioOptions.filter(wouldTrioWin);
+                const trioEatOptions = pendingTrioOptions.filter(o => o.actionLabel === '吃一隻' && !wouldTrioWin(o));
+                const trioPongOptions = pendingTrioOptions.filter(o => o.actionLabel === '碰一隻' && !wouldTrioWin(o));
                 const eatSeqOptions = pendingMoves?.canEatSeq ? pendingMoves.eatSeqOptions : [];
                 const pairsEatBtn = mode === 'pairs' && !!pendingMoves?.canPong;
                 const turnsPongBtn = mode !== 'pairs' && !!pendingMoves?.canPong;
@@ -3581,7 +3631,7 @@ export default function App() {
 
                 const eatGroupCount = eatSeqOptions.length + trioEatOptions.length + (pairsEatBtn ? 1 : 0);
                 const pongGroupCount = trioPongOptions.length + (turnsPongBtn ? 1 : 0) + (quadBtn ? 1 : 0);
-                const huGroupCount = huBtn ? 1 : 0;
+                const huGroupCount = (huBtn ? 1 : 0) + trioHuOptions.length;
                 const totalClaimButtons = eatGroupCount + pongGroupCount + huGroupCount + 1; // +1：過永遠存在
 
                 // 直式最多雙排：≤2 顆按鈕單排，≥3 顆兩排；橫式一律單排，避免
@@ -3721,7 +3771,19 @@ export default function App() {
                           </button>
                         )}
 
-                        {/* 胡 group */}
+                        {/* 過 group */}
+                        <button
+                          onClick={handlePlayerSkip}
+                          style={{
+                            height: claimBtnHeight,
+                            fontSize: gameMinPx(Math.min(handCardDims.w * 0.5, handCardDims.h * 0.34)),
+                          }}
+                          className="rounded-xl bg-slate-600 hover:bg-slate-500 border border-slate-400 font-bold text-white active:scale-95 flex items-center justify-center whitespace-nowrap"
+                        >
+                          過 (放棄)
+                        </button>
+
+                        {/* 胡 group：永遠最後 */}
                         {huBtn && (
                           <button
                             onClick={() => handlePlayerAction('hu')}
@@ -3735,18 +3797,20 @@ export default function App() {
                             胡！
                           </button>
                         )}
-
-                        {/* 過 group：永遠最後 */}
-                        <button
-                          onClick={handlePlayerSkip}
-                          style={{
-                            height: claimBtnHeight,
-                            fontSize: gameMinPx(Math.min(handCardDims.w * 0.5, handCardDims.h * 0.34)),
-                          }}
-                          className="rounded-xl bg-slate-600 hover:bg-slate-500 border border-slate-400 font-bold text-white active:scale-95 flex items-center justify-center whitespace-nowrap"
-                        >
-                          過 (放棄)
-                        </button>
+                        {trioHuOptions.map((opt, i) => (
+                          <button
+                            key={`triohu-${i}`}
+                            onClick={() => handlePlayerTrioAction(opt)}
+                            style={{
+                              height: claimBtnHeight,
+                              fontSize: gameMinPx(Math.min(handCardDims.w * 0.55, handCardDims.h * 0.38)),
+                              animation: 'bounceSmall 0.7s ease-in-out infinite',
+                            }}
+                            className="rounded-xl bg-yellow-400 hover:bg-yellow-300 border-2 border-white shadow-lg flex items-center justify-center font-black text-black hover:scale-105 active:scale-95 transition-transform whitespace-nowrap"
+                          >
+                            胡！
+                          </button>
+                        ))}
                       </div>
 
                       <div className={`${gameMinClass('text-base')} font-black text-yellow-400 border-t border-white/10 w-full text-center pt-1.5`}>
