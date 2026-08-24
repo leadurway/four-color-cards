@@ -3895,23 +3895,25 @@ export default function App() {
                 <p className="text-emerald-300 font-black text-base text-center mb-1">
                   本局輸贏：{huAnimWho === 'player' ? '+' : '-'}{winScore.payout.toLocaleString()} 分
                 </p>
-                <div className="flex justify-between text-base font-bold text-slate-300 tabular-nums">
-                  <span className="flex items-center gap-1">
-                    {playerAvatar} {playerName}：{player.score.toLocaleString()}
+                <div className="flex flex-col gap-1 text-base font-bold text-slate-300 tabular-nums">
+                  <div className="flex items-center gap-1">
+                    <span className="truncate">{playerAvatar} {playerName}</span>
                     {mode === 'pairs' && dealerId === 'player' && (
                       <span className="text-[11px] font-bold bg-red-600 border border-red-400 text-white rounded-full px-2 py-0.5 shrink-0">
                         莊{dealerStreak > 0 ? `連${dealerStreak}` : ''}
                       </span>
                     )}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    {computer.name}：{computer.score.toLocaleString()}
+                    <span className="ml-auto shrink-0">{player.score.toLocaleString()}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="truncate">{computer.name}</span>
                     {mode === 'pairs' && dealerId === 'computer' && (
                       <span className="text-[11px] font-bold bg-red-600 border border-red-400 text-white rounded-full px-2 py-0.5 shrink-0">
                         莊{dealerStreak > 0 ? `連${dealerStreak}` : ''}
                       </span>
                     )}
-                  </span>
+                    <span className="ml-auto shrink-0">{computer.score.toLocaleString()}</span>
+                  </div>
                 </div>
               </div>
             )}
