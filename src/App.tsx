@@ -3578,17 +3578,26 @@ export default function App() {
                 const claimCols = Math.max(1, Math.ceil(totalClaimButtons / claimRows));
                 const claimBtnHeight = claimRows === 2 ? handCardDims.w * 0.8 : handCardDims.w;
 
+                // 讓最下面一排按鈕的 Y 位置對齊 ACTION BAR 的摸牌/打出這張牌按鈕：
+                // 疊層底部直接貼齊 GUIDE BAR 的頂端（= ACTION BAR 的底端），而不是
+                // 貼齊整個畫面底部，兩排以上時自然往上長，不影響最下排的對齊。
+                const guideBarH = guideBarRef.current?.getBoundingClientRect().height ?? 0;
+
                 let animIdx = 0;
 
                 return (
                   <div
-                    className="absolute inset-x-0 bottom-0 top-[52px] z-40 flex items-end justify-center pointer-events-none px-3"
-                    style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 0.4rem)' }}
+                    className="absolute inset-x-0 z-40 flex flex-col items-center pointer-events-none px-1.5"
+                    style={{ bottom: guideBarH }}
                   >
                     <div
                       className="pointer-events-auto bg-black/95 border-2 border-yellow-500 p-2 rounded-2xl flex flex-col gap-2 shadow-2xl max-w-full"
                       style={{ width: '100%' }}
                     >
+                      <div className={`${gameMinClass('text-base')} font-black text-yellow-400 border-b border-white/10 w-full text-center pb-1.5`}>
+                        🚨 雷達配對組信號{triggerSourceLabel ? `（${triggerSourceLabel}）` : ''}！請選擇：
+                      </div>
+
                       <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${claimCols}, minmax(0, 1fr))` }}>
                         {/* 吃 group */}
                         {eatSeqOptions.map((opt, i) => (
@@ -3711,10 +3720,6 @@ export default function App() {
                         >
                           過 (放棄)
                         </button>
-                      </div>
-
-                      <div className={`${gameMinClass('text-base')} font-black text-yellow-400 border-t border-white/10 w-full text-center pt-1.5`}>
-                        🚨 雷達配對組信號{triggerSourceLabel ? `（${triggerSourceLabel}）` : ''}！請選擇：
                       </div>
                     </div>
                   </div>
