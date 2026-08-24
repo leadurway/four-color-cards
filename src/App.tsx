@@ -3792,7 +3792,7 @@ export default function App() {
                               fontSize: gameMinPx(Math.min(handCardDims.w * 0.55, handCardDims.h * 0.38)),
                               animation: 'bounceSmall 0.7s ease-in-out infinite',
                             }}
-                            className="rounded-xl bg-yellow-400 hover:bg-yellow-300 border-2 border-white shadow-lg flex items-center justify-center font-black text-black hover:scale-105 active:scale-95 transition-transform whitespace-nowrap"
+                            className="rounded-xl bg-red-600 hover:bg-red-500 border-2 border-red-400 text-white ring-2 ring-red-300 shadow-lg flex items-center justify-center font-black hover:scale-105 active:scale-95 transition-transform whitespace-nowrap"
                           >
                             胡！
                           </button>
@@ -3806,7 +3806,7 @@ export default function App() {
                               fontSize: gameMinPx(Math.min(handCardDims.w * 0.55, handCardDims.h * 0.38)),
                               animation: 'bounceSmall 0.7s ease-in-out infinite',
                             }}
-                            className="rounded-xl bg-yellow-400 hover:bg-yellow-300 border-2 border-white shadow-lg flex items-center justify-center font-black text-black hover:scale-105 active:scale-95 transition-transform whitespace-nowrap"
+                            className="rounded-xl bg-red-600 hover:bg-red-500 border-2 border-red-400 text-white ring-2 ring-red-300 shadow-lg flex items-center justify-center font-black hover:scale-105 active:scale-95 transition-transform whitespace-nowrap"
                           >
                             胡！
                           </button>
