@@ -3132,7 +3132,7 @@ export default function App() {
                         the left of 散牌/賸餘牌 — see the non-landscape block below for
                         the original standalone-row version used on every other device. */}
                     {isPhoneLandscape && (
-                      <div className="flex items-center gap-1 flex-1 min-w-0 overflow-x-auto scrollbar-none">
+                      <div className="flex items-center justify-end gap-1 flex-1 min-w-0 overflow-x-auto scrollbar-none">
                         {mode === 'pairs' ? (
                           <>
                             <span className={`${gameMinClass('text-xs')} font-bold text-cyan-400 shrink-0`}>{pairsHandSize === 15 ? '組' : '對'}</span>
@@ -3314,7 +3314,7 @@ export default function App() {
                           the left of 散牌 — see the non-landscape block below for the
                           original standalone-row version used on every other device. */}
                       {isPhoneLandscape && mode === 'pairs' && (
-                        <div className="flex items-center gap-1 flex-1 min-w-0 overflow-x-auto scrollbar-none">
+                        <div className="flex items-center justify-end gap-1 flex-1 min-w-0 overflow-x-auto scrollbar-none">
                           <span className={`${gameMinClass('text-xs')} font-bold text-yellow-300 shrink-0`}>{pairsHandSize === 15 ? '組' : '對'}</span>
                           <strong className={`${gameMinClass('text-sm')} text-yellow-300 shrink-0`}>{playerClaimedMelds.length}</strong>
                           <div className="flex gap-[3px] shrink-0">
