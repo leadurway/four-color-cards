@@ -3919,31 +3919,33 @@ export default function App() {
       {/* GAME OVER MODAL — hidden while player-win celebration is showing */}
       {gamePhase === 'game_over' && !showHuCelebration && (
         <div className="fixed inset-0 bg-[#060e1e]/90 z-[99] flex items-center justify-center p-4 select-none">
-          <div className="bg-[#091e3e] border-4 border-yellow-500 shadow-2xl rounded-[32px] p-6 max-w-sm w-full text-center relative border-double animate-pulse text-white select-none">
+          <div className={`bg-[#091e3e] border-4 border-yellow-500 shadow-2xl rounded-[32px] w-full text-center relative border-double animate-pulse text-white select-none ${isPhoneSized ? 'p-6 max-w-sm' : 'p-10 max-w-lg'}`}>
 
             <div className="absolute top-[-35px] left-1/2 transform -translate-x-1/2 bg-yellow-500 rounded-full p-2.5 border-4 border-[#091e3e]">
               <Sparkles className="w-8 h-8 text-slate-900" />
             </div>
 
-            <h2 className="text-3xl font-serif font-black text-yellow-500 mt-5 mb-2 leading-tight">
+            <h2 className={`font-serif font-black text-yellow-500 mt-5 mb-2 leading-tight ${isPhoneSized ? 'text-3xl' : 'text-4xl'}`}>
               {winnerId === 'player' ? '🏆 恭喜您大獲全勝！' : winnerId === 'computer' ? '🤖 電腦拔得頭籌' : '🤝 雙方和局流局'}
             </h2>
 
-            <p className="text-emerald-400 font-extrabold text-base mb-3">
+            <p className={`text-emerald-400 font-extrabold mb-3 ${isPhoneSized ? 'text-base' : 'text-xl'}`}>
               {mode === 'pairs' ? '👦 抓對對子簡單對局' : '🀄 傳統吃碰標準對戰'}
             </p>
 
             {/* This modal only ever appears for the 流局/draw path (handleDrawGame) —
                 real wins stay inside the 胡牌慶祝 celebration overlay (which owns the
                 積分計算資訊框) until "繼續下局" restarts the round, so there's no score
-                to show here; a draw never changes anyone's score. */}
-            <div className="bg-black/45 p-4 rounded-2xl border border-blue-800 text-slate-100 text-base font-serif font-medium leading-relaxed mb-5 max-h-[140px] overflow-y-auto">
+                to show here; a draw never changes anyone's score. Tablet/PC get bigger
+                text/padding and a taller cap — flat phone sizing here left the box
+                looking small with lots of empty space around it on iPad portrait. */}
+            <div className={`bg-black/45 rounded-2xl border border-blue-800 text-slate-100 font-serif font-medium leading-relaxed mb-5 overflow-y-auto ${isPhoneSized ? 'p-4 text-base max-h-[140px]' : 'p-6 text-xl max-h-[360px]'}`}>
               {winExplanation}
             </div>
 
             <button
               onClick={() => { playSound('click'); initGame(false); }}
-              className="w-full py-3.5 bg-yellow-500 hover:bg-yellow-400 text-slate-950 tracking-wider text-base font-black rounded-2xl shadow-xl transition-all active:scale-95"
+              className={`w-full bg-yellow-500 hover:bg-yellow-400 text-slate-950 tracking-wider font-black rounded-2xl shadow-xl transition-all active:scale-95 ${isPhoneSized ? 'py-3.5 text-base' : 'py-5 text-xl'}`}
             >
               重新發牌，再開一局 🀄
             </button>
@@ -4100,33 +4102,36 @@ export default function App() {
               {huAnimWho === 'player' ? '恭喜大獲全勝！' : '電腦勝出'}
             </div>
 
-            {/* 積分計算資訊框：台數明細 + 本局輸贏 + 雙方最新總分 */}
+            {/* 積分計算資訊框：台數明細 + 本局輸贏 + 雙方最新總分。文字/內距在
+                非手機裝置放大——寬度早已跟著 handCardDims 等比例放大，但文字
+                原本維持手機大小的固定值，導致 iPad 上這個框看起來又寬又扁，
+                上下留白偏多。*/}
             {winScore && (
               <div
-                className="bg-black/55 border border-emerald-500/30 rounded-2xl px-4 py-3 text-left"
+                className={`bg-black/55 border border-emerald-500/30 rounded-2xl text-left ${isPhoneSized ? 'px-4 py-3' : 'px-7 py-5'}`}
                 style={{ animation: 'fadeInUp 0.5s ease 0.7s both', width: handCardDims.h * 1.7 }}
               >
-                <p className="text-emerald-300 font-black text-base text-center mb-1.5 tracking-wide">💰 積分計算</p>
-                <ul className="space-y-0.5 mb-1.5">
+                <p className={`text-emerald-300 font-black text-center tracking-wide mb-1.5 ${isPhoneSized ? 'text-base' : 'text-2xl'}`}>💰 積分計算</p>
+                <ul className={`mb-1.5 ${isPhoneSized ? 'space-y-0.5' : 'space-y-1.5'}`}>
                   {winScore.items.map((it, i) => (
-                    <li key={i} className="flex justify-between text-base font-semibold text-slate-200">
+                    <li key={i} className={`flex justify-between font-semibold text-slate-200 ${isPhoneSized ? 'text-base' : 'text-xl'}`}>
                       <span>{it.label}</span>
                       <span className="tabular-nums">+{it.tai} 台</span>
                     </li>
                   ))}
                 </ul>
-                <div className="flex justify-between text-base font-black text-emerald-300 border-t border-emerald-500/25 pt-1 mb-1.5">
+                <div className={`flex justify-between font-black text-emerald-300 border-t border-emerald-500/25 pt-1 mb-1.5 ${isPhoneSized ? 'text-base' : 'text-xl'}`}>
                   <span>共計台數</span>
                   <span className="tabular-nums">{winScore.totalTai} 台</span>
                 </div>
-                <p className="text-emerald-300 font-black text-base text-center mb-1">
+                <p className={`text-emerald-300 font-black text-center mb-1 ${isPhoneSized ? 'text-base' : 'text-xl'}`}>
                   本局輸贏：{huAnimWho === 'player' ? '+' : '-'}{winScore.payout.toLocaleString()} 分
                 </p>
-                <div className="flex flex-col gap-1 text-base font-bold text-slate-300 tabular-nums">
+                <div className={`flex flex-col font-bold text-slate-300 tabular-nums ${isPhoneSized ? 'gap-1 text-base' : 'gap-2 text-xl'}`}>
                   <div className="flex items-center gap-1">
                     <span className="truncate">{playerAvatar} {playerName}</span>
                     {mode === 'pairs' && resultDealerId === 'player' && (
-                      <span className="text-[11px] font-bold bg-red-600 border border-red-400 text-white rounded-full px-2 py-0.5 shrink-0">
+                      <span className={`font-bold bg-red-600 border border-red-400 text-white rounded-full shrink-0 ${isPhoneSized ? 'text-[11px] px-2 py-0.5' : 'text-sm px-2.5 py-1'}`}>
                         莊{resultDealerStreak > 0 ? `連${resultDealerStreak}` : ''}
                       </span>
                     )}
@@ -4135,7 +4140,7 @@ export default function App() {
                   <div className="flex items-center gap-1">
                     <span className="truncate">{computer.name}</span>
                     {mode === 'pairs' && resultDealerId === 'computer' && (
-                      <span className="text-[11px] font-bold bg-red-600 border border-red-400 text-white rounded-full px-2 py-0.5 shrink-0">
+                      <span className={`font-bold bg-red-600 border border-red-400 text-white rounded-full shrink-0 ${isPhoneSized ? 'text-[11px] px-2 py-0.5' : 'text-sm px-2.5 py-1'}`}>
                         莊{resultDealerStreak > 0 ? `連${resultDealerStreak}` : ''}
                       </span>
                     )}
