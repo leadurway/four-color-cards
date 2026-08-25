@@ -2567,13 +2567,17 @@ export default function App() {
   // ——否則 10 張玩法只需除 10 格，方牌會比 15 張玩法明顯大，兩種玩法的
   // 結算畫面大小不一致。10 張玩法算出來的那一整排會因此比容器窄，交給
   // renderHuFullHandRow 自己的 justify-center 置中即可，不需要在這裡處理。
+  // iPhone 直式可視寬度本來就窄，縮小方牌間隔換取方牌本身稍微放大一點；
+  // 其餘裝置/橫式維持原本的間距。
+  const celebrationInnerGap = isPhoneSized && !isLandscape ? 2 : 3;
+  const celebrationOuterGap = isPhoneSized && !isLandscape ? 5 : 8;
   const celebrationCardW = (() => {
     const REF_SLOTS = 15;
     const REF_GROUPS = 5;
     const refGroupSize = REF_SLOTS / REF_GROUPS; // 3
     const rowAvailW = celebrationMaxW - 64; // 外層 px-6(24*2) + 方牌列自己的 p-2(8*2)
-    const withinGroupGaps = (refGroupSize - 1) * REF_GROUPS * 3; // 組內間距 3px
-    const betweenGroupGaps = (REF_GROUPS - 1) * 8; // 組間間距 8px
+    const withinGroupGaps = (refGroupSize - 1) * REF_GROUPS * celebrationInnerGap;
+    const betweenGroupGaps = (REF_GROUPS - 1) * celebrationOuterGap;
     return Math.max(10, (rowAvailW - withinGroupGaps - betweenGroupGaps) / REF_SLOTS);
   })();
   // 文字：方牌大小比例跟遊戲頁面 renderMiniCard 一致——後者手機用 16px 字
@@ -2634,14 +2638,14 @@ export default function App() {
       <span className="text-base font-bold tracking-wide text-slate-300">
         {label}（共 {cards.length} 張）
       </span>
-      <div className="flex w-full justify-center bg-black/40 border border-white/10 rounded-xl p-2" style={{ gap: 8 }}>
+      <div className="flex w-full justify-center bg-black/40 border border-white/10 rounded-xl p-2" style={{ gap: celebrationOuterGap }}>
         {(() => {
           const groupSize = pairsHandSize / 5;
           const slots = Array.from({ length: pairsHandSize }, (_, i) => cards[i]);
           const groups: (Card | undefined)[][] = [];
           for (let g = 0; g < 5; g++) groups.push(slots.slice(g * groupSize, (g + 1) * groupSize));
           return groups.map((group, gi) => (
-            <div key={`${keyPrefix}-group-${gi}`} className="flex shrink-0" style={{ gap: 3 }}>
+            <div key={`${keyPrefix}-group-${gi}`} className="flex shrink-0" style={{ gap: celebrationInnerGap }}>
               {group.map((c, ci) => {
                 const i = gi * groupSize + ci;
                 return c ? (
