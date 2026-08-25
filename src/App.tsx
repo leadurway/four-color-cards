@@ -2562,6 +2562,21 @@ export default function App() {
   // 這個公式算出來的寬度可能超過扣掉左右內距（px-6，共 48px）後的可用寬
   // 度，一併夾在這個上限內避免左右溢出。
   const celebrationBoxW = Math.min(handCardDims.h * 1.7, celebrationMaxW - 48);
+  // 手露牌小方牌統一大小：不論目前是 10 張還是 15 張玩法，方牌尺寸固定以
+  // 「15 張玩法在目前可用寬度下應有的大小」為準（即永遠除以 15 格計算）
+  // ——否則 10 張玩法只需除 10 格，方牌會比 15 張玩法明顯大，兩種玩法的
+  // 結算畫面大小不一致。10 張玩法算出來的那一整排會因此比容器窄，交給
+  // renderHuFullHandRow 自己的 justify-center 置中即可，不需要在這裡處理。
+  const celebrationCardW = (() => {
+    const REF_SLOTS = 15;
+    const REF_GROUPS = 5;
+    const refGroupSize = REF_SLOTS / REF_GROUPS; // 3
+    const rowAvailW = celebrationMaxW - 64; // 外層 px-6(24*2) + 方牌列自己的 p-2(8*2)
+    const withinGroupGaps = (refGroupSize - 1) * REF_GROUPS * 3; // 組內間距 3px
+    const betweenGroupGaps = (REF_GROUPS - 1) * 8; // 組間間距 8px
+    return Math.max(10, (rowAvailW - withinGroupGaps - betweenGroupGaps) / REF_SLOTS);
+  })();
+  const celebrationCardFs = Math.round(celebrationCardW * 0.5);
 
   // Where the current claimable trigger card came from — used to annotate the
   // radar panel and the 吃一隻/碰一隻 animation so it's clear whether the
@@ -2593,9 +2608,7 @@ export default function App() {
     );
   };
 
-  // 胡牌 celebration screen's full-hand row (both sides, always shown) —
-  // flex-1 + aspect-square (no flex-wrap) spreads all 10/15 cards across one
-  // full-width row instead of wrapping, unlike renderMiniCard's fixed size.
+  // 胡牌 celebration screen's full-hand row (both sides, always shown).
   // Slot count is fixed to pairsHandSize (10 or 15) rather than cards.length,
   // so both sides' mini cards always divide the same row width the same way
   // and come out the same size — a side that's one card short (9/14, e.g.
@@ -2605,11 +2618,15 @@ export default function App() {
   // cards is already ordered 露牌 (revealed melds) first, then 手牌 (hand,
   // itself grouped by pair/trio) — see groupHandForDisplay in handleWin.
   // Both game modes complete at exactly 5 melds (10÷2 or 15÷3), so slots are
-  // chunked into 5 equal-width group wrappers of groupSize each: the small
-  // gap sits inside a group wrapper (between that meld's own cards), the
-  // larger gap sits between group wrappers (outer flex gap) — and since every
-  // group wrapper gets an equal flex-1 share of the row regardless of which
-  // side's row it is, per-card size stays identical between the two rows too.
+  // chunked into 5 group wrappers of groupSize each: the small gap sits
+  // inside a group wrapper (between that meld's own cards), the larger gap
+  // sits between group wrappers (outer flex gap). Every card is a FIXED px
+  // size (celebrationCardW, computed once above as if pairsHandSize were
+  // always 15) rather than a flex-1 share of the row — otherwise 10-card
+  // mode's cards (only dividing the row into 10) would render visibly larger
+  // than 15-card mode's, even though both sides within a single match were
+  // already consistent with each other. 10-card mode's row ends up narrower
+  // than the container as a result; the row's own justify-center handles that.
   const renderHuFullHandRow = (cards: Card[], label: string, keyPrefix: string) => cards.length > 0 && (
     <div key={keyPrefix} className="flex flex-col items-center w-full" style={{ gap: 4, animation: 'fadeInUp 0.4s ease both' }}>
       <span className="text-base font-bold tracking-wide text-slate-300">
@@ -2622,15 +2639,17 @@ export default function App() {
           const groups: (Card | undefined)[][] = [];
           for (let g = 0; g < 5; g++) groups.push(slots.slice(g * groupSize, (g + 1) * groupSize));
           return groups.map((group, gi) => (
-            <div key={`${keyPrefix}-group-${gi}`} className="flex flex-1 min-w-0" style={{ gap: 3 }}>
+            <div key={`${keyPrefix}-group-${gi}`} className="flex shrink-0" style={{ gap: 3 }}>
               {group.map((c, ci) => {
                 const i = gi * groupSize + ci;
                 return c ? (
                   <div
                     key={`${keyPrefix}-${c.id}-${i}`}
-                    className="aspect-square flex-1 min-w-0 rounded-sm flex items-center justify-center font-black overflow-visible"
+                    className="rounded-sm flex items-center justify-center font-black overflow-visible shrink-0"
                     style={{
-                      fontSize: 'clamp(16px, 4.5vw, 22px)',
+                      width: celebrationCardW,
+                      height: celebrationCardW,
+                      fontSize: celebrationCardFs,
                       backgroundColor: c.color === 'yellow' ? '#ffd300' : c.color === 'green' ? '#299c42' : c.color === 'red' ? '#ff5511' : '#ffffff',
                       color: c.color === 'yellow' ? '#ab1313' : '#111111',
                     }}
@@ -2638,7 +2657,7 @@ export default function App() {
                     {c.character}
                   </div>
                 ) : (
-                  <div key={`${keyPrefix}-empty-${i}`} className="aspect-square flex-1 min-w-0 rounded-sm border border-dashed border-white/10" />
+                  <div key={`${keyPrefix}-empty-${i}`} className="rounded-sm border border-dashed border-white/10 shrink-0" style={{ width: celebrationCardW, height: celebrationCardW }} />
                 );
               })}
             </div>
