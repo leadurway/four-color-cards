@@ -455,7 +455,6 @@ export default function App() {
   // cleared in the same synchronous action that starts the animation, so this
   // can't be derived at render time the way the radar panel's label is).
   const [eatPairAnimSource, setEatPairAnimSource] = useState('');
-  const [drawnCardPreview, setDrawnCardPreview] = useState<import('./types').Card | null>(null);
   const [showHuCelebration, setShowHuCelebration] = useState(false);
   const [huAnimWho, setHuAnimWho] = useState<'player' | 'computer'>('player');
   const [huAnimCards, setHuAnimCards] = useState<Card[]>([]);
@@ -1217,44 +1216,39 @@ export default function App() {
       const matchedCard = pGroup.strays.find(c => c.color === drawn.color && c.character === drawn.character);
 
       if (matchedCard) {
-        // Step 1: show drawn card for 3s
+        // 直接執行配對並顯示「吃對」動畫——移除了原本會先跳出 3 秒的摸牌
+        // 小卡預覽畫面（drawnCardPreview），該畫面在吃對動畫本身也會顯示
+        // 摸到的牌，是多餘的重複步驟。
         setLastDrawnCard(null);
         setLastDiscardedCard(null);
-        setDrawnCardPreview(drawn);
-        {
-          const afterStrayCount = groupPairsMode(player.hand.filter(c => c.id !== matchedCard.id)).strays.length;
-          addLog(`【自摸】摸到 [${drawn.name}]，正好與手中 [${matchedCard.name}] 配對！（散牌由 ${pGroup.strays.length} 張變為 ${afterStrayCount} 張）`);
-          logStrayDelta('玩家自摸配對', pGroup.strays.length, afterStrayCount);
-        }
+        const nextHand = player.hand.filter(c => c.id !== matchedCard.id);
+        const autoPairMeld: RevealedMeld = {
+          id: `player-pair-${Date.now()}`,
+          type: 'pair',
+          cards: [drawn, matchedCard],
+          hoo: isGeneral(drawn) ? 2 : 0,
+          name: `對子 [${drawn.name}]`,
+          origin: 'draw'
+        };
+        const newRevealed = [...player.revealed, autoPairMeld];
+        setPlayer(prev => ({ ...prev, hand: nextHand, revealed: newRevealed }));
+        assertCardTotal('玩家自摸配對', { playerHand: nextHand, playerRevealed: newRevealed, pendingDrawn: null }, { side: 'player', kind: 'draw' });
 
-        scheduleTurnTimeout(() => {
-          // Step 2: execute pair + show 吃對 for 3s
-          setDrawnCardPreview(null);
-          const nextHand = player.hand.filter(c => c.id !== matchedCard.id);
-          const autoPairMeld: RevealedMeld = {
-            id: `player-pair-${Date.now()}`,
-            type: 'pair',
-            cards: [drawn, matchedCard],
-            hoo: isGeneral(drawn) ? 2 : 0,
-            name: `對子 [${drawn.name}]`,
-            origin: 'draw'
-          };
-          const newRevealed = [...player.revealed, autoPairMeld];
-          setPlayer(prev => ({ ...prev, hand: nextHand, revealed: newRevealed }));
-          assertCardTotal('玩家自摸配對', { playerHand: nextHand, playerRevealed: newRevealed, pendingDrawn: null }, { side: 'player', kind: 'draw' });
-          setEatPairAnimWho('player');
-          setEatPairAnimCards([drawn, matchedCard]);
-          setEatPairAnimSource('玩家摸牌');
-          setShowEatPairAnim(true);
+        const autoCheck = groupPairsMode(nextHand);
+        addLog(`【自摸】摸到 [${drawn.name}]，正好與手中 [${matchedCard.name}] 配對！（散牌由 ${pGroup.strays.length} 張變為 ${autoCheck.strays.length} 張）`);
+        logStrayDelta('玩家自摸配對', pGroup.strays.length, autoCheck.strays.length);
 
-          const autoCheck = groupPairsMode(nextHand);
-          if (autoCheck.strays.length === 0) {
-            scheduleTurnTimeout(() => {
-              setShowEatPairAnim(false);
-              handleWin('player', 'pairs', '恭喜！自摸配對完成所有散牌，宣告勝出！', [drawn, matchedCard], { hand: nextHand, revealed: newRevealed, wasSelfDraw: true, wasLastTileDraw: newDeck.length === 0 });
-            }, 3000);
-            return;
-          }
+        setEatPairAnimWho('player');
+        setEatPairAnimCards([drawn, matchedCard]);
+        setEatPairAnimSource('玩家摸牌');
+        setShowEatPairAnim(true);
+
+        if (autoCheck.strays.length === 0) {
+          scheduleTurnTimeout(() => {
+            setShowEatPairAnim(false);
+            handleWin('player', 'pairs', '恭喜！自摸配對完成所有散牌，宣告勝出！', [drawn, matchedCard], { hand: nextHand, revealed: newRevealed, wasSelfDraw: true, wasLastTileDraw: newDeck.length === 0 });
+          }, 3000);
+        } else {
           setHasDrawn(true);
           setCanDiscard(false);
           scheduleTurnTimeout(() => {
@@ -1262,7 +1256,7 @@ export default function App() {
             setCanDiscard(true);
             setGuideMessage('配對成功！請選牌打出。');
           }, 3000);
-        }, 3000);
+        }
       } else {
         // No match — append unsorted (lands at the far right of row 2) so the
         // player can clearly see what they just drew; the hand gets sorted
@@ -3924,17 +3918,6 @@ export default function App() {
             >
               重新發牌，再開一局 🀄
             </button>
-          </div>
-        </div>
-      )}
-
-      {/* 摸牌預覽 OVERLAY — shows drawn card for 3s before auto-pair */}
-      {drawnCardPreview && (
-        <div className="fixed inset-0 z-[145] flex flex-col items-center justify-center pointer-events-none select-none" style={{ background: 'rgba(6,14,30,0.78)' }}>
-          <div style={{ animation: 'cardReveal 0.5s cubic-bezier(0.34,1.56,0.64,1) both' }}>
-            <div className="flex flex-col items-center gap-4">
-              <FourColorCard card={drawnCardPreview} size="lg" isRevealed={true} />
-            </div>
           </div>
         </div>
       )}
