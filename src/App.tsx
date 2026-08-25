@@ -306,6 +306,14 @@ export default function App() {
   // an iPhone SE (667px tall) and an iPhone 14 Pro Max (932px tall) have a
   // ~40% height difference, too much to serve well with a single layout.
   const [windowHeight, setWindowHeight] = useState(() => window.innerHeight);
+  // Tracked alongside windowHeight so the win/draw settlement screens can cap
+  // their width to Math.min(windowWidth, windowHeight) — the device's short
+  // side, which equals ITS OWN portrait width regardless of current
+  // orientation (rotating just swaps the two). That single formula keeps
+  // those screens from ever needing horizontal scroll in portrait (capped to
+  // the width actually available) while making landscape match portrait's
+  // width instead of stretching to landscape's wider viewport.
+  const [windowWidth, setWindowWidth] = useState(() => window.innerWidth);
   const [isPhoneSized] = useState(() => {
     const ua = navigator.userAgent;
     if (/iPhone|iPod/.test(ua)) return true;
@@ -329,7 +337,7 @@ export default function App() {
     return false; // PC web
   });
   useEffect(() => {
-    const update = () => setWindowHeight(window.innerHeight);
+    const update = () => { setWindowHeight(window.innerHeight); setWindowWidth(window.innerWidth); };
     update();
     window.addEventListener('resize', update);
     return () => window.removeEventListener('resize', update);
@@ -2545,6 +2553,16 @@ export default function App() {
     return { w: Math.round(h * aspect), h, fs: Math.round(handCardDims.fs * (h / (handCardDims.h || h))) };
   })();
 
+  // 胡牌/流局結算頁面寬度上限：取視窗短邊（= 該裝置的直式寬度，不管目前是
+  // 直式還橫式都一樣，因為旋轉只是把寬高互換），讓直式永遠剛好貼合可視寬
+  // 度不需左右捲動，橫式則沿用跟直式相同的寬度而不是撐滿橫式較寬的視窗。
+  const celebrationMaxW = Math.min(windowWidth, windowHeight);
+  // 積分計算資訊框／繼續下局按鈕／胡牌徽章三者共用同一個寬度公式
+  // （handCardDims.h * 1.7），在 celebrationMaxW 已經很窄時（例如手機直式）
+  // 這個公式算出來的寬度可能超過扣掉左右內距（px-6，共 48px）後的可用寬
+  // 度，一併夾在這個上限內避免左右溢出。
+  const celebrationBoxW = Math.min(handCardDims.h * 1.7, celebrationMaxW - 48);
+
   // Where the current claimable trigger card came from — used to annotate the
   // radar panel and the 吃一隻/碰一隻 animation so it's clear whether the
   // opportunity came from a self-draw or an opponent's discard.
@@ -2593,7 +2611,7 @@ export default function App() {
   // group wrapper gets an equal flex-1 share of the row regardless of which
   // side's row it is, per-card size stays identical between the two rows too.
   const renderHuFullHandRow = (cards: Card[], label: string, keyPrefix: string) => cards.length > 0 && (
-    <div key={keyPrefix} className="flex flex-col items-center" style={{ gap: 4, animation: 'fadeInUp 0.4s ease both', width: '92vw', maxWidth: 560 }}>
+    <div key={keyPrefix} className="flex flex-col items-center w-full" style={{ gap: 4, animation: 'fadeInUp 0.4s ease both' }}>
       <span className="text-base font-bold tracking-wide text-slate-300">
         {label}（共 {cards.length} 張）
       </span>
@@ -4036,7 +4054,7 @@ export default function App() {
               taller than it — margin:auto keeps it scrollable end to end instead. */}
           <div
             className="relative z-10 flex flex-col items-center px-6 py-8 text-center m-auto"
-            style={{ gap: 10, ...(isPhoneLandscape ? { width: '100%', maxWidth: PHONE_PORTRAIT_MAX_W } : {}) }}
+            style={{ gap: 10, width: '100%', maxWidth: celebrationMaxW }}
           >
             {/* Both sides' full final hand (concealed + all revealed melds),
                 small square mini-cards, seated group-by-group — the complete
@@ -4065,7 +4083,7 @@ export default function App() {
             {/* 胡牌 badge: 單排四字（玩家自摸／玩家胡牌／電腦自摸／電腦胡牌），紅底白字，長方形 */}
             <div
               style={{
-                width: handCardDims.h * 1.7,
+                width: celebrationBoxW,
                 height: handCardDims.w * 1.3,
                 background: '#dc2626',
                 color: '#ffffff',
@@ -4104,7 +4122,7 @@ export default function App() {
             {winScore && (
               <div
                 className="bg-black/55 border border-emerald-500/30 rounded-2xl px-4 py-3 text-left"
-                style={{ animation: 'fadeInUp 0.5s ease 0.7s both', width: handCardDims.h * 1.7 }}
+                style={{ animation: 'fadeInUp 0.5s ease 0.7s both', width: celebrationBoxW }}
               >
                 <p className="text-emerald-300 font-black text-base text-center mb-1.5 tracking-wide">💰 積分計算</p>
                 <ul className="space-y-0.5 mb-1.5">
@@ -4153,7 +4171,7 @@ export default function App() {
                 initGame(false);
               }}
               style={{
-                width: handCardDims.h * 1.7,
+                width: celebrationBoxW,
                 height: handCardDims.w * 1.3,
                 background: '#f5c218',
                 color: '#0a1628',
