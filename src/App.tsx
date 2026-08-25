@@ -2576,7 +2576,9 @@ export default function App() {
     const betweenGroupGaps = (REF_GROUPS - 1) * 8; // 組間間距 8px
     return Math.max(10, (rowAvailW - withinGroupGaps - betweenGroupGaps) / REF_SLOTS);
   })();
-  const celebrationCardFs = Math.round(celebrationCardW * 0.5);
+  // 文字：方牌大小比例跟遊戲頁面 renderMiniCard 一致——後者手機用 16px 字
+  // /20px 方牌、平板/PC 用 24px 字/30px 方牌，兩者都是 0.8 的比例。
+  const celebrationCardFs = Math.round(celebrationCardW * 0.8);
 
   // Where the current claimable trigger card came from — used to annotate the
   // radar panel and the 吃一隻/碰一隻 animation so it's clear whether the
