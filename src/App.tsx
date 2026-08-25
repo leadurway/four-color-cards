@@ -4104,7 +4104,7 @@ export default function App() {
             {winScore && (
               <div
                 className="bg-black/55 border border-emerald-500/30 rounded-2xl px-4 py-3 text-left"
-                style={{ animation: 'fadeInUp 0.5s ease 0.7s both', minWidth: 230, maxWidth: 340 }}
+                style={{ animation: 'fadeInUp 0.5s ease 0.7s both', width: handCardDims.h * 1.7 }}
               >
                 <p className="text-emerald-300 font-black text-base text-center mb-1.5 tracking-wide">💰 積分計算</p>
                 <ul className="space-y-0.5 mb-1.5">
