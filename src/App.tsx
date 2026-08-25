@@ -2578,25 +2578,34 @@ export default function App() {
   // 胡牌 celebration screen's full-hand row (both sides, always shown) —
   // flex-1 + aspect-square (no flex-wrap) spreads all 10/15 cards across one
   // full-width row instead of wrapping, unlike renderMiniCard's fixed size.
+  // Slot count is fixed to pairsHandSize (10 or 15) rather than cards.length,
+  // so both sides' mini cards always divide the same row width the same way
+  // and come out the same size — a side that's one card short (9/14, e.g.
+  // still mid-turn when the game ended) just leaves its rightmost slot empty
+  // instead of stretching its cards larger than the other side's.
   const renderHuFullHandRow = (cards: Card[], label: string, keyPrefix: string) => cards.length > 0 && (
     <div key={keyPrefix} className="flex flex-col items-center" style={{ gap: 4, animation: 'fadeInUp 0.4s ease both', width: '92vw', maxWidth: 560 }}>
       <span className="text-base font-bold tracking-wide text-slate-300">
         {label}（共 {cards.length} 張）
       </span>
       <div className="flex w-full justify-center bg-black/40 border border-white/10 rounded-xl p-2" style={{ gap: 3 }}>
-        {cards.map((c, i) => (
-          <div
-            key={`${keyPrefix}-${c.id}-${i}`}
-            className="aspect-square flex-1 min-w-0 rounded-sm flex items-center justify-center font-black overflow-visible"
-            style={{
-              fontSize: 'clamp(16px, 4.5vw, 22px)',
-              backgroundColor: c.color === 'yellow' ? '#ffd300' : c.color === 'green' ? '#299c42' : c.color === 'red' ? '#ff5511' : '#ffffff',
-              color: c.color === 'yellow' ? '#ab1313' : '#111111',
-            }}
-          >
-            {c.character}
-          </div>
-        ))}
+        {Array.from({ length: pairsHandSize }, (_, i) => cards[i]).map((c, i) =>
+          c ? (
+            <div
+              key={`${keyPrefix}-${c.id}-${i}`}
+              className="aspect-square flex-1 min-w-0 rounded-sm flex items-center justify-center font-black overflow-visible"
+              style={{
+                fontSize: 'clamp(16px, 4.5vw, 22px)',
+                backgroundColor: c.color === 'yellow' ? '#ffd300' : c.color === 'green' ? '#299c42' : c.color === 'red' ? '#ff5511' : '#ffffff',
+                color: c.color === 'yellow' ? '#ab1313' : '#111111',
+              }}
+            >
+              {c.character}
+            </div>
+          ) : (
+            <div key={`${keyPrefix}-empty-${i}`} className="aspect-square flex-1 min-w-0 rounded-sm border border-dashed border-white/10" />
+          )
+        )}
       </div>
     </div>
   );
