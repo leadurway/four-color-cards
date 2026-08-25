@@ -2583,29 +2583,49 @@ export default function App() {
   // and come out the same size — a side that's one card short (9/14, e.g.
   // still mid-turn when the game ended) just leaves its rightmost slot empty
   // instead of stretching its cards larger than the other side's.
+  //
+  // cards is already ordered 露牌 (revealed melds) first, then 手牌 (hand,
+  // itself grouped by pair/trio) — see groupHandForDisplay in handleWin.
+  // Both game modes complete at exactly 5 melds (10÷2 or 15÷3), so slots are
+  // chunked into 5 equal-width group wrappers of groupSize each: the small
+  // gap sits inside a group wrapper (between that meld's own cards), the
+  // larger gap sits between group wrappers (outer flex gap) — and since every
+  // group wrapper gets an equal flex-1 share of the row regardless of which
+  // side's row it is, per-card size stays identical between the two rows too.
   const renderHuFullHandRow = (cards: Card[], label: string, keyPrefix: string) => cards.length > 0 && (
     <div key={keyPrefix} className="flex flex-col items-center" style={{ gap: 4, animation: 'fadeInUp 0.4s ease both', width: '92vw', maxWidth: 560 }}>
       <span className="text-base font-bold tracking-wide text-slate-300">
         {label}（共 {cards.length} 張）
       </span>
-      <div className="flex w-full justify-center bg-black/40 border border-white/10 rounded-xl p-2" style={{ gap: 3 }}>
-        {Array.from({ length: pairsHandSize }, (_, i) => cards[i]).map((c, i) =>
-          c ? (
-            <div
-              key={`${keyPrefix}-${c.id}-${i}`}
-              className="aspect-square flex-1 min-w-0 rounded-sm flex items-center justify-center font-black overflow-visible"
-              style={{
-                fontSize: 'clamp(16px, 4.5vw, 22px)',
-                backgroundColor: c.color === 'yellow' ? '#ffd300' : c.color === 'green' ? '#299c42' : c.color === 'red' ? '#ff5511' : '#ffffff',
-                color: c.color === 'yellow' ? '#ab1313' : '#111111',
-              }}
-            >
-              {c.character}
+      <div className="flex w-full justify-center bg-black/40 border border-white/10 rounded-xl p-2" style={{ gap: 8 }}>
+        {(() => {
+          const groupSize = pairsHandSize / 5;
+          const slots = Array.from({ length: pairsHandSize }, (_, i) => cards[i]);
+          const groups: (Card | undefined)[][] = [];
+          for (let g = 0; g < 5; g++) groups.push(slots.slice(g * groupSize, (g + 1) * groupSize));
+          return groups.map((group, gi) => (
+            <div key={`${keyPrefix}-group-${gi}`} className="flex flex-1 min-w-0" style={{ gap: 3 }}>
+              {group.map((c, ci) => {
+                const i = gi * groupSize + ci;
+                return c ? (
+                  <div
+                    key={`${keyPrefix}-${c.id}-${i}`}
+                    className="aspect-square flex-1 min-w-0 rounded-sm flex items-center justify-center font-black overflow-visible"
+                    style={{
+                      fontSize: 'clamp(16px, 4.5vw, 22px)',
+                      backgroundColor: c.color === 'yellow' ? '#ffd300' : c.color === 'green' ? '#299c42' : c.color === 'red' ? '#ff5511' : '#ffffff',
+                      color: c.color === 'yellow' ? '#ab1313' : '#111111',
+                    }}
+                  >
+                    {c.character}
+                  </div>
+                ) : (
+                  <div key={`${keyPrefix}-empty-${i}`} className="aspect-square flex-1 min-w-0 rounded-sm border border-dashed border-white/10" />
+                );
+              })}
             </div>
-          ) : (
-            <div key={`${keyPrefix}-empty-${i}`} className="aspect-square flex-1 min-w-0 rounded-sm border border-dashed border-white/10" />
-          )
-        )}
+          ));
+        })()}
       </div>
     </div>
   );
