@@ -3937,9 +3937,11 @@ export default function App() {
                 real wins stay inside the 胡牌慶祝 celebration overlay (which owns the
                 積分計算資訊框) until "繼續下局" restarts the round, so there's no score
                 to show here; a draw never changes anyone's score. Tablet/PC get bigger
-                text/padding and a taller cap — flat phone sizing here left the box
-                looking small with lots of empty space around it on iPad portrait. */}
-            <div className={`bg-black/45 rounded-2xl border border-blue-800 text-slate-100 font-serif font-medium leading-relaxed mb-5 overflow-y-auto ${isPhoneSized ? 'p-4 text-base max-h-[140px]' : 'p-6 text-xl max-h-[360px]'}`}>
+                text/padding and NO height cap — the fixed max-h (even bumped up) still
+                forced the box to stay short and internally scroll instead of just
+                growing to fill the extra room iPad portrait has available. Phone keeps
+                a cap since its viewport genuinely can't always fit the full text. */}
+            <div className={`bg-black/45 rounded-2xl border border-blue-800 text-slate-100 font-serif font-medium leading-relaxed mb-5 ${isPhoneSized ? 'p-4 text-base max-h-[140px] overflow-y-auto' : 'p-6 text-xl'}`}>
               {winExplanation}
             </div>
 
