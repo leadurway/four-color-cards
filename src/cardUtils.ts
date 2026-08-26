@@ -207,7 +207,16 @@ export function partitionTriosWithGroups(cards: Card[]): Card[][] | null {
 // Greedily finds non-overlapping trios among the 3 valid types. Returns the actual
 // groups (not just a flat id set) so callers can both lock discard on these cards
 // and keep each group's 3 cards seated together in the display order.
-export function find15TrioHints(hand: Card[]): Card[][] {
+export function find15TrioHints(rawHand: Card[]): Card[][] {
+  // Which specific physical cards end up grouped together must depend only on
+  // WHICH cards are in the hand, never on where they happen to sit in the
+  // array — hand gets re-sorted after every draw/discard (sortHandForDisplay),
+  // so grouping off raw array order let an unrelated draw/discard reshuffle
+  // an EXISTING, untouched group (e.g. a freshly drawn card would end up
+  // "stealing" a card out of an already-formed group instead of only ever
+  // joining the leftover strays). Sorting by id first makes every group a
+  // pure function of the card set, same fix as groupPairsMode already uses.
+  const hand = [...rawHand].sort((a, b) => a.id.localeCompare(b.id));
   const used = new Set<string>();
   const groups: Card[][] = [];
 
