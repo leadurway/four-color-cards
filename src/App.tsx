@@ -2422,8 +2422,20 @@ export default function App() {
     // setTimeout scheduled by a prior render (via runComputerTurn), so even a
     // "didn't just change" read needs the always-current refs, not the plain
     // state variables.
+    // 贏家這一排的顯示順序要再加上第四段：完成胡牌的那組牌（winCards，
+    // 2張對子或3張組）永遠排在最後，跟其餘的露牌／已組對／散牌區隔開，
+    // 讓人一眼看出「就是這組完成了胡牌」。winCards 這幾張牌本來就已經是
+    // scoring.revealed 裡最新加入的那組（見各個 handleWin 呼叫端），所以
+    // 先從 revealed/hand 兩段中濾掉、再接到最後即可；winCards 為空的贏牌
+    // 情境（例如自摸當下手牌整手直接成局，沒有單獨一步「完成」的動作）
+    // 濾掉後就是空陣列，等於維持原本三段順序，不會多出空段落。
+    const winCardIds = new Set(winCards.map(c => c.id));
     const winnerGrouped = scoring
-      ? [...scoring.revealed.flatMap(m => m.cards), ...groupHandForDisplay(scoring.hand)]
+      ? [
+          ...scoring.revealed.flatMap(m => m.cards).filter(c => !winCardIds.has(c.id)),
+          ...groupHandForDisplay(scoring.hand).filter(c => !winCardIds.has(c.id)),
+          ...winCards,
+        ]
       : winCards;
     const otherSide = winner === 'player' ? computerRef.current : playerRef.current;
     const otherGrouped = [...otherSide.revealed.flatMap(m => m.cards), ...groupHandForDisplay(otherSide.hand)];
