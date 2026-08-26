@@ -2400,7 +2400,14 @@ export default function App() {
     // order, so the celebration screen's top rows visually match the 台數
     // 明細 below (which counts these same groups) — a bare hand array is just
     // whatever order cards happened to be drawn/sorted in, not grouped.
-    const groupHandForDisplay = (hand: Card[]): Card[] => {
+    //
+    // 依使用者定義的四段順序：露牌、手牌已組對的、散牌、（贏家專屬）胡牌
+    // 的組對。「露牌」嚴格定義為吃碰對方棄牌成組、揭露在前面的牌——只有
+    // origin==='discard' 的 revealed 算，origin==='draw'（自己摸牌湊成的
+    // 組，沒有透過吃碰對方棄牌）雖然也存在 revealed 陣列裡，但概念上仍屬於
+    // 「手牌」的一部分（已組對好的那部分），跟遊戲頁面「露牌」列的定義
+    // 一致（見 computerClaimedMelds/playerClaimedMelds：只算 origin==='discard'）。
+    const groupHandForDisplay = (hand: Card[]): { paired: Card[]; strays: Card[] } => {
       // 15 張模式：只有「贏家的完整胡牌手牌」才會是可以被 partitionTriosWithGroups
       // 完整分組（沒有餘數）的牌組；非贏家（尤其輸家）手牌通常張數不是 3 的倍數、
       // 也不會恰好分完，partitionTriosWithGroups 遇到分不完就整組回傳 null，
@@ -2409,10 +2416,16 @@ export default function App() {
       if (pairsHandSize === 15) {
         const groups = find15TrioHints(hand);
         const usedIds = new Set(groups.flat().map(c => c.id));
-        return [...groups.flat(), ...hand.filter(c => !usedIds.has(c.id))];
+        return { paired: groups.flat(), strays: hand.filter(c => !usedIds.has(c.id)) };
       }
       const g = groupPairsMode(hand);
-      return [...g.pairs.flat(), ...g.strays];
+      return { paired: g.pairs.flat(), strays: g.strays };
+    };
+    const buildFullHandDisplay = (revealed: RevealedMeld[], hand: Card[]): Card[] => {
+      const claimedRevealed = revealed.filter(m => m.origin === 'discard').flatMap(m => m.cards); // 露牌
+      const selfFormedRevealed = revealed.filter(m => m.origin === 'draw').flatMap(m => m.cards); // 手牌已組對的（自己摸成的組）
+      const { paired, strays } = groupHandForDisplay(hand); // 手牌本身仍在手上、還沒鎖進 revealed 的已組對／散牌
+      return [...claimedRevealed, ...selfFormedRevealed, ...paired, ...strays];
     };
     // The winner's hand/revealed just changed in this very action, so it MUST
     // come from `scoring` (passed explicitly by the caller) rather than the
@@ -2422,23 +2435,18 @@ export default function App() {
     // setTimeout scheduled by a prior render (via runComputerTurn), so even a
     // "didn't just change" read needs the always-current refs, not the plain
     // state variables.
-    // 贏家這一排的顯示順序要再加上第四段：完成胡牌的那組牌（winCards，
-    // 2張對子或3張組）永遠排在最後，跟其餘的露牌／已組對／散牌區隔開，
-    // 讓人一眼看出「就是這組完成了胡牌」。winCards 這幾張牌本來就已經是
-    // scoring.revealed 裡最新加入的那組（見各個 handleWin 呼叫端），所以
-    // 先從 revealed/hand 兩段中濾掉、再接到最後即可；winCards 為空的贏牌
+    // 贏家這一排再加第四段：完成胡牌的那組牌（winCards，2張對子或3張組）
+    // 永遠排在最後，跟前三段區隔開。這幾張牌本來就已經是 buildFullHandDisplay
+    // 前三段裡的一部分（見各個 handleWin 呼叫端，newMeld 早已併入
+    // scoring.revealed），所以先濾掉、再接到最後即可；winCards 為空的贏牌
     // 情境（例如自摸當下手牌整手直接成局，沒有單獨一步「完成」的動作）
     // 濾掉後就是空陣列，等於維持原本三段順序，不會多出空段落。
     const winCardIds = new Set(winCards.map(c => c.id));
     const winnerGrouped = scoring
-      ? [
-          ...scoring.revealed.flatMap(m => m.cards).filter(c => !winCardIds.has(c.id)),
-          ...groupHandForDisplay(scoring.hand).filter(c => !winCardIds.has(c.id)),
-          ...winCards,
-        ]
+      ? [...buildFullHandDisplay(scoring.revealed, scoring.hand).filter(c => !winCardIds.has(c.id)), ...winCards]
       : winCards;
     const otherSide = winner === 'player' ? computerRef.current : playerRef.current;
-    const otherGrouped = [...otherSide.revealed.flatMap(m => m.cards), ...groupHandForDisplay(otherSide.hand)];
+    const otherGrouped = buildFullHandDisplay(otherSide.revealed, otherSide.hand);
     setHuAnimPlayerFullHand(winner === 'player' ? winnerGrouped : otherGrouped);
     setHuAnimComputerFullHand(winner === 'computer' ? winnerGrouped : otherGrouped);
     setHuAnimSelfDraw(!!scoring?.wasSelfDraw);
