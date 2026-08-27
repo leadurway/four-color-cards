@@ -103,7 +103,7 @@ export default function App() {
   const [previousPage, setPreviousPage] = useState<'lobby' | 'game'>('lobby');
   
   // Custom Player Options
-  const [playerName, setUserName] = useState('長輩玩家');
+  const [playerName, setUserName] = useState('玩家');
   const [playerAvatar, setUserAvatar] = useState('👨');
   const avatars = ['👵', '👴', '👩', '👨', '🀄', '🏆', '⭐'];
 
@@ -119,7 +119,7 @@ export default function App() {
   const [deck, setDeck] = useState<Card[]>([]);
   const [player, setPlayer] = useState<Player>({
     id: 'player',
-    name: '您 (長輩玩家)',
+    name: '您 (玩家)',
     hand: [],
     revealed: [],
     score: 0
@@ -2768,7 +2768,7 @@ export default function App() {
             type="text"
             maxLength={10}
             value={playerName}
-            onChange={(e) => setUserName(e.target.value || '長輩玩家')}
+            onChange={(e) => setUserName(e.target.value || '玩家')}
             className={`w-full ${lobbySizes.inputPad} px-4 bg-[#0a1e3d] border border-blue-600 rounded-xl ${lobbySizes.inputText} text-center font-bold text-white placeholder-slate-400 focus:outline-none focus:border-yellow-500`}
             placeholder="輸入長輩的手遊暱稱"
           />
