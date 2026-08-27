@@ -1184,7 +1184,7 @@ export default function App() {
 
     if (mode === 'pairs' && pairsHandSize === 15) {
       // ── 15-card mode: check if the drawn card completes a claimable trio first ──
-      const trioOptions = checkTrioClaims(excludeLockedTrioCards(player.hand), drawn);
+      const trioOptions = checkTrioClaims(excludeLockedTrioCards(player.hand, playerTrioHints), drawn);
       if (trioOptions.length > 0) {
         setLastDiscardedCard(null);
         setPendingTrioOptions(trioOptions);
@@ -1342,10 +1342,12 @@ export default function App() {
     addLog(`【您打牌】打出了一張棄牌：[${cardToDiscard.name}]`);
     assertCardTotal('玩家丟牌', { playerHand: updatedHand, discardPile: newDiscardPile, pendingDrawn: null }, { side: 'player', kind: 'discard' });
     // The turn has now resolved (drawn card either discarded or absorbed) —
-    // this is the one point where re-deriving the 組 hint grouping from
-    // scratch is safe; see playerTrioHints's declaration for why it's NOT
-    // refreshed right after the draw itself.
-    if (mode === 'pairs' && pairsHandSize === 15) setPlayerTrioHints(find15TrioHints(updatedHand));
+    // this is the point where the 組 hint grouping refreshes to pick up the
+    // just-drawn card; see playerTrioHints's declaration for why it's NOT
+    // refreshed right after the draw itself. Passing the current
+    // playerTrioHints as the previous-groups baseline keeps any already-
+    // settled group intact — the drawn card only ever joins the strays.
+    if (mode === 'pairs' && pairsHandSize === 15) setPlayerTrioHints(find15TrioHints(updatedHand, playerTrioHints));
 
     // 10-card pairs mode: check if discarding leaves hand with no strays → win
     if (mode === 'pairs' && pairsHandSize === 10) {
@@ -1452,7 +1454,7 @@ export default function App() {
         // No stray match → fall through to computer draw turn
       } else if (mode === 'pairs' && pairsHandSize === 15) {
         // 15-card: AI checks if player's discard completes a claimable trio (碰一隻/吃一隻)
-        const trioOptions = checkTrioClaims(excludeLockedTrioCards(computer.hand), playerDiscard);
+        const trioOptions = checkTrioClaims(excludeLockedTrioCards(computer.hand, computerTrioHintsRef.current), playerDiscard);
         // 簡單 AI claims less often and picks randomly among options when it
         // does; 困難 AI claims almost every time and picks the option that
         // leaves it the strongest remaining hand.
@@ -1472,7 +1474,7 @@ export default function App() {
           };
           const newRevealed = [...computer.revealed, newMeld];
           setComputer(prev => ({ ...prev, hand: newHand, revealed: newRevealed }));
-          setComputerTrioHints(find15TrioHints(newHand));
+          setComputerTrioHints(find15TrioHints(newHand, computerTrioHintsRef.current));
           setLastDiscardedCard(null);
           const newDiscardPile = discardPile.filter(c => c.id !== playerDiscard.id);
           setDiscardPile(newDiscardPile);
@@ -1591,7 +1593,7 @@ export default function App() {
 
     if (mode === 'pairs' && pairsHandSize === 15) {
       // 15-card: self-drawn card may complete a claimable trio (碰一隻/吃一隻) — claim it immediately
-      const trioOptions = checkTrioClaims(excludeLockedTrioCards(computer.hand), drawn);
+      const trioOptions = checkTrioClaims(excludeLockedTrioCards(computer.hand, computerTrioHintsRef.current), drawn);
       if (trioOptions.length > 0) {
         // Self-drawn completions are always taken (no reason to pass on your
         // own turn) — difficulty only affects WHICH option when several exist.
@@ -1607,7 +1609,7 @@ export default function App() {
         };
         const newRevealed = [...computer.revealed, newMeld];
         setComputer(prev => ({ ...prev, hand: newHand, revealed: newRevealed }));
-        setComputerTrioHints(find15TrioHints(newHand));
+        setComputerTrioHints(find15TrioHints(newHand, computerTrioHintsRef.current));
         setLastDrawnCard(null);
         addLog(`🤖 電腦 AI 自摸【${option.actionLabel}】，湊成${option.meldName}。`);
         assertCardTotal(`電腦自摸${option.actionLabel}`, { computerHand: newHand, computerRevealed: newRevealed, pendingDrawn: null }, { side: 'computer', kind: 'draw' });
@@ -1872,10 +1874,12 @@ export default function App() {
     addLog(`🤖 電腦 AI 思考後打出了拋牌：[${discarded.name}]`);
     setGuideMessage(`電腦打出了 [${discarded.name}]，正在判斷您是否能配對...`);
     assertCardTotal('電腦丟牌', { computerHand: finalHand, discardPile: newDiscardPile }, { side: 'computer', kind: 'discard' });
-    // Turn resolved — safe point to re-derive the 組 hint grouping from
-    // scratch (see computerTrioHints's declaration for why it's frozen
-    // during the draw-then-decide window instead of refreshed every render).
-    if (mode === 'pairs' && pairsHandSize === 15) setComputerTrioHints(find15TrioHints(finalHand));
+    // Turn resolved — point where the 組 hint grouping refreshes to pick up
+    // whatever changed this turn (see computerTrioHints's declaration for why
+    // it's frozen during the draw-then-decide window instead of refreshed
+    // every render). Passing the current computerTrioHintsRef as the
+    // previous-groups baseline keeps any already-settled group intact.
+    if (mode === 'pairs' && pairsHandSize === 15) setComputerTrioHints(find15TrioHints(finalHand, computerTrioHintsRef.current));
 
     // Pairs mode: check if computer's hand is all-paired after discarding (10-card only)
     if (mode === 'pairs' && pairsHandSize === 10) {
@@ -1899,7 +1903,7 @@ export default function App() {
 
       if (mode === 'pairs' && pairsHandSize === 15) {
         // 15-card: check if the discard completes a claimable trio (碰一隻/吃一隻)
-        const trioOptions = checkTrioClaims(excludeLockedTrioCards(player.hand), discarded);
+        const trioOptions = checkTrioClaims(excludeLockedTrioCards(player.hand, playerTrioHints), discarded);
         if (trioOptions.length > 0) {
           setPendingTrioOptions(trioOptions);
           setGamePhase('waiting_player_action');
@@ -2221,7 +2225,7 @@ export default function App() {
     };
     const newRevealed = [...player.revealed, newMeld];
     setPlayer(prev => ({ ...prev, hand: nextHand, revealed: newRevealed }));
-    setPlayerTrioHints(find15TrioHints(nextHand));
+    setPlayerTrioHints(find15TrioHints(nextHand, playerTrioHints));
     addLog(`【${option.actionLabel}】您用 [${trigger.name}] 湊成${option.meldName}，鎖定亮出。`);
     assertCardTotal(`玩家${option.actionLabel}`, { playerHand: nextHand, playerRevealed: newRevealed, discardPile: newDiscardPile, pendingDrawn: null }, { side: 'player', kind: 'draw' });
     setLastDrawnCard(null);

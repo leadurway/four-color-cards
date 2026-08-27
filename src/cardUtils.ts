@@ -207,18 +207,32 @@ export function partitionTriosWithGroups(cards: Card[]): Card[][] | null {
 // Greedily finds non-overlapping trios among the 3 valid types. Returns the actual
 // groups (not just a flat id set) so callers can both lock discard on these cards
 // and keep each group's 3 cards seated together in the display order.
-export function find15TrioHints(rawHand: Card[]): Card[][] {
-  // Which specific physical cards end up grouped together must depend only on
-  // WHICH cards are in the hand, never on where they happen to sit in the
-  // array — hand gets re-sorted after every draw/discard (sortHandForDisplay),
-  // so grouping off raw array order let an unrelated draw/discard reshuffle
-  // an EXISTING, untouched group (e.g. a freshly drawn card would end up
-  // "stealing" a card out of an already-formed group instead of only ever
-  // joining the leftover strays). Sorting by id first makes every group a
-  // pure function of the card set, same fix as groupPairsMode already uses.
-  const hand = [...rawHand].sort((a, b) => a.id.localeCompare(b.id));
+export function find15TrioHints(rawHand: Card[], previousGroups: Card[][] = []): Card[][] {
+  // Recomputing from scratch every time — even deterministically (sorted by
+  // id) — still lets a newly drawn card "steal" a card out of an EXISTING,
+  // already-formed group: the id-sorted greedy pass has no notion of "this
+  // pair/group was already locked in on a prior turn," so a new arrival can
+  // simply out-sort an existing member and take its spot, leaving that
+  // member stranded and reassigned into a group with the new card instead.
+  // The fix is to carry the previous call's groups forward: any group whose
+  // 3 cards are ALL still in the hand gets kept exactly as-is (same physical
+  // cards, not just "some group of that shape"), and only the leftover cards
+  // — genuine strays plus anything newly drawn — get freshly evaluated. That
+  // guarantees a newly drawn card can only ever join the strays, never
+  // displace a card that was already part of a settled group.
+  const handIds = new Set(rawHand.map(c => c.id));
+  const preservedGroups = previousGroups.filter(g => g.length > 0 && g.every(c => handIds.has(c.id)));
+  const preservedIds = new Set(preservedGroups.flat().map(c => c.id));
+
+  // Which specific physical cards end up grouped together, among the leftover
+  // (non-preserved) cards, must depend only on WHICH cards those are, never
+  // on where they happen to sit in the array — hand gets re-sorted after
+  // every draw/discard (sortHandForDisplay). Sorting by id first makes each
+  // NEW group a pure function of the leftover card set, same fix
+  // groupPairsMode already uses.
+  const hand = rawHand.filter(c => !preservedIds.has(c.id)).sort((a, b) => a.id.localeCompare(b.id));
   const used = new Set<string>();
-  const groups: Card[][] = [];
+  const groups: Card[][] = [...preservedGroups];
 
   // a. 同色同字三張
   const byKey: { [key: string]: Card[] } = {};
@@ -299,8 +313,8 @@ export function scoreCardConnectivity(card: Card, hand: Card[]): number {
 // Cards already sitting in a complete "組" hint (find15TrioHints) are spoken for —
 // they shouldn't also be offered up to complete a *different* claim against an
 // incoming trigger card. Filter them out before scanning for claimable trios.
-export function excludeLockedTrioCards(hand: Card[]): Card[] {
-  const locked = new Set(find15TrioHints(hand).flat().map(c => c.id));
+export function excludeLockedTrioCards(hand: Card[], previousGroups: Card[][] = []): Card[] {
+  const locked = new Set(find15TrioHints(hand, previousGroups).flat().map(c => c.id));
   return hand.filter(c => !locked.has(c.id));
 }
 
