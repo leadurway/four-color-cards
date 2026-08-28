@@ -21,7 +21,7 @@ import {
   scoreCardConnectivity
 } from './cardUtils';
 import { Card, GameMode, GameState, Player, RevealedMeld } from './types';
-import { loadPlayerScore, savePlayerScore } from './scoreStorage';
+import { loadPlayerScore, savePlayerScore, loadPlayerName, savePlayerName } from './scoreStorage';
 import { FourColorCard } from './components/FourColorCard';
 import { 
   Sparkles, 
@@ -103,7 +103,7 @@ export default function App() {
   const [previousPage, setPreviousPage] = useState<'lobby' | 'game'>('lobby');
   
   // Custom Player Options
-  const [playerName, setUserName] = useState('玩家');
+  const [playerName, setUserName] = useState(() => loadPlayerName() || '玩家');
   const [playerAvatar, setUserAvatar] = useState('👨');
   const avatars = ['👵', '👴', '👩', '👨', '🀄', '🏆', '⭐'];
 
@@ -1004,6 +1004,11 @@ export default function App() {
     // hand this call is about to deal.
     pendingTurnTimeoutsRef.current.forEach(id => clearTimeout(id));
     pendingTurnTimeoutsRef.current.clear();
+
+    // Remember the name for next time the app opens — only on a genuinely
+    // new session (the lobby's own "開始遊戲"), not "繼續下局"/"重新發牌"
+    // which reuse the same name that's already saved.
+    if (isNewSession) savePlayerName(playerName);
 
     const fullDeck = createDeck();
     const shuffled = shuffle(fullDeck);

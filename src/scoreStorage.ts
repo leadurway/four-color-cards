@@ -29,3 +29,22 @@ export function savePlayerScore(name: string, score: number): void {
     // localStorage 不可用（例如無痕模式）時靜默略過，分數仍在當前 session 記憶體中可用。
   }
 }
+
+// 記住玩家上次輸入的暱稱，下次開啟頁面時直接帶入，不用重新輸入。
+const NAME_STORAGE_KEY = 'fourColorCards.lastPlayerName';
+
+export function loadPlayerName(): string | null {
+  try {
+    return localStorage.getItem(NAME_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function savePlayerName(name: string): void {
+  try {
+    localStorage.setItem(NAME_STORAGE_KEY, name);
+  } catch {
+    // localStorage 不可用時靜默略過。
+  }
+}
