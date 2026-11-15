@@ -384,8 +384,8 @@ export default function App() {
   // not to wrap on a 375px-wide screen (the narrowest current target).
   const lobbySizes = {
     compact: {
-      outerGap: 'gap-2', titlePad: 'py-1', titleSpace: 'space-y-1', titleText: 'text-3xl md:text-4xl', subText: 'text-base',
-      gridGap: 'gap-2', cardPad: 'p-3', cardSpace: 'space-y-2', avatarSize: 'h-11 w-11 text-2xl',
+      outerGap: 'gap-1.5', titlePad: 'py-0', titleSpace: 'space-y-1', titleText: 'text-3xl md:text-4xl', subText: 'text-base',
+      gridGap: 'gap-1.5', cardPad: 'p-3', cardSpace: 'space-y-2', avatarSize: 'h-11 w-11 text-2xl',
       inputPad: 'py-2.5', inputText: 'text-lg', modeGap: 'gap-1.5', modePad: 'py-2.5', modeTitle: 'text-lg', modeSub: 'text-base',
       smallBtnPad: 'py-2', smallBtnText: 'text-base', launcherPad: 'py-3.5', launcherText: 'text-2xl',
     },
@@ -394,14 +394,14 @@ export default function App() {
       // with its flanking icons on the same ~375-440px iPhone widths), not
       // height-bound, so growing it wraps to an extra line instead of filling
       // more height. Every other value here is free to grow with tier.
-      outerGap: 'gap-3', titlePad: 'py-1.5', titleSpace: 'space-y-1.5', titleText: 'text-3xl md:text-4xl', subText: 'text-base',
-      gridGap: 'gap-3', cardPad: 'p-4', cardSpace: 'space-y-3', avatarSize: 'h-12 w-12 text-3xl',
+      outerGap: 'gap-1.5', titlePad: 'py-0', titleSpace: 'space-y-1.5', titleText: 'text-3xl md:text-4xl', subText: 'text-base',
+      gridGap: 'gap-1.5', cardPad: 'p-4', cardSpace: 'space-y-3', avatarSize: 'h-12 w-12 text-3xl',
       inputPad: 'py-3', inputText: 'text-xl', modeGap: 'gap-2', modePad: 'py-3.5', modeTitle: 'text-xl', modeSub: 'text-base',
       smallBtnPad: 'py-2.5', smallBtnText: 'text-base', launcherPad: 'py-4', launcherText: 'text-3xl',
     },
     roomy: {
-      outerGap: 'gap-3', titlePad: 'py-2', titleSpace: 'space-y-2', titleText: 'text-3xl md:text-4xl', subText: 'text-base',
-      gridGap: 'gap-3', cardPad: 'p-4', cardSpace: 'space-y-4', avatarSize: 'h-14 w-14 text-4xl',
+      outerGap: 'gap-1.5', titlePad: 'py-0', titleSpace: 'space-y-2', titleText: 'text-3xl md:text-4xl', subText: 'text-base',
+      gridGap: 'gap-1.5', cardPad: 'p-4', cardSpace: 'space-y-4', avatarSize: 'h-14 w-14 text-4xl',
       inputPad: 'py-4', inputText: 'text-xl', modeGap: 'gap-3', modePad: 'py-4', modeTitle: 'text-2xl', modeSub: 'text-base',
       smallBtnPad: 'py-3', smallBtnText: 'text-base', launcherPad: 'py-4', launcherText: 'text-3xl',
     },
