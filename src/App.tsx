@@ -460,18 +460,12 @@ export default function App() {
 
   // Shared format for every game action button — 打出這張牌／摸牌 (ACTION BAR)
   // and 過／胡牌／槓／碰／吃 (the separate claim block) — in every game mode.
-  // Variant only picks the colors; shape and animation are identical. Size
-  // comes from the hand card size: 'bar' = height of one card width (the
-  // ACTION BAR), 'claim' = noticeably larger, since the claim block is its own
-  // panel and has room to spare. The label additionally caps itself to the
-  // button's own width via cqw (button is an inline-size container) so a long
-  // label such as 吃:車馬包 in a crowded single row shrinks to fit instead of
-  // overflowing.
-  const ACTION_BTN_SIZES = {
-    bar: { h: handCardDims.w, fs: gameMinPx(Math.min(handCardDims.w * 0.5, handCardDims.h * 0.34)) },
-    claim: { h: Math.round(handCardDims.w * 1.45), fs: gameMinPx(Math.min(handCardDims.w * 0.68, handCardDims.h * 0.46)) },
-  };
-  type ActionBtnSize = keyof typeof ACTION_BTN_SIZES;
+  // Variant only picks the colors; height (= one hand card width), font
+  // size, shape and animation are identical for all of them. The label
+  // additionally caps itself to the button's own width via cqw (button is an
+  // inline-size container) so a long label such as 吃:車馬包 in a crowded
+  // single row shrinks to fit instead of overflowing.
+  const actionBtnFontPx = gameMinPx(Math.min(handCardDims.w * 0.5, handCardDims.h * 0.34));
   const actionBtnClass = (variant: ActionBtnVariant) => {
     const base = 'flex-1 basis-0 min-w-0 rounded-xl border-2 flex items-center justify-center font-black leading-none whitespace-nowrap overflow-hidden transition-transform';
     switch (variant) {
@@ -481,13 +475,13 @@ export default function App() {
       case 'disabled': return `${base} bg-white/5 border-white/10 text-slate-400 cursor-not-allowed`;
     }
   };
-  const actionBtnStyle = (size: ActionBtnSize, animate: boolean): React.CSSProperties => ({
-    height: ACTION_BTN_SIZES[size].h,
+  const actionBtnStyle = (animate: boolean): React.CSSProperties => ({
+    height: handCardDims.w,
     containerType: 'inline-size',
     ...(animate ? { animation: 'bounceSmall 1s ease-in-out infinite' } : {}),
   });
-  const renderActionBtnLabel = (size: ActionBtnSize, label: string) => (
-    <span style={{ fontSize: `min(${ACTION_BTN_SIZES[size].fs}px, ${Math.floor(90 / Math.max(1, [...label].length))}cqw)` }}>
+  const renderActionBtnLabel = (label: string) => (
+    <span style={{ fontSize: `min(${actionBtnFontPx}px, ${Math.floor(90 / Math.max(1, [...label].length))}cqw)` }}>
       {label}
     </span>
   );
@@ -3646,7 +3640,7 @@ export default function App() {
 
                   {/* ACTION BAR — 打出這張牌 / 摸牌. Uses the same shared action-button format
                       (actionBtnClass / renderActionBtnLabel) as the separate claim block below
-                      (which uses the larger 'claim' size). */}
+                      */}
                   <div ref={actionBarRef} className="bg-black/30 px-1.5 py-2 flex items-center gap-1.5 border-t border-white/5 shrink-0">
                     {(() => {
                       const canPlay = !!selectedCardId && canDiscard && gamePhase === 'playing' && curPlayerId === 'player';
@@ -3656,18 +3650,18 @@ export default function App() {
                           <button
                             onClick={() => handlePlayerDiscard(selectedCardId!)}
                             disabled={!canPlay}
-                            style={actionBtnStyle('bar', canPlay)}
+                            style={actionBtnStyle(canPlay)}
                             className={actionBtnClass(canPlay ? 'primary' : 'disabled')}
                           >
-                            {renderActionBtnLabel('bar', '打出這張牌')}
+                            {renderActionBtnLabel('打出這張牌')}
                           </button>
                           <button
                             onClick={handlePlayerDraw}
                             disabled={!canDraw}
-                            style={actionBtnStyle('bar', canDraw)}
+                            style={actionBtnStyle(canDraw)}
                             className={actionBtnClass(canDraw ? 'primary' : 'disabled')}
                           >
-                            {renderActionBtnLabel('bar', deck.length > 0 ? `摸牌 ${deck.length}張` : '牌庫空')}
+                            {renderActionBtnLabel(deck.length > 0 ? `摸牌 ${deck.length}張` : '牌庫空')}
                           </button>
                         </>
                       );
@@ -3745,22 +3739,32 @@ export default function App() {
                   ...pendingTrioOptions.filter(o => o.actionLabel === '吃一隻' && !wouldTrioWin(o)).map((opt, i) => ({ key: `trioeat-${i}`, label: trioLabel(opt), variant: 'claim' as const, onClick: () => handlePlayerTrioAction(opt) })),
                   ...(mode === 'pairs' && pendingMoves?.canPong ? [{ key: 'paireat', label: `吃:${triggerChars(2)}`, variant: 'claim' as const, onClick: () => handlePlayerAction('pong') }] : []),
                 ];
-                // 順序：過（左，對應「打牌」的位置）→ 胡 > 槓 > 碰 > 吃（最重要的
-                // 動作排在「摸牌」的位置）。
-                const claimBtns: ClaimBtn[] = [
-                  { key: 'skip', label: '過', variant: 'neutral', onClick: handlePlayerSkip },
-                  ...huBtns, ...quadBtns, ...pongBtns, ...eatBtns,
-                ];
-
-                // 橫式：一律單排。直式：1–2 顆單排；3 顆以上照順序拆兩排，上排放
-                // 前一半（無法平分時上排多一顆）。每排各自平分該排寬度。
-                const splitAt = isPhoneLandscape || claimBtns.length <= 2 ? claimBtns.length : Math.ceil(claimBtns.length / 2);
-                const claimRows = [claimBtns.slice(0, splitAt), claimBtns.slice(splitAt)].filter(r => r.length > 0);
+                // 排列：過永遠在最左（上排第一顆），胡牌優先在最右——直式在右上
+                // 角、橫式在整排最右。其餘動作由左到右依 吃 → 碰 → 槓 排列。
+                //   • 橫式：一律單排：過、吃…、碰…、槓…、胡牌…
+                //   • 直式，≤2 顆：單排。
+                //   • 直式，≥3 顆且有胡牌：上排「過、胡牌」，下排放其餘吃／碰／槓。
+                //   • 直式，≥3 顆且沒有胡牌：照順序拆兩排，上排放前一半（無法平分
+                //     時上排多一顆）。
+                // 每排各自平分該排寬度。
+                const skipBtn: ClaimBtn = { key: 'skip', label: '過', variant: 'neutral', onClick: handlePlayerSkip };
+                const otherBtns: ClaimBtn[] = [...eatBtns, ...pongBtns, ...quadBtns];
+                const allBtns: ClaimBtn[] = [skipBtn, ...otherBtns, ...huBtns];
+                let claimRows: ClaimBtn[][];
+                if (isPhoneLandscape || allBtns.length <= 2) {
+                  claimRows = [allBtns];
+                } else if (huBtns.length > 0) {
+                  claimRows = [[skipBtn, ...huBtns], otherBtns];
+                } else {
+                  const splitAt = Math.ceil(allBtns.length / 2);
+                  claimRows = [allBtns.slice(0, splitAt), allBtns.slice(splitAt)];
+                }
+                claimRows = claimRows.filter(r => r.length > 0);
 
                 // 獨立的功能區塊，疊在打牌列（ACTION BAR）的位置上：頂端對齊打牌列
-                // 頂端、左右同寬，往下長（蓋住說明列）。按鈕比打牌列大（見
-                // ACTION_BTN_SIZES.claim），按鈕之間、按鈕與框之間都只留 4px。
-                // 若往下長會超出遊戲頁底部（例如兩排大按鈕），就整個往上推剛好
+                // 頂端、左右同寬，往下長（蓋住說明列）。按鈕高度跟打牌列一樣，
+                // 按鈕之間、按鈕與框之間都只留 4px。
+                // 若往下長會超出遊戲頁底部（例如兩排按鈕），就整個往上推剛好
                 // 貼齊底部，不讓第二排被切掉：translateY(min(0px, 可用高度 − 100%))，
                 // 100% 是框自己的高度，所以不必預先知道框有多高。
                 //
@@ -3797,10 +3801,10 @@ export default function App() {
                           <button
                             key={btn.key}
                             onClick={btn.onClick}
-                            style={actionBtnStyle('claim', btn.variant !== 'neutral')}
+                            style={actionBtnStyle(btn.variant !== 'neutral')}
                             className={actionBtnClass(btn.variant)}
                           >
-                            {renderActionBtnLabel('claim', btn.label)}
+                            {renderActionBtnLabel(btn.label)}
                           </button>
                         ))}
                       </div>
