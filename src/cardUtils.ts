@@ -331,6 +331,14 @@ export interface TrioClaimOption {
 const colorName = (color: CardColor) =>
   color === 'red' ? '紅' : color === 'yellow' ? '黃' : color === 'green' ? '綠' : '白';
 
+// 吃/碰湊組時，把湊進來的那張牌（對家打出或自己摸到的）放在中央顯示：
+// 手上的牌依階級排在兩側，觸發牌插在正中間（2 張手牌 → [低, 觸發, 高]）。
+export function centerTriggerCard(trigger: Card, fromHand: Card[]): Card[] {
+  const others = [...fromHand].sort((a, b) => a.order - b.order);
+  const mid = Math.ceil(others.length / 2);
+  return [...others.slice(0, mid), trigger, ...others.slice(mid)];
+}
+
 export function checkTrioClaims(hand: Card[], trigger: Card): TrioClaimOption[] {
   const options: TrioClaimOption[] = [];
 
@@ -342,7 +350,7 @@ export function checkTrioClaims(hand: Card[], trigger: Card): TrioClaimOption[] 
       kind: 'sameChar',
       actionLabel: '碰一隻',
       cardsToUse: use,
-      resultCards: [trigger, ...use],
+      resultCards: centerTriggerCard(trigger, use),
       meldName: `同色三張 [${trigger.name}*3]`,
       meldType: 'triple',
     });
@@ -358,7 +366,7 @@ export function checkTrioClaims(hand: Card[], trigger: Card): TrioClaimOption[] 
         kind: 'sequence',
         actionLabel: '吃一隻',
         cardsToUse: [c1, c2],
-        resultCards: [trigger, c1, c2].sort((a, b) => a.order - b.order),
+        resultCards: centerTriggerCard(trigger, [c1, c2]),
         meldName: `同色將士象 [${colorName(trigger.color)}帥仕相]`,
         meldType: 'consec_three',
       });
@@ -372,7 +380,7 @@ export function checkTrioClaims(hand: Card[], trigger: Card): TrioClaimOption[] 
         kind: 'sequence',
         actionLabel: '吃一隻',
         cardsToUse: [c1, c2],
-        resultCards: [trigger, c1, c2].sort((a, b) => a.order - b.order),
+        resultCards: centerTriggerCard(trigger, [c1, c2]),
         meldName: `同色車馬包 [${colorName(trigger.color)}車馬包]`,
         meldType: 'consec_three',
       });
@@ -385,7 +393,7 @@ export function checkTrioClaims(hand: Card[], trigger: Card): TrioClaimOption[] 
   sameRankDiffColor.forEach(c => { if (!colorMap.has(c.color)) colorMap.set(c.color, c); });
   if (colorMap.size >= 2) {
     const use = Array.from(colorMap.values()).slice(0, 2);
-    const resultCards = [trigger, ...use];
+    const resultCards = centerTriggerCard(trigger, use);
     options.push({
       kind: 'rainbow',
       actionLabel: '碰一隻',
@@ -770,7 +778,7 @@ export function checkAvailableMoves(
       eatSeqOptions.push({
         cardsToUse: [card1, card2],
         meldName: `同色將士象 [${triggerCard.color === 'red' ? '紅' : triggerCard.color === 'yellow' ? '黃' : triggerCard.color === 'green' ? '綠' : '白'}帥仕相]`,
-        resultCards: [triggerCard, card1, card2].sort((a,b) => a.order - b.order)
+        resultCards: centerTriggerCard(triggerCard, [card1, card2])
       });
     }
   } else if (triggerCard.order >= 4 && triggerCard.order <= 6) {
@@ -782,7 +790,7 @@ export function checkAvailableMoves(
       eatSeqOptions.push({
         cardsToUse: [card1, card2],
         meldName: `同色車馬包 [${triggerCard.color === 'red' ? '紅' : triggerCard.color === 'yellow' ? '黃' : triggerCard.color === 'green' ? '綠' : '白'}車馬包]`,
-        resultCards: [triggerCard, card1, card2].sort((a,b) => a.order - b.order)
+        resultCards: centerTriggerCard(triggerCard, [card1, card2])
       });
     }
   }

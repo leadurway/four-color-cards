@@ -1183,6 +1183,10 @@ export default function App() {
     setDrawnFromDeck(false);
     setSelectedCardId(null);
     setPendingMoves(null);
+    // 15 張玩法的湊組選項也要清掉——上一局若在選項還沒處理時就結束/返回大廳，
+    // 殘留的選項會在下一局（包括切換成 10 張玩法）一起跳出來，變成跟這局
+    // 桌面牌完全無關的按鈕。
+    setPendingTrioOptions([]);
     // In pairs mode player must draw first; in standard mode initial discard is allowed
     setCanDiscard(mode !== 'pairs');
     setHasDrawn(false);
@@ -3718,6 +3722,11 @@ export default function App() {
                   return nextHand.length === 0 || checkTriosWin(nextHand);
                 };
                 const claimTrigger = lastDrawnCard || lastDiscardedCard;
+                // 只顯示「用到目前這張桌面牌」的 15 張湊組選項（防呆：避免任何殘留
+                // 的舊選項跟這張牌無關卻被顯示出來）。
+                const trioOptions = mode === 'pairs' && pairsHandSize === 15 && claimTrigger
+                  ? pendingTrioOptions.filter(o => o.resultCards.some(c => c.id === claimTrigger.id))
+                  : [];
                 const chars = (cards: Card[]) => cards.map(c => c.character).join('');
                 const triggerChars = (n: number) => (claimTrigger ? claimTrigger.character.repeat(n) : '');
                 const trioLabel = (opt: TrioClaimOption) => `${opt.actionLabel === '碰一隻' ? '碰' : '吃'}:${chars(opt.resultCards)}`;
@@ -3725,18 +3734,18 @@ export default function App() {
                 type ClaimBtn = { key: string; label: string; variant: ActionBtnVariant; onClick: () => void };
                 const huBtns: ClaimBtn[] = [
                   ...(pendingMoves?.canHu ? [{ key: 'hu', label: '胡牌', variant: 'primary' as const, onClick: () => handlePlayerAction('hu') }] : []),
-                  ...pendingTrioOptions.filter(wouldTrioWin).map((opt, i) => ({ key: `triohu-${i}`, label: '胡牌', variant: 'primary' as const, onClick: () => handlePlayerTrioAction(opt) })),
+                  ...trioOptions.filter(wouldTrioWin).map((opt, i) => ({ key: `triohu-${i}`, label: '胡牌', variant: 'primary' as const, onClick: () => handlePlayerTrioAction(opt) })),
                 ];
                 const quadBtns: ClaimBtn[] = pendingMoves?.canQuad
                   ? [{ key: 'quad', label: `槓:${triggerChars(4)}`, variant: 'claim', onClick: () => handlePlayerAction('quad') }]
                   : [];
                 const pongBtns: ClaimBtn[] = [
                   ...(mode !== 'pairs' && pendingMoves?.canPong ? [{ key: 'pong', label: `碰:${triggerChars(3)}`, variant: 'claim' as const, onClick: () => handlePlayerAction('pong') }] : []),
-                  ...pendingTrioOptions.filter(o => o.actionLabel === '碰一隻' && !wouldTrioWin(o)).map((opt, i) => ({ key: `triopong-${i}`, label: trioLabel(opt), variant: 'claim' as const, onClick: () => handlePlayerTrioAction(opt) })),
+                  ...trioOptions.filter(o => o.actionLabel === '碰一隻' && !wouldTrioWin(o)).map((opt, i) => ({ key: `triopong-${i}`, label: trioLabel(opt), variant: 'claim' as const, onClick: () => handlePlayerTrioAction(opt) })),
                 ];
                 const eatBtns: ClaimBtn[] = [
                   ...(pendingMoves?.canEatSeq ? pendingMoves.eatSeqOptions : []).map((opt, i) => ({ key: `eatseq-${i}`, label: `吃:${chars(opt.resultCards)}`, variant: 'claim' as const, onClick: () => handlePlayerAction('eat', opt) })),
-                  ...pendingTrioOptions.filter(o => o.actionLabel === '吃一隻' && !wouldTrioWin(o)).map((opt, i) => ({ key: `trioeat-${i}`, label: trioLabel(opt), variant: 'claim' as const, onClick: () => handlePlayerTrioAction(opt) })),
+                  ...trioOptions.filter(o => o.actionLabel === '吃一隻' && !wouldTrioWin(o)).map((opt, i) => ({ key: `trioeat-${i}`, label: trioLabel(opt), variant: 'claim' as const, onClick: () => handlePlayerTrioAction(opt) })),
                   ...(mode === 'pairs' && pendingMoves?.canPong ? [{ key: 'paireat', label: `吃:${triggerChars(2)}`, variant: 'claim' as const, onClick: () => handlePlayerAction('pong') }] : []),
                 ];
                 // 排列：過永遠在最左（上排第一顆），胡牌優先在最右——直式在右上
