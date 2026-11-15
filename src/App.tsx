@@ -3975,9 +3975,10 @@ export default function App() {
           >
             <span style={{ fontSize: gameMinPx(Math.min(handCardDims.w * 0.88, handCardDims.h * 0.38)) }}>{eatPairAnimWho === 'player' ? '玩家' : '電腦'}</span>
             <span style={{ fontSize: gameMinPx(Math.min(handCardDims.w * 0.58, handCardDims.h * 0.25)) }}>
-              {/* 15 張湊組依實際牌型顯示：同色同字／同階三色 = 碰一隻，同色連續 =
-                  吃一隻（跟按鈕的 碰:/吃: 一致）。10 張配對（2 張）維持「吃一隻」。 */}
+              {/* 依實際牌型顯示，跟按鈕的 對:/碰:/吃: 一致：10 張配對（2 張）=
+                  對一隻；15 張同色同字／同階三色 = 碰一隻，同色連續 = 吃一隻。 */}
               {(() => {
+                if (eatPairAnimCards.length === 2) return '對一隻';
                 const [a, b, c] = eatPairAnimCards;
                 const kind = eatPairAnimCards.length === 3 ? classifyTrio(a, b, c) : null;
                 return kind === 'sameChar' || kind === 'rainbow' ? '碰一隻' : '吃一隻';
