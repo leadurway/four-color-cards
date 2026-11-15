@@ -3748,27 +3748,16 @@ export default function App() {
                   ...trioOptions.filter(o => o.actionLabel === '吃一隻' && !wouldTrioWin(o)).map((opt, i) => ({ key: `trioeat-${i}`, label: trioLabel(opt), variant: 'claim' as const, onClick: () => handlePlayerTrioAction(opt) })),
                   ...(mode === 'pairs' && pendingMoves?.canPong ? [{ key: 'paireat', label: `吃:${triggerChars(2)}`, variant: 'claim' as const, onClick: () => handlePlayerAction('pong') }] : []),
                 ];
-                // 排列：過永遠在最左（上排第一顆），胡牌優先在最右——直式在右上
-                // 角、橫式在整排最右。其餘動作由左到右依 吃 → 碰 → 槓 排列。
-                //   • 橫式：一律單排：過、吃…、碰…、槓…、胡牌…
-                //   • 直式，≤2 顆：單排。
-                //   • 直式，≥3 顆且有胡牌：上排「過、胡牌」，下排放其餘吃／碰／槓。
-                //   • 直式，≥3 顆且沒有胡牌：照順序拆兩排，上排放前一半（無法平分
-                //     時上排多一顆）。
+                // 排列順序固定：吃 → 碰 → 槓 → 過 → 胡牌。
+                //   • 橫式：全部排成一排，平分寬度。
+                //   • 直式，1–2 顆：排成一排。
+                //   • 直式，≥3 顆：照順序拆兩排，上排放前一半（無法平分時上排多一
+                //     顆），下排放其餘（3→2/1、4→2/2、5→3/2）。最多兩排。
                 // 每排各自平分該排寬度。
                 const skipBtn: ClaimBtn = { key: 'skip', label: '過', variant: 'neutral', onClick: handlePlayerSkip };
-                const otherBtns: ClaimBtn[] = [...eatBtns, ...pongBtns, ...quadBtns];
-                const allBtns: ClaimBtn[] = [skipBtn, ...otherBtns, ...huBtns];
-                let claimRows: ClaimBtn[][];
-                if (isPhoneLandscape || allBtns.length <= 2) {
-                  claimRows = [allBtns];
-                } else if (huBtns.length > 0) {
-                  claimRows = [[skipBtn, ...huBtns], otherBtns];
-                } else {
-                  const splitAt = Math.ceil(allBtns.length / 2);
-                  claimRows = [allBtns.slice(0, splitAt), allBtns.slice(splitAt)];
-                }
-                claimRows = claimRows.filter(r => r.length > 0);
+                const allBtns: ClaimBtn[] = [...eatBtns, ...pongBtns, ...quadBtns, skipBtn, ...huBtns];
+                const splitAt = isLandscape || allBtns.length <= 2 ? allBtns.length : Math.ceil(allBtns.length / 2);
+                const claimRows = [allBtns.slice(0, splitAt), allBtns.slice(splitAt)].filter(r => r.length > 0);
 
                 // 獨立的功能區塊，疊在打牌列（ACTION BAR）的位置上：頂端對齊打牌列
                 // 頂端、左右同寬，往下長（蓋住說明列）。按鈕高度跟打牌列一樣，
