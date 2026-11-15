@@ -57,15 +57,30 @@ export interface PairsGrouping {
 
 // For 10-card pairs mode: triple = 1 pair + 1 stray; quad = 2 pairs.
 // quads/triples arrays are always empty after decomposition.
-export function groupPairsMode(hand: Card[]): PairsGrouping {
+//
+// `previousPairs` (optional): the pairs from the last grouping of this same
+// hand. Any of those pairs whose 2 cards are BOTH still in the hand is kept
+// exactly as-is (same physical cards), and only the remaining cards get
+// grouped fresh. Without it, which copy of a 3-of-a-kind counts as "the stray"
+// is decided by card id alone — so drawing a 3rd copy whose id happens to sort
+// before one of an existing pair's cards would steal that card's spot,
+// visibly breaking up the already-formed pair and badging the new card as
+// paired instead. Same fix find15TrioHints uses for 15-card 組.
+export function groupPairsMode(hand: Card[], previousPairs: Card[][] = []): PairsGrouping {
+  const handIds = new Set(hand.map(c => c.id));
+  const keptPairs = previousPairs.filter(p =>
+    p.length === 2 && p.every(c => handIds.has(c.id)) &&
+    p[0].color === p[1].color && p[0].character === p[1].character && p[0].id !== p[1].id);
+  const keptIds = new Set(keptPairs.flat().map(c => c.id));
+
   const groupsMap: { [key: string]: Card[] } = {};
-  hand.forEach(card => {
+  hand.filter(card => !keptIds.has(card.id)).forEach(card => {
     const key = `${card.color}-${card.character}`;
     if (!groupsMap[key]) groupsMap[key] = [];
     groupsMap[key].push(card);
   });
 
-  const pairs: Card[][] = [];
+  const pairs: Card[][] = [...keptPairs];
   const strays: Card[] = [];
 
   Object.values(groupsMap).forEach(rawCards => {

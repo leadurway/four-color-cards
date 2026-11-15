@@ -154,6 +154,14 @@ export default function App() {
   // resolves to the live values instead of the stale closure.
   const deckRef = useRef(deck);
   const playerRef = useRef(player);
+  // 10-card 對 grouping memory: the pairs from the player's last displayed
+  // grouping, fed back into groupPairsMode so an already-formed pair is never
+  // broken up when a 3rd copy of the same card arrives (see groupPairsMode's
+  // previousPairs). Updated every render from playerGrouping below; every
+  // player-side groupPairsMode call goes through groupPlayerPairs so the
+  // badges, discard lock and claim checks all agree on which copy is the stray.
+  const playerPairsRef = useRef<Card[][]>([]);
+  const groupPlayerPairs = (hand: Card[]) => groupPairsMode(hand, playerPairsRef.current);
   const computerRef = useRef(computer);
   const discardPileRef = useRef(discardPile);
   useEffect(() => { deckRef.current = deck; }, [deck]);
@@ -770,7 +778,7 @@ export default function App() {
   // Clear selected card if it becomes paired (e.g. after draw-and-pair)
   useEffect(() => {
     if (!selectedCardId || mode !== 'pairs') return;
-    const group = groupPairsMode(player.hand);
+    const group = groupPlayerPairs(player.hand);
     if (!group.strays.some(s => s.id === selectedCardId)) setSelectedCardId(null);
   }, [player.hand]);
 
@@ -1260,7 +1268,7 @@ export default function App() {
       }
     } else if (mode === 'pairs') {
       // ── 10-card mode: auto-pair strays ──
-      const pGroup = groupPairsMode(player.hand);
+      const pGroup = groupPlayerPairs(player.hand);
       const matchedCard = pGroup.strays.find(c => c.color === drawn.color && c.character === drawn.character);
 
       if (matchedCard) {
@@ -1282,7 +1290,7 @@ export default function App() {
         setPlayer(prev => ({ ...prev, hand: nextHand, revealed: newRevealed }));
         assertCardTotal('玩家自摸配對', { playerHand: nextHand, playerRevealed: newRevealed, pendingDrawn: null }, { side: 'player', kind: 'draw' });
 
-        const autoCheck = groupPairsMode(nextHand);
+        const autoCheck = groupPlayerPairs(nextHand);
         addLog(`【自摸】摸到 [${drawn.name}]，正好與手中 [${matchedCard.name}] 配對！（散牌由 ${pGroup.strays.length} 張變為 ${autoCheck.strays.length} 張）`);
         logStrayDelta('玩家自摸配對', pGroup.strays.length, autoCheck.strays.length);
 
@@ -1316,7 +1324,7 @@ export default function App() {
         setCanDiscard(true);
         setGuideMessage(`[${drawn.name}] 未配對，已加入手牌。`);
         {
-          const afterStrayCount = groupPairsMode(nextHand).strays.length;
+          const afterStrayCount = groupPlayerPairs(nextHand).strays.length;
           addLog(`【摸牌】摸到 [${drawn.name}]，未能配對，已加入手牌。（散牌由 ${pGroup.strays.length} 張變為 ${afterStrayCount} 張）`);
           logStrayDelta('玩家摸牌-加入手牌', pGroup.strays.length, afterStrayCount);
         }
@@ -1355,7 +1363,7 @@ export default function App() {
 
     // In 10-card pairs mode, only stray (unpaired) cards can be discarded
     if (mode === 'pairs' && pairsHandSize === 10) {
-      const dGroup = groupPairsMode(player.hand);
+      const dGroup = groupPlayerPairs(player.hand);
       if (!dGroup.strays.some(s => s.id === cardId)) return;
     }
 
@@ -1391,7 +1399,7 @@ export default function App() {
 
     // 10-card pairs mode: check if discarding leaves hand with no strays → win
     if (mode === 'pairs' && pairsHandSize === 10) {
-      const afterGroup = groupPairsMode(updatedHand);
+      const afterGroup = groupPlayerPairs(updatedHand);
       if (afterGroup.strays.length === 0 && updatedHand.length > 0) {
         handleWin('player', 'pairs', '恭喜！您打出多餘單張後，手中所有散牌均已配對完畢，宣告勝出！', [], { hand: updatedHand, revealed: player.revealed, wasSelfDraw: true });
         return;
@@ -1959,7 +1967,7 @@ export default function App() {
         // the player's LAST remaining stray, claiming it completes all 5
         // pairs — offer 胡 instead of a plain 吃一隻 so the player explicitly
         // declares the win, matching how 傳統吃碰 offers a distinct 胡 button.
-        const pGroup = groupPairsMode(player.hand);
+        const pGroup = groupPlayerPairs(player.hand);
         const canPair = pGroup.strays.some(c => c.color === discarded.color && c.character === discarded.character);
         const wouldWin = canPair && pGroup.strays.length === 1;
 
@@ -2017,7 +2025,7 @@ export default function App() {
     if (actionType === 'pong') {
       if (mode === 'pairs') {
         // Complete the pair match safely
-        const pGroup = groupPairsMode(player.hand);
+        const pGroup = groupPlayerPairs(player.hand);
         // Find in strays first, fallback to any matching card in hand
         let matchCard = pGroup.strays.find(c => c.color === trigger.color && c.character === trigger.character);
         if (!matchCard) {
@@ -2053,7 +2061,7 @@ export default function App() {
           setEatPairAnimSource('電腦出牌');
           setShowEatPairAnim(true);
 
-          const checkGroup = groupPairsMode(nextHand);
+          const checkGroup = groupPlayerPairs(nextHand);
           if (checkGroup.strays.length === 0) {
             scheduleTurnTimeout(() => {
               setShowEatPairAnim(false);
@@ -2200,7 +2208,7 @@ export default function App() {
         // 10-card 抓對子: 宣告胡牌，用觸發牌完成最後一對散牌（此按鈕只在
         // wouldWin 成立時才會出現，見 handlePlayerDiscard 的 discard-reaction
         // 判斷，所以這裡必定能找到相符的最後一張散牌）。
-        const pGroup = groupPairsMode(player.hand);
+        const pGroup = groupPlayerPairs(player.hand);
         let matchCard = pGroup.strays.find(c => c.color === trigger.color && c.character === trigger.character);
         if (!matchCard) matchCard = player.hand.find(c => c.color === trigger.color && c.character === trigger.character);
         if (matchCard) {
@@ -2531,7 +2539,8 @@ export default function App() {
   // Include lastDrawnCard when it is pending (not yet merged into player.hand)
   const huCheckHand = lastDrawnCard && drawnFromDeck ? [...player.hand, lastDrawnCard] : player.hand;
   const activeHuCheck = solveHu(huCheckHand, player.revealed);
-  const playerGrouping = groupPairsMode(player.hand);
+  const playerGrouping = groupPlayerPairs(player.hand);
+  playerPairsRef.current = playerGrouping.pairs;
   const computerGrouping = groupPairsMode(computer.hand);
   // Only discard-claimed melds (碰/吃) count as 露牌 — self-formed ones render
   // inline in the computer's own hand-fan (cheat mode) instead.
