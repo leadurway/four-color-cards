@@ -97,6 +97,9 @@ function useScaleToFit(refWidth: number, active: boolean, isTabletDevice: boolea
   return { scale, naturalH, contentRef, outerRef };
 }
 
+// Color scheme of the shared game action buttons (see actionBtnClass).
+type ActionBtnVariant = 'primary' | 'claim' | 'neutral' | 'disabled';
+
 export default function App() {
   // Navigation Router & Setup State
   const [activePage, setActivePage] = useState<'lobby' | 'game' | 'rules'>('lobby');
@@ -454,6 +457,36 @@ export default function App() {
   const GAME_MIN_TEXT_PX = GAME_DESK_LABEL_PX;
   const gameMinPx = (px: number) => Math.max(px, GAME_MIN_TEXT_PX);
   const gameMinClass = (_phoneClass: string) => (isPhoneSized ? 'text-base' : 'text-2xl');
+
+  // Shared format for every game action button — 打牌／摸牌 (ACTION BAR) and
+  // 過／胡牌／槓／碰／吃 (claim overlay) — in every game mode. Variant only
+  // picks the colors; height, font size, shape and animation are identical.
+  // Height = hand card width (same as before for all of them). Font size is
+  // one formula for all, tied to card size like the claim buttons always were
+  // (打牌／摸牌 used to have a fixed clamp(1rem,5vw,1.5rem) that stayed small
+  // on tablet/PC). The label additionally caps itself to the button's own
+  // width via cqw (button is an inline-size container) so a long label such as
+  // 吃:車馬包 in a crowded single row shrinks to fit instead of overflowing.
+  const actionBtnFontPx = gameMinPx(Math.min(handCardDims.w * 0.5, handCardDims.h * 0.34));
+  const actionBtnClass = (variant: ActionBtnVariant) => {
+    const base = 'flex-1 basis-0 min-w-0 rounded-xl border-2 flex items-center justify-center font-black leading-none whitespace-nowrap overflow-hidden transition-transform';
+    switch (variant) {
+      case 'primary': return `${base} bg-red-600 hover:bg-red-500 border-red-400 text-white ring-2 ring-red-300 shadow-lg active:scale-95`;
+      case 'claim': return `${base} bg-yellow-400 hover:bg-yellow-300 border-white text-black shadow-md active:scale-95`;
+      case 'neutral': return `${base} bg-slate-600 hover:bg-slate-500 border-slate-400 text-white active:scale-95`;
+      case 'disabled': return `${base} bg-white/5 border-white/10 text-slate-400 cursor-not-allowed`;
+    }
+  };
+  const actionBtnStyle = (animate: boolean): React.CSSProperties => ({
+    height: handCardDims.w,
+    containerType: 'inline-size',
+    ...(animate ? { animation: 'bounceSmall 1s ease-in-out infinite' } : {}),
+  });
+  const renderActionBtnLabel = (label: string) => (
+    <span style={{ fontSize: `min(${actionBtnFontPx}px, ${Math.floor(90 / Math.max(1, [...label].length))}cqw)` }}>
+      {label}
+    </span>
+  );
 
   // Animation overlays
   const [showEatPairAnim, setShowEatPairAnim] = useState(false);
@@ -2261,18 +2294,6 @@ export default function App() {
     }, 3000);
   };
 
-  // Human manual trigger of WIN (HU)
-  const handleDeclareHuSelf = () => {
-    playSound('click');
-    const result = solveHu(player.hand, player.revealed);
-    if (result.canHu) {
-      handleWin('player', 'hu', result.explanation);
-    } else {
-      playSound('lose');
-      setGuideMessage('尚未達成胡牌條件（需完整分組且達 10 胡）。');
-      addLog(`[宣告失敗] ${result.explanation}`);
-    }
-  };
 
   // Player skips matching option trigger
   const handlePlayerSkip = () => {
@@ -3619,47 +3640,35 @@ export default function App() {
                       })}
                     </div>
 
-                  {/* ACTION BAR — 打出這張牌 and 摸牌 share the same size/color scheme */}
-                  <div ref={actionBarRef} className="bg-black/30 px-1.5 py-2 flex items-center gap-1 border-t border-white/5 shrink-0">
-                    <button
-                      onClick={() => handlePlayerDiscard(selectedCardId!)}
-                      disabled={!selectedCardId || !canDiscard || gamePhase !== 'playing' || curPlayerId !== 'player'}
-                      style={{
-                        height: handCardDims.w,
-                        ...(selectedCardId && canDiscard && gamePhase === 'playing' && curPlayerId === 'player'
-                          ? { animation: 'bounceSmall 1s ease-in-out infinite' }
-                          : {}),
-                      }}
-                      className={`flex-1 rounded-xl transition-all flex items-center justify-center ${
-                        selectedCardId && canDiscard && gamePhase === 'playing' && curPlayerId === 'player'
-                          ? 'bg-red-600 border-2 border-red-400 text-white active:scale-95 ring-2 ring-red-300 shadow-lg'
-                          : 'bg-white/5 border-2 border-white/10 text-slate-400 cursor-not-allowed'
-                      }`}
-                    >
-                      <span className="font-black leading-none whitespace-nowrap" style={{ fontSize: 'clamp(1rem, 5vw, 1.5rem)' }}>
-                        打出這張牌
-                      </span>
-                    </button>
-
-                    <button
-                      onClick={handlePlayerDraw}
-                      disabled={gamePhase !== 'playing' || curPlayerId !== 'player' || lastDrawnCard !== null || hasDrawn || deck.length === 0}
-                      style={{
-                        height: handCardDims.w,
-                        ...(gamePhase === 'playing' && curPlayerId === 'player' && lastDrawnCard === null && !hasDrawn && deck.length > 0
-                          ? { animation: 'bounceSmall 1s ease-in-out infinite' }
-                          : {}),
-                      }}
-                      className={`flex-1 rounded-xl transition-all flex items-center justify-center ${
-                        gamePhase === 'playing' && curPlayerId === 'player' && lastDrawnCard === null && !hasDrawn && deck.length > 0
-                          ? 'bg-red-600 border-2 border-red-400 text-white active:scale-95 ring-2 ring-red-300 shadow-lg'
-                          : 'bg-white/5 border-2 border-white/10 text-slate-400 cursor-not-allowed'
-                      }`}
-                    >
-                      <span className="font-black leading-none whitespace-nowrap" style={{ fontSize: 'clamp(1rem, 5vw, 1.5rem)' }}>
-                        {deck.length > 0 ? `摸牌 ${deck.length}張` : '牌庫空'}
-                      </span>
-                    </button>
+                  {/* ACTION BAR — 打牌 / 摸牌. Uses the same shared action-button format
+                      (actionBtnClass / renderActionBtnLabel) as the claim overlay below, so
+                      both look identical and the overlay's buttons land exactly on top of
+                      these. */}
+                  <div ref={actionBarRef} className="bg-black/30 px-1.5 py-2 flex items-center gap-1.5 border-t border-white/5 shrink-0">
+                    {(() => {
+                      const canPlay = !!selectedCardId && canDiscard && gamePhase === 'playing' && curPlayerId === 'player';
+                      const canDraw = gamePhase === 'playing' && curPlayerId === 'player' && lastDrawnCard === null && !hasDrawn && deck.length > 0;
+                      return (
+                        <>
+                          <button
+                            onClick={() => handlePlayerDiscard(selectedCardId!)}
+                            disabled={!canPlay}
+                            style={actionBtnStyle(canPlay)}
+                            className={actionBtnClass(canPlay ? 'primary' : 'disabled')}
+                          >
+                            {renderActionBtnLabel('打牌')}
+                          </button>
+                          <button
+                            onClick={handlePlayerDraw}
+                            disabled={!canDraw}
+                            style={actionBtnStyle(canDraw)}
+                            className={actionBtnClass(canDraw ? 'primary' : 'disabled')}
+                          >
+                            {renderActionBtnLabel(deck.length > 0 ? `摸牌 ${deck.length}張` : '牌庫空')}
+                          </button>
+                        </>
+                      );
+                    })()}
                   </div>
 
                   {/* GUIDE BAR — very bottom of screen, above home indicator. Also carries the
@@ -3701,217 +3710,88 @@ export default function App() {
                   block inside the control panel, which pushed the hand/action area down
                   whenever it appeared) */}
               {(pendingMoves || pendingTrioOptions.length > 0) && gamePhase === 'waiting_player_action' && (() => {
-                // 依「吃碰過胡」順序分組顯示。canPong 這個旗標在 10 張抓對玩法代表
-                // 「吃一隻」（歸入吃組），在傳統吃碰玩法代表「碰」（歸入碰組，槓
-                // 也歸在這組）；15 張玩法的碰一隻/吃一隻改用 pendingTrioOptions，
-                // 依 actionLabel 拆到對應組別。過固定排第三，胡固定排最後——15
-                // 張玩法若某個湊組選項湊完後手牌直接歸零/整手成局，代表這步就是
-                // 胡牌，改標「胡！」歸進胡組（而不是原本的碰一隻/吃一隻），點擊
-                // 還是走 handlePlayerTrioAction，該函式本來就會在湊組後自動判斷
-                // 整手是否已胡。10 張抓對玩法同理：pendingMoves.canHu 在
-                // handlePlayerDiscard 判斷「這是最後一張散牌」時就會設為 true，
-                // huBtn 直接沿用同一顆 pendingMoves.canHu 旗標，點擊時
-                // handlePlayerAction('hu') 內部會依 mode 分流處理。
+                // 15 張玩法若某個湊組選項湊完後手牌直接歸零/整手成局，代表這步就是
+                // 胡牌，改標「胡牌」歸進胡組，點擊還是走 handlePlayerTrioAction（該
+                // 函式本來就會在湊組後自動判斷整手是否已胡）。10 張抓對玩法的
+                // pendingMoves.canHu 在 handlePlayerDiscard 判斷「這是最後一張散牌」
+                // 時就會設為 true，handlePlayerAction('hu') 內部再依 mode 分流。
+                // canPong 在 10 張抓對玩法代表「吃一隻」，在傳統玩法代表「碰」。
                 const wouldTrioWin = (opt: TrioClaimOption) => {
                   const nextHand = player.hand.filter(c => !opt.cardsToUse.map(u => u.id).includes(c.id));
                   return nextHand.length === 0 || checkTriosWin(nextHand);
                 };
-                const trioHuOptions = pendingTrioOptions.filter(wouldTrioWin);
-                const trioEatOptions = pendingTrioOptions.filter(o => o.actionLabel === '吃一隻' && !wouldTrioWin(o));
-                const trioPongOptions = pendingTrioOptions.filter(o => o.actionLabel === '碰一隻' && !wouldTrioWin(o));
-                const eatSeqOptions = pendingMoves?.canEatSeq ? pendingMoves.eatSeqOptions : [];
-                const pairsEatBtn = mode === 'pairs' && !!pendingMoves?.canPong;
-                const turnsPongBtn = mode !== 'pairs' && !!pendingMoves?.canPong;
-                const quadBtn = !!pendingMoves?.canQuad;
-                const huBtn = !!pendingMoves?.canHu;
+                const claimTrigger = lastDrawnCard || lastDiscardedCard;
+                const chars = (cards: Card[]) => cards.map(c => c.character).join('');
+                const triggerChars = (n: number) => (claimTrigger ? claimTrigger.character.repeat(n) : '');
+                const trioLabel = (opt: TrioClaimOption) => `${opt.actionLabel === '碰一隻' ? '碰' : '吃'}:${chars(opt.resultCards)}`;
 
-                const eatGroupCount = eatSeqOptions.length + trioEatOptions.length + (pairsEatBtn ? 1 : 0);
-                const pongGroupCount = trioPongOptions.length + (turnsPongBtn ? 1 : 0) + (quadBtn ? 1 : 0);
-                const huGroupCount = (huBtn ? 1 : 0) + trioHuOptions.length;
-                const totalClaimButtons = eatGroupCount + pongGroupCount + huGroupCount + 1; // +1：過永遠存在
+                type ClaimBtn = { key: string; label: string; variant: ActionBtnVariant; onClick: () => void };
+                const huBtns: ClaimBtn[] = [
+                  ...(pendingMoves?.canHu ? [{ key: 'hu', label: '胡牌', variant: 'primary' as const, onClick: () => handlePlayerAction('hu') }] : []),
+                  ...pendingTrioOptions.filter(wouldTrioWin).map((opt, i) => ({ key: `triohu-${i}`, label: '胡牌', variant: 'primary' as const, onClick: () => handlePlayerTrioAction(opt) })),
+                ];
+                const quadBtns: ClaimBtn[] = pendingMoves?.canQuad
+                  ? [{ key: 'quad', label: `槓:${triggerChars(4)}`, variant: 'claim', onClick: () => handlePlayerAction('quad') }]
+                  : [];
+                const pongBtns: ClaimBtn[] = [
+                  ...(mode !== 'pairs' && pendingMoves?.canPong ? [{ key: 'pong', label: `碰:${triggerChars(3)}`, variant: 'claim' as const, onClick: () => handlePlayerAction('pong') }] : []),
+                  ...pendingTrioOptions.filter(o => o.actionLabel === '碰一隻' && !wouldTrioWin(o)).map((opt, i) => ({ key: `triopong-${i}`, label: trioLabel(opt), variant: 'claim' as const, onClick: () => handlePlayerTrioAction(opt) })),
+                ];
+                const eatBtns: ClaimBtn[] = [
+                  ...(pendingMoves?.canEatSeq ? pendingMoves.eatSeqOptions : []).map((opt, i) => ({ key: `eatseq-${i}`, label: `吃:${chars(opt.resultCards)}`, variant: 'claim' as const, onClick: () => handlePlayerAction('eat', opt) })),
+                  ...pendingTrioOptions.filter(o => o.actionLabel === '吃一隻' && !wouldTrioWin(o)).map((opt, i) => ({ key: `trioeat-${i}`, label: trioLabel(opt), variant: 'claim' as const, onClick: () => handlePlayerTrioAction(opt) })),
+                  ...(mode === 'pairs' && pendingMoves?.canPong ? [{ key: 'paireat', label: `吃:${triggerChars(2)}`, variant: 'claim' as const, onClick: () => handlePlayerAction('pong') }] : []),
+                ];
+                // 順序：過（左，對應「打牌」的位置）→ 胡 > 槓 > 碰 > 吃（最重要的
+                // 動作排在「摸牌」的位置）。
+                const claimBtns: ClaimBtn[] = [
+                  { key: 'skip', label: '過', variant: 'neutral', onClick: handlePlayerSkip },
+                  ...huBtns, ...quadBtns, ...pongBtns, ...eatBtns,
+                ];
 
-                // 直式最多雙排：≤2 顆按鈕單排，≥3 顆兩排；橫式一律單排，避免
-                // 雙排時下排的按鈕在較矮的橫式可視高度中被截斷。
-                const claimRows = isPhoneLandscape ? 1 : (totalClaimButtons <= 2 ? 1 : 2);
-                const claimCols = Math.max(1, Math.ceil(totalClaimButtons / claimRows));
-                // 第一排按鈕高度固定跟摸牌按鈕一樣（不再依排數縮小），確保「Y高度
-                // 跟摸牌按鈕一樣」在單排/雙排時都成立。
-                const claimBtnHeight = handCardDims.w;
+                // 橫式：一律單排。直式：1–2 顆單排；3 顆以上照順序拆兩排，上排放
+                // 前一半（無法平分時上排多一顆）。每排各自平分該排寬度。
+                const splitAt = isPhoneLandscape || claimBtns.length <= 2 ? claimBtns.length : Math.ceil(claimBtns.length / 2);
+                const claimRows = [claimBtns.slice(0, splitAt), claimBtns.slice(splitAt)].filter(r => r.length > 0);
 
-                // 用 top（而非 bottom）定位：第一排的頂端固定對齊 ACTION BAR 按鈕的
-                // 頂端，之後不管有沒有第二排／說明文字，都是往下長、不影響第一排
-                // 位置——最下方的說明文字若因此被下方內容（回收牌列等）遮蔽也沒關係。
-                //
-                // 直接量測 actionBarRef 相對 gamePageRootRef（本疊層 absolute 定位
-                // 的 relative 容器）的位移，而不是用 window.innerHeight 換算：
-                // iPhone 橫式時 gamePageRootRef 本身可上下捲動（overflow-y-auto），
-                // 用 window.innerHeight 換算只在「完全沒捲動」時才準，一旦使用者
-                // 捲動頁面就會算錯，導致第一排跟摸牌按鈕對不齊——這正是這次要修
-                // 的問題。CSS 的 top 是相對容器「內容座標」（不受捲動影響）的位
-                // 移，但 getBoundingClientRect() 回傳的是「目前畫面上的視覺座
-                // 標」（會被捲動影響：視覺座標＝內容座標－scrollTop）。所以兩者
-                // 相減得到的只是「目前」視覺位移，還要加回 scrollTop 換算回內容
-                // 座標，才能得到不受捲動位置影響、可以直接當作 top 使用的值；
-                // ACTION BAR 自己的 py-2 上內距跟本框的 p-2 上內距相同（都是
-                // 8px），兩者互相抵銷，不需要再額外加減。
+                // 直接量測 ACTION BAR 相對 gamePageRootRef（本疊層 absolute 定位的
+                // relative 容器）的位置與寬度，讓第一排按鈕剛好蓋在「打牌／摸牌」
+                // 上。getBoundingClientRect() 是視覺座標（受捲動影響），CSS 的
+                // top 是內容座標，所以要加回 scrollTop（iPhone 橫式時本頁可捲動）。
+                // 本框跟 ACTION BAR 用相同的 border-t + px-1.5 + py-2，按鈕位置因此
+                // 完全重疊；黃框改用 ring（box-shadow）畫，不佔版面。
                 const actionBarRect = actionBarRef.current?.getBoundingClientRect();
                 const ancestorRect = gamePageRootRef.current?.getBoundingClientRect();
-                const boxTop = actionBarRect && ancestorRect
-                  ? Math.max(0, (actionBarRect.top - ancestorRect.top) + (gamePageRootRef.current?.scrollTop ?? 0))
-                  : 0;
-
-                let animIdx = 0;
+                const boxPos: React.CSSProperties = actionBarRect && ancestorRect
+                  ? {
+                      top: Math.max(0, (actionBarRect.top - ancestorRect.top) + (gamePageRootRef.current?.scrollTop ?? 0)),
+                      left: actionBarRect.left - ancestorRect.left,
+                      width: actionBarRect.width,
+                    }
+                  : { top: 0, left: 0, right: 0 };
 
                 return (
                   <div
-                    className="absolute inset-x-0 z-40 flex flex-col items-center pointer-events-none px-1.5"
-                    style={{ top: boxTop }}
+                    className="absolute z-40 bg-black/95 border-t border-transparent px-1.5 py-2 rounded-2xl ring-2 ring-yellow-500 shadow-2xl flex flex-col gap-1.5"
+                    style={boxPos}
                   >
-                    <div
-                      className="pointer-events-auto bg-black/95 border-2 border-yellow-500 p-2 rounded-2xl flex flex-col gap-2 shadow-2xl max-w-full"
-                      style={{ width: '100%' }}
-                    >
-                      <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${claimCols}, minmax(0, 1fr))` }}>
-                        {/* 吃 group */}
-                        {eatSeqOptions.map((opt, i) => (
+                    {claimRows.map((row, ri) => (
+                      <div key={ri} className="flex gap-1.5">
+                        {row.map(btn => (
                           <button
-                            key={`eatseq-${i}`}
-                            onClick={() => handlePlayerAction('eat', opt)}
-                            style={{
-                              height: claimBtnHeight,
-                              fontSize: gameMinPx(Math.min(handCardDims.w * 0.5, handCardDims.h * 0.34)),
-                              animation: `bounceSmall 0.85s ease-in-out infinite ${(animIdx++) * 0.1}s`,
-                            }}
-                            className="rounded-xl bg-yellow-400 hover:bg-yellow-300 border-2 border-white shadow-md flex items-center justify-center font-black text-black active:scale-95 transition-transform whitespace-nowrap"
+                            key={btn.key}
+                            onClick={btn.onClick}
+                            style={actionBtnStyle(btn.variant !== 'neutral')}
+                            className={actionBtnClass(btn.variant)}
                           >
-                            吃:{opt.resultCards.map(c=>c.character).join('')}
-                          </button>
-                        ))}
-                        {trioEatOptions.map((opt, i) => (
-                          <button
-                            key={`trioeat-${i}`}
-                            onClick={() => handlePlayerTrioAction(opt)}
-                            style={{
-                              height: claimBtnHeight,
-                              animation: `bounceSmall 0.85s ease-in-out infinite ${(animIdx++) * 0.1}s`,
-                            }}
-                            className="rounded-xl bg-yellow-400 hover:bg-yellow-300 border-2 border-white shadow-md flex flex-col items-center justify-center font-black text-black hover:scale-105 active:scale-95 transition-transform"
-                          >
-                            <span style={{ fontSize: gameMinPx(Math.min(handCardDims.w * 0.42, handCardDims.h * 0.28)) }}>{opt.actionLabel}</span>
-                            {/* Secondary detail line (which exact cards) under the already-floored
-                                主 action label above — phone keeps this one unfloored: the button's
-                                height equals handCardDims.w, which on phone is small enough that
-                                flooring both lines to 16px would overflow a two-line button. Tablet/
-                                PC buttons are large enough (handCardDims.w scales with the much
-                                bigger available space there) that flooring this too is safe. */}
-                            <span className="opacity-90" style={{ fontSize: isPhoneSized ? Math.min(handCardDims.w * 0.22, handCardDims.h * 0.15) : gameMinPx(Math.min(handCardDims.w * 0.22, handCardDims.h * 0.15)) }}>
-                              {opt.resultCards.map(c => c.name).join('‧')}
-                            </span>
-                          </button>
-                        ))}
-                        {pairsEatBtn && (
-                          <button
-                            onClick={() => handlePlayerAction('pong')}
-                            style={{
-                              height: claimBtnHeight,
-                              fontSize: gameMinPx(Math.min(handCardDims.w * 0.5, handCardDims.h * 0.34)),
-                              animation: `bounceSmall 0.85s ease-in-out infinite ${(animIdx++) * 0.1}s`,
-                            }}
-                            className="rounded-xl bg-yellow-400 hover:bg-yellow-300 border-2 border-white shadow-md flex items-center justify-center font-black text-black hover:scale-105 active:scale-95 transition-transform whitespace-nowrap"
-                          >
-                            吃一隻
-                          </button>
-                        )}
-
-                        {/* 碰 group（含槓） */}
-                        {trioPongOptions.map((opt, i) => (
-                          <button
-                            key={`triopong-${i}`}
-                            onClick={() => handlePlayerTrioAction(opt)}
-                            style={{
-                              height: claimBtnHeight,
-                              animation: `bounceSmall 0.85s ease-in-out infinite ${(animIdx++) * 0.1}s`,
-                            }}
-                            className="rounded-xl bg-yellow-400 hover:bg-yellow-300 border-2 border-white shadow-md flex flex-col items-center justify-center font-black text-black hover:scale-105 active:scale-95 transition-transform"
-                          >
-                            <span style={{ fontSize: gameMinPx(Math.min(handCardDims.w * 0.42, handCardDims.h * 0.28)) }}>{opt.actionLabel}</span>
-                            <span className="opacity-90" style={{ fontSize: isPhoneSized ? Math.min(handCardDims.w * 0.22, handCardDims.h * 0.15) : gameMinPx(Math.min(handCardDims.w * 0.22, handCardDims.h * 0.15)) }}>
-                              {opt.resultCards.map(c => c.name).join('‧')}
-                            </span>
-                          </button>
-                        ))}
-                        {turnsPongBtn && (
-                          <button
-                            onClick={() => handlePlayerAction('pong')}
-                            style={{
-                              height: claimBtnHeight,
-                              fontSize: gameMinPx(Math.min(handCardDims.w * 0.5, handCardDims.h * 0.34)),
-                              animation: `bounceSmall 0.85s ease-in-out infinite ${(animIdx++) * 0.1}s`,
-                            }}
-                            className="rounded-xl bg-yellow-400 hover:bg-yellow-300 border-2 border-white shadow-md flex items-center justify-center font-black text-black hover:scale-105 active:scale-95 transition-transform whitespace-nowrap"
-                          >
-                            碰
-                          </button>
-                        )}
-                        {quadBtn && (
-                          <button
-                            onClick={() => handlePlayerAction('quad')}
-                            style={{
-                              height: claimBtnHeight,
-                              fontSize: gameMinPx(Math.min(handCardDims.w * 0.5, handCardDims.h * 0.34)),
-                              animation: `bounceSmall 0.85s ease-in-out infinite ${(animIdx++) * 0.1}s`,
-                            }}
-                            className="rounded-xl bg-yellow-400 hover:bg-yellow-300 border-2 border-white shadow-md flex items-center justify-center font-black text-black hover:scale-105 active:scale-95 transition-transform whitespace-nowrap"
-                          >
-                            槓
-                          </button>
-                        )}
-
-                        {/* 過 group */}
-                        <button
-                          onClick={handlePlayerSkip}
-                          style={{
-                            height: claimBtnHeight,
-                            fontSize: gameMinPx(Math.min(handCardDims.w * 0.5, handCardDims.h * 0.34)),
-                          }}
-                          className="rounded-xl bg-slate-600 hover:bg-slate-500 border border-slate-400 font-bold text-white active:scale-95 flex items-center justify-center whitespace-nowrap"
-                        >
-                          過 (放棄)
-                        </button>
-
-                        {/* 胡 group：永遠最後 */}
-                        {huBtn && (
-                          <button
-                            onClick={() => handlePlayerAction('hu')}
-                            style={{
-                              height: claimBtnHeight,
-                              fontSize: gameMinPx(Math.min(handCardDims.w * 0.55, handCardDims.h * 0.38)),
-                              animation: 'bounceSmall 0.7s ease-in-out infinite',
-                            }}
-                            className="rounded-xl bg-red-600 hover:bg-red-500 border-2 border-red-400 text-white ring-2 ring-red-300 shadow-lg flex items-center justify-center font-black hover:scale-105 active:scale-95 transition-transform whitespace-nowrap"
-                          >
-                            胡！
-                          </button>
-                        )}
-                        {trioHuOptions.map((opt, i) => (
-                          <button
-                            key={`triohu-${i}`}
-                            onClick={() => handlePlayerTrioAction(opt)}
-                            style={{
-                              height: claimBtnHeight,
-                              fontSize: gameMinPx(Math.min(handCardDims.w * 0.55, handCardDims.h * 0.38)),
-                              animation: 'bounceSmall 0.7s ease-in-out infinite',
-                            }}
-                            className="rounded-xl bg-red-600 hover:bg-red-500 border-2 border-red-400 text-white ring-2 ring-red-300 shadow-lg flex items-center justify-center font-black hover:scale-105 active:scale-95 transition-transform whitespace-nowrap"
-                          >
-                            胡！
+                            {renderActionBtnLabel(btn.label)}
                           </button>
                         ))}
                       </div>
+                    ))}
 
-                      <div className={`${gameMinClass('text-base')} font-black text-yellow-400 border-t border-white/10 w-full text-center pt-1.5`}>
-                        🚨 雷達配對組信號{triggerSourceLabel ? `（${triggerSourceLabel}）` : ''}！請選擇：
-                      </div>
+                    <div className={`${gameMinClass('text-base')} font-black text-yellow-400 border-t border-white/10 w-full text-center pt-1.5`}>
+                      🚨 雷達配對組信號{triggerSourceLabel ? `（${triggerSourceLabel}）` : ''}！請選擇：
                     </div>
                   </div>
                 );
