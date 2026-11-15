@@ -257,8 +257,8 @@ export default function App() {
   const guideBarRef = useRef<HTMLDivElement>(null);
   // Positioning references for the claim (雷達配對) overlay: gamePageRootRef is
   // the `relative` containing block the overlay is absolutely positioned
-  // within, and actionBarRef / guideBarRef give the width it matches and the bottom edge it
-  // grows upward from. All are read via getBoundingClientRect() at render time and
+  // within, and actionBarRef is the 打出這張牌/摸牌 bar it sits on top of
+  // (same top edge and width). Both are read via getBoundingClientRect() at render time and
   // subtracted from each other rather than compared against window.innerHeight
   // — on iPhone landscape this root scrolls (overflow-y-auto), so its content
   // height can exceed the viewport, and an absolutely positioned descendant
@@ -3757,37 +3757,40 @@ export default function App() {
                 const splitAt = isPhoneLandscape || claimBtns.length <= 2 ? claimBtns.length : Math.ceil(claimBtns.length / 2);
                 const claimRows = [claimBtns.slice(0, splitAt), claimBtns.slice(splitAt)].filter(r => r.length > 0);
 
-                // 獨立的功能區塊：底邊貼齊畫面最下方（GUIDE BAR 底緣），往上長，
-                // 蓋住打牌列／說明列（必要時再往上蓋住部分手牌），左右跟 ACTION BAR
-                // 同寬。按鈕比打牌列大（見 ACTION_BTN_SIZES.claim），按鈕之間、按鈕
-                // 與框之間都只留 4px。
+                // 獨立的功能區塊，疊在打牌列（ACTION BAR）的位置上：頂端對齊打牌列
+                // 頂端、左右同寬，往下長（蓋住說明列）。按鈕比打牌列大（見
+                // ACTION_BTN_SIZES.claim），按鈕之間、按鈕與框之間都只留 4px。
+                // 若往下長會超出遊戲頁底部（例如兩排大按鈕），就整個往上推剛好
+                // 貼齊底部，不讓第二排被切掉：translateY(min(0px, 可用高度 − 100%))，
+                // 100% 是框自己的高度，所以不必預先知道框有多高。
                 //
-                // 位置用量測：guideBarRef／actionBarRef 相對 gamePageRootRef（本疊層
-                // absolute 定位的 relative 容器）。getBoundingClientRect() 是視覺座標
-                // （受捲動影響），CSS 的 top 是內容座標，所以要加回 scrollTop（iPhone
-                // 橫式時本頁可捲動）。top 設在 GUIDE BAR 底緣，再用 translateY(-100%)
-                // 讓整個框往上長，不必預先知道框的高度。
+                // 位置用量測：actionBarRef 相對 gamePageRootRef（本疊層 absolute 定位
+                // 的 relative 容器）。getBoundingClientRect() 是視覺座標（受捲動影
+                // 響），CSS 的 top 是內容座標，所以要加回 scrollTop（iPhone 橫式時
+                // 本頁可捲動）。
                 const actionBarRect = actionBarRef.current?.getBoundingClientRect();
-                const guideBarRect = guideBarRef.current?.getBoundingClientRect();
                 const ancestorRect = gamePageRootRef.current?.getBoundingClientRect();
-                const boxPos: React.CSSProperties = actionBarRect && guideBarRect && ancestorRect
-                  ? {
-                      top: (guideBarRect.bottom - ancestorRect.top) + (gamePageRootRef.current?.scrollTop ?? 0),
-                      left: actionBarRect.left - ancestorRect.left,
-                      width: actionBarRect.width,
-                      transform: 'translateY(-100%)',
-                    }
-                  : { bottom: 0, left: 0, right: 0 };
+                const rootEl = gamePageRootRef.current;
+                let boxPos: React.CSSProperties = { top: 0, left: 0, right: 0 };
+                if (actionBarRect && ancestorRect && rootEl) {
+                  const top = Math.max(0, (actionBarRect.top - ancestorRect.top) + rootEl.scrollTop);
+                  // 直式：本頁不捲動，用 clientHeight（不能用 scrollHeight——本框自己
+                  // 溢出時也會被算進 scrollHeight，等於沒有界線）。iPhone 橫式本頁可
+                  // 捲動，用 scrollHeight，溢出的部分捲動就看得到。
+                  const available = (isPhoneLandscape ? rootEl.scrollHeight : rootEl.clientHeight) - top;
+                  boxPos = {
+                    top,
+                    left: actionBarRect.left - ancestorRect.left,
+                    width: actionBarRect.width,
+                    transform: `translateY(min(0px, calc(${available}px - 100%)))`,
+                  };
+                }
 
                 return (
                   <div
                     className="absolute z-40 bg-black/95 border-2 border-yellow-500 p-1 rounded-2xl shadow-2xl flex flex-col gap-1"
-                    style={{ ...boxPos, paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 0.25rem)' }}
+                    style={boxPos}
                   >
-                    <div className={`${gameMinClass('text-base')} font-black text-yellow-400 w-full text-center leading-tight py-0.5`}>
-                      🚨 雷達配對組信號{triggerSourceLabel ? `（${triggerSourceLabel}）` : ''}！請選擇：
-                    </div>
-
                     {claimRows.map((row, ri) => (
                       <div key={ri} className="flex gap-1">
                         {row.map(btn => (
@@ -3802,6 +3805,10 @@ export default function App() {
                         ))}
                       </div>
                     ))}
+
+                    <div className={`${gameMinClass('text-base')} font-black text-yellow-400 w-full text-center leading-tight py-0.5`}>
+                      🚨 雷達配對組信號{triggerSourceLabel ? `（${triggerSourceLabel}）` : ''}！請選擇：
+                    </div>
                   </div>
                 );
               })()}
