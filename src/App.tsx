@@ -3656,12 +3656,15 @@ export default function App() {
                       */}
                   <div ref={actionBarRef} className="bg-black/30 px-1.5 py-2 flex items-center gap-1.5 border-t border-white/5 shrink-0">
                     {(() => {
-                      const canPlay = !!selectedCardId && canDiscard && gamePhase === 'playing' && curPlayerId === 'player';
+                      // 輪到玩家打牌時，不論是否已選牌，「打出這張牌」都亮起（紅底紅框
+                      // ＋跳動）提示該出牌了；還沒選牌時按下去不會出牌（下方說明列已
+                      // 提示「請點一張牌，再點擊打出」）。
+                      const canPlay = canDiscard && gamePhase === 'playing' && curPlayerId === 'player';
                       const canDraw = gamePhase === 'playing' && curPlayerId === 'player' && lastDrawnCard === null && !hasDrawn && deck.length > 0;
                       return (
                         <>
                           <button
-                            onClick={() => handlePlayerDiscard(selectedCardId!)}
+                            onClick={() => { if (selectedCardId) handlePlayerDiscard(selectedCardId); }}
                             disabled={!canPlay}
                             style={actionBtnStyle(canPlay)}
                             className={actionBtnClass(canPlay ? 'primary' : 'disabled')}
