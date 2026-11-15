@@ -2623,6 +2623,10 @@ export default function App() {
   // 這個公式算出來的寬度可能超過扣掉左右內距（px-6，共 48px）後的可用寬
   // 度，一併夾在這個上限內避免左右溢出。
   const celebrationBoxW = Math.min(handCardDims.h * 1.7, celebrationMaxW - 48);
+  // 積分計算資訊框本身改用較寬的寬度：撐滿可用寬度（扣掉左右 px-6 內距），
+  // 但最寬 520px（平板/電腦的短邊很寬，撐滿會讓左右兩欄文字離太遠），且不
+  // 小於原本的共用寬度。繼續下局按鈕／胡牌徽章仍用 celebrationBoxW。
+  const celebrationScoreBoxW = Math.max(celebrationBoxW, Math.min(celebrationMaxW - 48, 520));
   // 手露牌小方牌統一大小：不論目前是 10 張還是 15 張玩法，方牌尺寸固定以
   // 「15 張玩法在目前可用寬度下應有的大小」為準（即永遠除以 15 格計算）
   // ——否則 10 張玩法只需除 10 格，方牌會比 15 張玩法明顯大，兩種玩法的
@@ -4096,7 +4100,7 @@ export default function App() {
             {winScore && (
               <div
                 className="bg-black/55 border border-emerald-500/30 rounded-2xl px-4 py-3 text-left"
-                style={{ animation: 'fadeInUp 0.5s ease 0.7s both', width: celebrationBoxW }}
+                style={{ animation: 'fadeInUp 0.5s ease 0.7s both', width: celebrationScoreBoxW }}
               >
                 <p className="text-emerald-300 font-black text-base text-center mb-1.5 tracking-wide">💰 積分計算</p>
                 <ul className="space-y-0.5 mb-1.5">
