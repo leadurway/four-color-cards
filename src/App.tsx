@@ -3258,7 +3258,7 @@ export default function App() {
               <div className={`flex-1 flex flex-col overflow-hidden mx-auto ${isPhoneLandscape ? '' : 'min-h-0'} ${useWideLayout ? 'w-full' : 'max-w-lg'}`}>
 
                 {/* ① 遊戲頁面 — Game Display Panel */}
-                <div className="shrink-0 flex flex-col px-3 pt-2 pb-1.5 space-y-1.5">
+                <div className="shrink-0 flex flex-col px-3 pt-1.5 space-y-1.5">
 
                 {/* AI / OPPONENT STATUS (Top) */}
                 <div className={`bg-black/35 p-2 rounded-2xl border border-white/5 space-y-1 ${gameMinClass('text-sm')} relative select-none`}>
@@ -3538,7 +3538,7 @@ export default function App() {
                       to collect as a big dead gap below the guide bar — most visible on iPad
                       portrait, where the 10/15-column width reference leaves a lot of unused
                       height. Centering distributes that slack evenly above/below instead. */}
-                  <div className={`flex-1 flex flex-col px-1 pt-1 pb-0 ${isPhoneSized ? 'overflow-hidden' : 'overflow-y-auto overflow-x-hidden justify-center'} ${isPhoneLandscape ? '' : 'min-h-0'}`}>
+                  <div className={`flex-1 flex flex-col px-1 pt-0.5 pb-0 ${isPhoneSized ? 'overflow-hidden' : 'overflow-y-auto overflow-x-hidden justify-center'} ${isPhoneLandscape ? '' : 'min-h-0'}`}>
                     <div
                       ref={handContainerRef}
                       className="shrink-0 grid justify-start content-start gap-x-[1px] gap-y-2.5 overflow-x-auto overflow-y-hidden py-1"
