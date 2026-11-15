@@ -3746,7 +3746,7 @@ export default function App() {
                 const eatBtns: ClaimBtn[] = [
                   ...(pendingMoves?.canEatSeq ? pendingMoves.eatSeqOptions : []).map((opt, i) => ({ key: `eatseq-${i}`, label: `吃:${chars(opt.resultCards)}`, variant: 'claim' as const, onClick: () => handlePlayerAction('eat', opt) })),
                   ...trioOptions.filter(o => o.actionLabel === '吃一隻' && !wouldTrioWin(o)).map((opt, i) => ({ key: `trioeat-${i}`, label: trioLabel(opt), variant: 'claim' as const, onClick: () => handlePlayerTrioAction(opt) })),
-                  ...(mode === 'pairs' && pendingMoves?.canPong ? [{ key: 'paireat', label: `吃:${triggerChars(2)}`, variant: 'claim' as const, onClick: () => handlePlayerAction('pong') }] : []),
+                  ...(mode === 'pairs' && pendingMoves?.canPong ? [{ key: 'paireat', label: `對:${triggerChars(2)}`, variant: 'claim' as const, onClick: () => handlePlayerAction('pong') }] : []),
                 ];
                 // 排列順序固定：吃 → 碰 → 槓 → 過 → 胡牌。
                 //   • 橫式：全部排成一排，平分寬度。
@@ -3974,7 +3974,15 @@ export default function App() {
             }}
           >
             <span style={{ fontSize: gameMinPx(Math.min(handCardDims.w * 0.88, handCardDims.h * 0.38)) }}>{eatPairAnimWho === 'player' ? '玩家' : '電腦'}</span>
-            <span style={{ fontSize: gameMinPx(Math.min(handCardDims.w * 0.58, handCardDims.h * 0.25)) }}>吃一隻</span>
+            <span style={{ fontSize: gameMinPx(Math.min(handCardDims.w * 0.58, handCardDims.h * 0.25)) }}>
+              {/* 15 張湊組依實際牌型顯示：同色同字／同階三色 = 碰一隻，同色連續 =
+                  吃一隻（跟按鈕的 碰:/吃: 一致）。10 張配對（2 張）維持「吃一隻」。 */}
+              {(() => {
+                const [a, b, c] = eatPairAnimCards;
+                const kind = eatPairAnimCards.length === 3 ? classifyTrio(a, b, c) : null;
+                return kind === 'sameChar' || kind === 'rainbow' ? '碰一隻' : '吃一隻';
+              })()}
+            </span>
           </div>
         </div>
       )}
