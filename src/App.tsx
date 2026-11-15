@@ -257,8 +257,8 @@ export default function App() {
   const guideBarRef = useRef<HTMLDivElement>(null);
   // Positioning references for the claim (雷達配對) overlay: gamePageRootRef is
   // the `relative` containing block the overlay is absolutely positioned
-  // within, and actionBarRef is the 打出這張牌/摸牌 bar it aligns its first
-  // row to. Both are read via getBoundingClientRect() at render time and
+  // within, and actionBarRef / guideBarRef give the width it matches and the bottom edge it
+  // grows upward from. All are read via getBoundingClientRect() at render time and
   // subtracted from each other rather than compared against window.innerHeight
   // — on iPhone landscape this root scrolls (overflow-y-auto), so its content
   // height can exceed the viewport, and an absolutely positioned descendant
@@ -458,16 +458,20 @@ export default function App() {
   const gameMinPx = (px: number) => Math.max(px, GAME_MIN_TEXT_PX);
   const gameMinClass = (_phoneClass: string) => (isPhoneSized ? 'text-base' : 'text-2xl');
 
-  // Shared format for every game action button — 打牌／摸牌 (ACTION BAR) and
-  // 過／胡牌／槓／碰／吃 (claim overlay) — in every game mode. Variant only
-  // picks the colors; height, font size, shape and animation are identical.
-  // Height = hand card width (same as before for all of them). Font size is
-  // one formula for all, tied to card size like the claim buttons always were
-  // (打牌／摸牌 used to have a fixed clamp(1rem,5vw,1.5rem) that stayed small
-  // on tablet/PC). The label additionally caps itself to the button's own
-  // width via cqw (button is an inline-size container) so a long label such as
-  // 吃:車馬包 in a crowded single row shrinks to fit instead of overflowing.
-  const actionBtnFontPx = gameMinPx(Math.min(handCardDims.w * 0.5, handCardDims.h * 0.34));
+  // Shared format for every game action button — 打出這張牌／摸牌 (ACTION BAR)
+  // and 過／胡牌／槓／碰／吃 (the separate claim block) — in every game mode.
+  // Variant only picks the colors; shape and animation are identical. Size
+  // comes from the hand card size: 'bar' = height of one card width (the
+  // ACTION BAR), 'claim' = noticeably larger, since the claim block is its own
+  // panel and has room to spare. The label additionally caps itself to the
+  // button's own width via cqw (button is an inline-size container) so a long
+  // label such as 吃:車馬包 in a crowded single row shrinks to fit instead of
+  // overflowing.
+  const ACTION_BTN_SIZES = {
+    bar: { h: handCardDims.w, fs: gameMinPx(Math.min(handCardDims.w * 0.5, handCardDims.h * 0.34)) },
+    claim: { h: Math.round(handCardDims.w * 1.45), fs: gameMinPx(Math.min(handCardDims.w * 0.68, handCardDims.h * 0.46)) },
+  };
+  type ActionBtnSize = keyof typeof ACTION_BTN_SIZES;
   const actionBtnClass = (variant: ActionBtnVariant) => {
     const base = 'flex-1 basis-0 min-w-0 rounded-xl border-2 flex items-center justify-center font-black leading-none whitespace-nowrap overflow-hidden transition-transform';
     switch (variant) {
@@ -477,13 +481,13 @@ export default function App() {
       case 'disabled': return `${base} bg-white/5 border-white/10 text-slate-400 cursor-not-allowed`;
     }
   };
-  const actionBtnStyle = (animate: boolean): React.CSSProperties => ({
-    height: handCardDims.w,
+  const actionBtnStyle = (size: ActionBtnSize, animate: boolean): React.CSSProperties => ({
+    height: ACTION_BTN_SIZES[size].h,
     containerType: 'inline-size',
     ...(animate ? { animation: 'bounceSmall 1s ease-in-out infinite' } : {}),
   });
-  const renderActionBtnLabel = (label: string) => (
-    <span style={{ fontSize: `min(${actionBtnFontPx}px, ${Math.floor(90 / Math.max(1, [...label].length))}cqw)` }}>
+  const renderActionBtnLabel = (size: ActionBtnSize, label: string) => (
+    <span style={{ fontSize: `min(${ACTION_BTN_SIZES[size].fs}px, ${Math.floor(90 / Math.max(1, [...label].length))}cqw)` }}>
       {label}
     </span>
   );
@@ -3640,10 +3644,9 @@ export default function App() {
                       })}
                     </div>
 
-                  {/* ACTION BAR — 打牌 / 摸牌. Uses the same shared action-button format
-                      (actionBtnClass / renderActionBtnLabel) as the claim overlay below, so
-                      both look identical and the overlay's buttons land exactly on top of
-                      these. */}
+                  {/* ACTION BAR — 打出這張牌 / 摸牌. Uses the same shared action-button format
+                      (actionBtnClass / renderActionBtnLabel) as the separate claim block below
+                      (which uses the larger 'claim' size). */}
                   <div ref={actionBarRef} className="bg-black/30 px-1.5 py-2 flex items-center gap-1.5 border-t border-white/5 shrink-0">
                     {(() => {
                       const canPlay = !!selectedCardId && canDiscard && gamePhase === 'playing' && curPlayerId === 'player';
@@ -3653,18 +3656,18 @@ export default function App() {
                           <button
                             onClick={() => handlePlayerDiscard(selectedCardId!)}
                             disabled={!canPlay}
-                            style={actionBtnStyle(canPlay)}
+                            style={actionBtnStyle('bar', canPlay)}
                             className={actionBtnClass(canPlay ? 'primary' : 'disabled')}
                           >
-                            {renderActionBtnLabel('打牌')}
+                            {renderActionBtnLabel('bar', '打出這張牌')}
                           </button>
                           <button
                             onClick={handlePlayerDraw}
                             disabled={!canDraw}
-                            style={actionBtnStyle(canDraw)}
+                            style={actionBtnStyle('bar', canDraw)}
                             className={actionBtnClass(canDraw ? 'primary' : 'disabled')}
                           >
-                            {renderActionBtnLabel(deck.length > 0 ? `摸牌 ${deck.length}張` : '牌庫空')}
+                            {renderActionBtnLabel('bar', deck.length > 0 ? `摸牌 ${deck.length}張` : '牌庫空')}
                           </button>
                         </>
                       );
@@ -3754,45 +3757,51 @@ export default function App() {
                 const splitAt = isPhoneLandscape || claimBtns.length <= 2 ? claimBtns.length : Math.ceil(claimBtns.length / 2);
                 const claimRows = [claimBtns.slice(0, splitAt), claimBtns.slice(splitAt)].filter(r => r.length > 0);
 
-                // 直接量測 ACTION BAR 相對 gamePageRootRef（本疊層 absolute 定位的
-                // relative 容器）的位置與寬度，讓第一排按鈕剛好蓋在「打牌／摸牌」
-                // 上。getBoundingClientRect() 是視覺座標（受捲動影響），CSS 的
-                // top 是內容座標，所以要加回 scrollTop（iPhone 橫式時本頁可捲動）。
-                // 本框跟 ACTION BAR 用相同的 border-t + px-1.5 + py-2，按鈕位置因此
-                // 完全重疊；黃框改用 ring（box-shadow）畫，不佔版面。
+                // 獨立的功能區塊：底邊貼齊畫面最下方（GUIDE BAR 底緣），往上長，
+                // 蓋住打牌列／說明列（必要時再往上蓋住部分手牌），左右跟 ACTION BAR
+                // 同寬。按鈕比打牌列大（見 ACTION_BTN_SIZES.claim），按鈕之間、按鈕
+                // 與框之間都只留 4px。
+                //
+                // 位置用量測：guideBarRef／actionBarRef 相對 gamePageRootRef（本疊層
+                // absolute 定位的 relative 容器）。getBoundingClientRect() 是視覺座標
+                // （受捲動影響），CSS 的 top 是內容座標，所以要加回 scrollTop（iPhone
+                // 橫式時本頁可捲動）。top 設在 GUIDE BAR 底緣，再用 translateY(-100%)
+                // 讓整個框往上長，不必預先知道框的高度。
                 const actionBarRect = actionBarRef.current?.getBoundingClientRect();
+                const guideBarRect = guideBarRef.current?.getBoundingClientRect();
                 const ancestorRect = gamePageRootRef.current?.getBoundingClientRect();
-                const boxPos: React.CSSProperties = actionBarRect && ancestorRect
+                const boxPos: React.CSSProperties = actionBarRect && guideBarRect && ancestorRect
                   ? {
-                      top: Math.max(0, (actionBarRect.top - ancestorRect.top) + (gamePageRootRef.current?.scrollTop ?? 0)),
+                      top: (guideBarRect.bottom - ancestorRect.top) + (gamePageRootRef.current?.scrollTop ?? 0),
                       left: actionBarRect.left - ancestorRect.left,
                       width: actionBarRect.width,
+                      transform: 'translateY(-100%)',
                     }
-                  : { top: 0, left: 0, right: 0 };
+                  : { bottom: 0, left: 0, right: 0 };
 
                 return (
                   <div
-                    className="absolute z-40 bg-black/95 border-t border-transparent px-1.5 py-2 rounded-2xl ring-2 ring-yellow-500 shadow-2xl flex flex-col gap-1.5"
-                    style={boxPos}
+                    className="absolute z-40 bg-black/95 border-2 border-yellow-500 p-1 rounded-2xl shadow-2xl flex flex-col gap-1"
+                    style={{ ...boxPos, paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 0.25rem)' }}
                   >
+                    <div className={`${gameMinClass('text-base')} font-black text-yellow-400 w-full text-center leading-tight py-0.5`}>
+                      🚨 雷達配對組信號{triggerSourceLabel ? `（${triggerSourceLabel}）` : ''}！請選擇：
+                    </div>
+
                     {claimRows.map((row, ri) => (
-                      <div key={ri} className="flex gap-1.5">
+                      <div key={ri} className="flex gap-1">
                         {row.map(btn => (
                           <button
                             key={btn.key}
                             onClick={btn.onClick}
-                            style={actionBtnStyle(btn.variant !== 'neutral')}
+                            style={actionBtnStyle('claim', btn.variant !== 'neutral')}
                             className={actionBtnClass(btn.variant)}
                           >
-                            {renderActionBtnLabel(btn.label)}
+                            {renderActionBtnLabel('claim', btn.label)}
                           </button>
                         ))}
                       </div>
                     ))}
-
-                    <div className={`${gameMinClass('text-base')} font-black text-yellow-400 border-t border-white/10 w-full text-center pt-1.5`}>
-                      🚨 雷達配對組信號{triggerSourceLabel ? `（${triggerSourceLabel}）` : ''}！請選擇：
-                    </div>
                   </div>
                 );
               })()}
